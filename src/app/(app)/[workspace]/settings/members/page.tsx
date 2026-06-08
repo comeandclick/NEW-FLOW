@@ -205,7 +205,7 @@ export default function MembersPage({ params }: Props) {
     }
   }
 
-  // Live search — name OR email
+  // Live search — name OR email via server route (admin client bypasses RLS)
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current)
     const q = searchQuery.trim()
@@ -216,23 +216,18 @@ export default function MembersPage({ params }: Props) {
     setSearching(true)
     searchTimer.current = setTimeout(async () => {
       try {
-        const { data } = await getSupabaseClient()
-          .from('profiles')
-          .select('id, full_name, avatar_url, email')
-          .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
-          .limit(8)
-        // Exclude existing members
-        const memberIds = new Set(members.map((m) => m.user_id))
-        setSearchResults(
-          ((data ?? []) as SearchedProfile[]).filter((p) => !memberIds.has(p.id))
-        )
+        const params = new URLSearchParams({ q })
+        if (currentWorkspace?.id) params.set('workspaceId', currentWorkspace.id)
+        const res = await fetch(`/api/profiles/search?${params}`)
+        const data = await res.json()
+        setSearchResults(Array.isArray(data) ? data as SearchedProfile[] : [])
       } catch {
         setSearchResults([])
       } finally {
         setSearching(false)
       }
     }, 300)
-  }, [searchQuery, members]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchQuery, currentWorkspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function resetInviteDialog() {
     setSearchQuery('')
