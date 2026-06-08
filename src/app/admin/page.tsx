@@ -19,15 +19,15 @@ export default async function AdminDashboard() {
   ])
 
   const stats = [
-    { label: 'Total users', value: userCount ?? 0, icon: Users },
-    { label: 'Workspaces', value: workspaceCount ?? 0, icon: Building2 },
-    { label: 'Tasks', value: taskCount ?? 0, icon: CheckSquare },
+    { label: 'Utilisateurs', value: userCount ?? 0, icon: Users },
+    { label: 'Espaces', value: workspaceCount ?? 0, icon: Building2 },
+    { label: 'Tâches', value: taskCount ?? 0, icon: CheckSquare },
     { label: 'Messages', value: messageCount ?? 0, icon: MessageSquare },
   ]
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-xl font-semibold">Dashboard</h1>
+      <h1 className="text-xl font-semibold">Tableau de bord</h1>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="p-4 space-y-2">

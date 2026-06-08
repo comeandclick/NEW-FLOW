@@ -17,15 +17,15 @@ export default async function AdminLogsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-semibold">Activity Logs</h1>
+      <h1 className="text-xl font-semibold">Journaux d&apos;activité</h1>
       <div className="border border-border rounded-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/30">
             <tr>
               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Action</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">User</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Workspace</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Time</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Utilisateur</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Espace</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Heure</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

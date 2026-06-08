@@ -19,10 +19,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!profile?.is_admin) redirect('/')
 
   const nav = [
-    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/workspaces', label: 'Workspaces', icon: Building2 },
-    { href: '/admin/logs', label: 'Activity Logs', icon: ScrollText },
+    { href: '/admin', label: 'Tableau de bord', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'Utilisateurs', icon: Users },
+    { href: '/admin/workspaces', label: 'Espaces', icon: Building2 },
+    { href: '/admin/logs', label: 'Journaux', icon: ScrollText },
   ]
 
   return (
@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <aside className="w-52 border-r border-border flex flex-col">
         <div className="px-4 py-4 border-b border-border">
           <p className="text-sm font-semibold">Flow Admin</p>
-          <p className="text-xs text-muted-foreground">Super admin panel</p>
+          <p className="text-xs text-muted-foreground">Panneau super-admin</p>
         </div>
         <nav className="flex-1 p-2 space-y-0.5">
           {nav.map((item) => (

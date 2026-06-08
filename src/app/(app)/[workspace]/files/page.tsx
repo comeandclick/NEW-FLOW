@@ -59,9 +59,9 @@ export default function FilesPage({ params }: Props) {
     try {
       const uploaded = await filesService.upload(file, currentWorkspace.id, user.id)
       setFiles((prev) => [uploaded, ...prev])
-      toast.success(`${file.name} uploaded`)
+      toast.success(`${file.name} importé`)
     } catch {
-      toast.error('Upload failed')
+      toast.error('Échec de l\'import')
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -69,13 +69,13 @@ export default function FilesPage({ params }: Props) {
   }
 
   async function handleDelete(file: FlowFile) {
-    if (!confirm(`Delete "${file.name}"?`)) return
+    if (!confirm(`Supprimer "${file.name}" ?`)) return
     try {
       await filesService.delete(file.id, file.storage_path)
       setFiles((prev) => prev.filter((f) => f.id !== file.id))
-      toast.success('File deleted')
+      toast.success('Fichier supprimé')
     } catch {
-      toast.error('Failed to delete')
+      toast.error('Échec de la suppression')
     }
   }
 
@@ -86,7 +86,7 @@ export default function FilesPage({ params }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-lg font-semibold">Files</h1>
+        <h1 className="text-lg font-semibold">Fichiers</h1>
         <div className="flex items-center gap-2">
           <input
             ref={inputRef}
@@ -102,7 +102,7 @@ export default function FilesPage({ params }: Props) {
             onClick={() => inputRef.current?.click()}
           >
             <Upload className="h-3.5 w-3.5" />
-            {uploading ? 'Uploading…' : 'Upload'}
+            {uploading ? 'Envoi…' : 'Importer'}
           </Button>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function FilesPage({ params }: Props) {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search files…"
+            placeholder="Rechercher des fichiers…"
             className="pl-8 h-8 text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -121,22 +121,22 @@ export default function FilesPage({ params }: Props) {
 
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Loading…</div>
+          <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Chargement…</div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 space-y-3">
             <File className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No files yet</p>
+            <p className="text-sm text-muted-foreground">Aucun fichier</p>
             <Button size="sm" onClick={() => inputRef.current?.click()}>
-              <Upload className="mr-1.5 h-3.5 w-3.5" /> Upload first file
+              <Upload className="mr-1.5 h-3.5 w-3.5" /> Importer un fichier
             </Button>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-6 py-2 text-xs font-medium text-muted-foreground">Name</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Size</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Uploaded</th>
+                <th className="text-left px-6 py-2 text-xs font-medium text-muted-foreground">Nom</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Taille</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Importé le</th>
                 <th className="px-4 py-2" />
               </tr>
             </thead>

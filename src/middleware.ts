@@ -1,6 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PUBLIC_PATHS = [
+  '/login',
+  '/register',
+  '/reset-password',
+  '/admin/login',
+  '/api/auth/callback',
+]
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -13,9 +21,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -25,25 +31,27 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
 
-  // Redirect unauthenticated users away from app routes
-  if (!user && pathname.startsWith('/(app)')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/reset-password'
+  const isAdminRoute = pathname.startsWith('/admin') && pathname !== '/admin/login'
+
+  if (!user && !isPublic) {
+    const redirectUrl = isAdminRoute
+      ? new URL('/admin/login', request.url)
+      : new URL('/login', request.url)
+    const redirectResponse = NextResponse.redirect(redirectUrl)
+    supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value))
+    return redirectResponse
   }
 
-  // Redirect authenticated users away from auth routes
-  if (user && (pathname === '/login' || pathname === '/register')) {
-    return NextResponse.redirect(new URL('/workspaces', request.url))
-  }
-
-  // Protect admin routes
-  if (pathname.startsWith('/admin') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (user && isAuthPage) {
+    const redirectResponse = NextResponse.redirect(new URL('/workspaces', request.url))
+    supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value))
+    return redirectResponse
   }
 
   return supabaseResponse

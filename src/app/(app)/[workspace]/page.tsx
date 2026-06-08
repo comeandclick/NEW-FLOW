@@ -74,17 +74,17 @@ export default async function WorkspaceHomePage({ params }: Props) {
       <div>
         <h1 className="text-2xl font-semibold">{workspace.name}</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {new Date().toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total tasks', value: totalTasks, icon: CheckSquare },
-          { label: 'In progress', value: inProgressTasks, icon: TrendingUp },
-          { label: 'To do', value: todoTasks, icon: CheckSquare },
-          { label: 'Completed', value: doneTasks, icon: CheckSquare },
+          { label: 'Total tâches', value: totalTasks, icon: CheckSquare },
+          { label: 'En cours', value: inProgressTasks, icon: TrendingUp },
+          { label: 'À faire', value: todoTasks, icon: CheckSquare },
+          { label: 'Terminées', value: doneTasks, icon: CheckSquare },
         ].map((stat) => (
           <Card key={stat.label} className="p-4 space-y-1">
             <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -99,10 +99,10 @@ export default async function WorkspaceHomePage({ params }: Props) {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-muted-foreground" />
-              Active tasks
+              Tâches actives
             </h2>
             <Link href={`/${slug}/tasks`} className="text-xs text-muted-foreground hover:text-foreground">
-              View all →
+              Voir tout →
             </Link>
           </div>
           {recentTasks && recentTasks.length > 0 ? (
@@ -122,7 +122,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground">No active tasks</p>
+            <p className="text-xs text-muted-foreground">Aucune tâche active</p>
           )}
         </Card>
 
@@ -131,10 +131,10 @@ export default async function WorkspaceHomePage({ params }: Props) {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
-              Recent notes
+              Notes récentes
             </h2>
             <Link href={`/${slug}/notes`} className="text-xs text-muted-foreground hover:text-foreground">
-              View all →
+              Voir tout →
             </Link>
           </div>
           {recentNotes && recentNotes.length > 0 ? (
@@ -148,14 +148,14 @@ export default async function WorkspaceHomePage({ params }: Props) {
                     <span>{note.icon ?? '📄'}</span>
                     <span className="flex-1 truncate group-hover:text-foreground">{note.title}</span>
                     <span className="text-xs shrink-0">
-                      {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: undefined })}
                     </span>
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground">No notes yet</p>
+            <p className="text-xs text-muted-foreground">Aucune note</p>
           )}
         </Card>
 
@@ -164,10 +164,10 @@ export default async function WorkspaceHomePage({ params }: Props) {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium flex items-center gap-2">
               <Video className="h-4 w-4 text-muted-foreground" />
-              Upcoming events
+              Événements à venir
             </h2>
             <Link href={`/${slug}/calendar`} className="text-xs text-muted-foreground hover:text-foreground">
-              View all →
+              Voir tout →
             </Link>
           </div>
           {upcomingEvents && upcomingEvents.length > 0 ? (
@@ -185,7 +185,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground">No upcoming events</p>
+            <p className="text-xs text-muted-foreground">Aucun événement à venir</p>
           )}
         </Card>
       </div>

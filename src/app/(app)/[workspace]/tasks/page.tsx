@@ -28,7 +28,7 @@ export default function TasksPage({ params }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-        <h1 className="text-lg font-semibold">Tasks</h1>
+        <h1 className="text-lg font-semibold">Tâches</h1>
         <div className="flex items-center gap-2">
           <Tabs value={view} onValueChange={(v) => setView(v as 'kanban' | 'list')}>
             <TabsList className="h-7">
@@ -36,12 +36,12 @@ export default function TasksPage({ params }: Props) {
                 <LayoutGrid className="h-3 w-3" /> Kanban
               </TabsTrigger>
               <TabsTrigger value="list" className="h-5 px-2 text-xs gap-1">
-                <List className="h-3 w-3" /> List
+                <List className="h-3 w-3" /> Liste
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> New task
+            <Plus className="h-3.5 w-3.5" /> Nouvelle tâche
           </Button>
         </div>
       </div>
@@ -57,7 +57,7 @@ export default function TasksPage({ params }: Props) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>New task</DialogTitle>
+            <DialogTitle>Nouvelle tâche</DialogTitle>
           </DialogHeader>
           <TaskForm
             workspaceId={currentWorkspace?.id ?? ''}

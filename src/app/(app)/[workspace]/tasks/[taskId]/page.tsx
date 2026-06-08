@@ -58,7 +58,7 @@ export default function TaskDetailPage({ params }: Props) {
     if (!task || !value) return
     updateTask(task.id, { status: value })
     await tasksService.update(task.id, { status: value })
-    toast.success('Status updated')
+    toast.success('Statut mis à jour')
   }
 
   async function handlePriorityChange(value: Task['priority'] | null) {
@@ -78,7 +78,7 @@ export default function TaskDetailPage({ params }: Props) {
       const fresh = await tasksService.getComments(task.id)
       useTaskStore.getState().setTaskComments(task.id, fresh as never)
     } catch {
-      toast.error('Failed to add comment')
+      toast.error('Impossible d\'ajouter le commentaire')
     } finally {
       setSubmitting(false)
     }
@@ -87,7 +87,7 @@ export default function TaskDetailPage({ params }: Props) {
   if (!task) {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-        Loading task…
+        Chargement…
       </div>
     )
   }
@@ -111,11 +111,11 @@ export default function TaskDetailPage({ params }: Props) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todo">To do</SelectItem>
-            <SelectItem value="in_progress">In progress</SelectItem>
-            <SelectItem value="in_review">In review</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="todo">À faire</SelectItem>
+            <SelectItem value="in_progress">En cours</SelectItem>
+            <SelectItem value="in_review">En revue</SelectItem>
+            <SelectItem value="done">Terminé</SelectItem>
+            <SelectItem value="cancelled">Annulé</SelectItem>
           </SelectContent>
         </Select>
 
@@ -125,15 +125,15 @@ export default function TaskDetailPage({ params }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="urgent">Urgent</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="high">Élevée</SelectItem>
+            <SelectItem value="medium">Moyenne</SelectItem>
+            <SelectItem value="low">Faible</SelectItem>
           </SelectContent>
         </Select>
 
         {task.due_date && (
           <Badge variant="outline" className="text-xs">
-            Due {format(new Date(task.due_date), 'MMM d, yyyy')}
+            Échéance : {format(new Date(task.due_date), 'dd/MM/yyyy')}
           </Badge>
         )}
 
@@ -156,7 +156,7 @@ export default function TaskDetailPage({ params }: Props) {
 
       {/* Comments */}
       <div className="space-y-4">
-        <h2 className="text-sm font-medium">Comments ({comments.length})</h2>
+        <h2 className="text-sm font-medium">Commentaires ({comments.length})</h2>
 
         {comments.map((comment) => {
           const c = comment as typeof comment & { user?: { full_name?: string; avatar_url?: string; email: string } }
@@ -181,7 +181,7 @@ export default function TaskDetailPage({ params }: Props) {
 
         <form onSubmit={handleAddComment} className="flex gap-2">
           <Input
-            placeholder="Add a comment…"
+            placeholder="Ajouter un commentaire…"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             className="h-8 text-sm"

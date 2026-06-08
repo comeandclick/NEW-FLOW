@@ -17,16 +17,16 @@ export default async function AdminWorkspacesPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-semibold">Workspaces ({workspaces?.length ?? 0})</h1>
+      <h1 className="text-xl font-semibold">Espaces ({workspaces?.length ?? 0})</h1>
       <div className="border border-border rounded-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/30">
             <tr>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Name</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Owner</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Nom</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Propriétaire</th>
               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Plan</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Members</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Created</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Membres</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Créé le</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

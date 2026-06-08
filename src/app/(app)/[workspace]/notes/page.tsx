@@ -42,13 +42,13 @@ export default function NotesPage({ params }: Props) {
     try {
       const note = await notesService.create({
         workspace_id: currentWorkspace.id,
-        title: 'Untitled',
+        title: 'Sans titre',
         created_by: user.id,
         content: {},
       })
       router.push(`/${slug}/notes/${note.id}`)
     } catch {
-      toast.error('Failed to create note')
+      toast.error('Impossible de créer la note')
     }
   }
 
@@ -64,7 +64,7 @@ export default function NotesPage({ params }: Props) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <h1 className="text-lg font-semibold">Notes</h1>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={createNote}>
-          <Plus className="h-3.5 w-3.5" /> New note
+          <Plus className="h-3.5 w-3.5" /> Nouvelle note
         </Button>
       </div>
 
@@ -72,7 +72,7 @@ export default function NotesPage({ params }: Props) {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search notes…"
+            placeholder="Rechercher des notes…"
             className="pl-8 h-8 text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -84,7 +84,7 @@ export default function NotesPage({ params }: Props) {
         {pinned.length > 0 && (
           <section className="space-y-2">
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Pin className="h-3 w-3" /> Pinned
+              <Pin className="h-3 w-3" /> Épinglées
             </h2>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {pinned.map((note) => <NoteCard key={note.id} note={note} slug={slug} />)}
@@ -97,13 +97,13 @@ export default function NotesPage({ params }: Props) {
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</h2>
           )}
           {loading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
+            <div className="text-sm text-muted-foreground">Chargement…</div>
           ) : rest.length === 0 ? (
             <div className="text-center py-12 space-y-3">
               <FileText className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">No notes yet</p>
+              <p className="text-sm text-muted-foreground">Aucune note</p>
               <Button size="sm" onClick={createNote}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Create your first note
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Créer ma première note
               </Button>
             </div>
           ) : (
@@ -124,7 +124,7 @@ function NoteCard({ note, slug }: { note: Note; slug: string }) {
         <div className="flex items-start gap-2">
           <span className="text-lg shrink-0">{note.icon ?? '📄'}</span>
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-sm truncate">{note.title || 'Untitled'}</p>
+            <p className="font-medium text-sm truncate">{note.title || 'Sans titre'}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {format(new Date(note.updated_at), 'MMM d, yyyy')}
             </p>

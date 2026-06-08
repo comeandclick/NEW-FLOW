@@ -22,10 +22,10 @@ export default function NewWorkspacePage() {
     setLoading(true)
     try {
       const ws = await workspacesService.create(name.trim(), user.id)
-      toast.success(`Workspace "${ws.name}" created!`)
+      toast.success(`Espace "${ws.name}" créé !`)
       router.push(`/${ws.slug}`)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create workspace'
+      const msg = err instanceof Error ? err.message : 'Impossible de créer l\'espace'
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -36,15 +36,15 @@ export default function NewWorkspacePage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6 p-8">
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-semibold">Create workspace</h1>
-          <p className="text-sm text-muted-foreground">A workspace is for your company or big project</p>
+          <h1 className="text-2xl font-semibold">Créer un espace</h1>
+          <p className="text-sm text-muted-foreground">Un espace pour votre équipe ou projet</p>
         </div>
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Workspace name</Label>
+            <Label htmlFor="name">Nom de l&apos;espace</Label>
             <Input
               id="name"
-              placeholder="Acme Inc"
+              placeholder="Mon Entreprise"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -53,11 +53,11 @@ export default function NewWorkspacePage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading || !name.trim()}>
-            {loading ? 'Creating…' : 'Create workspace'}
+            {loading ? 'Création…' : 'Créer l\'espace'}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
-          <Link href="/workspaces" className="hover:underline">Back to workspaces</Link>
+          <Link href="/workspaces" className="hover:underline">Retour aux espaces</Link>
         </p>
       </div>
     </div>

@@ -54,7 +54,7 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
             onClick={() => setCommandPaletteOpen(true)}
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Search</span>
+            <span className="hidden sm:inline">Rechercher</span>
             <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] opacity-60">
               ⌘K
             </kbd>
@@ -79,17 +79,17 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push(`/${workspaceSlug}/settings`)}>
-                  Settings
+                  Paramètres
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/workspaces')}>
-                  Switch workspace
+                  Changer d&apos;espace
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={async () => { await signOut(); router.push('/login') }}
+                  onClick={async () => { await signOut(); window.location.href = '/login' }}
                 >
-                  Sign out
+                  Se déconnecter
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

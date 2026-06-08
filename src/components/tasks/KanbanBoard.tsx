@@ -27,10 +27,10 @@ import type { Task } from '@/types/database'
 type ColumnId = Task['status']
 
 const COLUMNS: { id: ColumnId; label: string; color: string }[] = [
-  { id: 'todo', label: 'To Do', color: 'text-slate-400' },
-  { id: 'in_progress', label: 'In Progress', color: 'text-blue-400' },
-  { id: 'in_review', label: 'In Review', color: 'text-purple-400' },
-  { id: 'done', label: 'Done', color: 'text-green-400' },
+  { id: 'todo', label: 'À faire', color: 'text-slate-400' },
+  { id: 'in_progress', label: 'En cours', color: 'text-blue-400' },
+  { id: 'in_review', label: 'En revue', color: 'text-purple-400' },
+  { id: 'done', label: 'Terminé', color: 'text-green-400' },
 ]
 
 interface ByStatus {

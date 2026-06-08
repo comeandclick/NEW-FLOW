@@ -57,10 +57,10 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
         parent_task_id: parentTaskId ?? null,
       })
       addTask(task)
-      toast.success('Task created')
+      toast.success('Tâche créée')
       onSuccess(task)
-    } catch (err) {
-      toast.error('Failed to create task')
+    } catch {
+      toast.error('Impossible de créer la tâche')
     } finally {
       setLoading(false)
     }
@@ -69,10 +69,10 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
+        <Label htmlFor="title">Titre</Label>
         <Input
           id="title"
-          placeholder="Task title"
+          placeholder="Titre de la tâche"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -84,7 +84,7 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
         <Label htmlFor="description">Description</Label>
         <Textarea
           id="description"
-          placeholder="Optional description…"
+          placeholder="Description optionnelle…"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
@@ -93,31 +93,31 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label>Priority</Label>
+          <Label>Priorité</Label>
           <Select value={priority} onValueChange={(v) => setPriority(v as Task['priority'])}>
             <SelectTrigger className="h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="urgent">🔴 Urgent</SelectItem>
-              <SelectItem value="high">🟠 High</SelectItem>
-              <SelectItem value="medium">🟡 Medium</SelectItem>
-              <SelectItem value="low">🔵 Low</SelectItem>
+              <SelectItem value="high">🟠 Élevée</SelectItem>
+              <SelectItem value="medium">🟡 Moyenne</SelectItem>
+              <SelectItem value="low">🔵 Faible</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label>Status</Label>
+          <Label>Statut</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as Task['status'])}>
             <SelectTrigger className="h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todo">To do</SelectItem>
-              <SelectItem value="in_progress">In progress</SelectItem>
-              <SelectItem value="in_review">In review</SelectItem>
-              <SelectItem value="done">Done</SelectItem>
+              <SelectItem value="todo">À faire</SelectItem>
+              <SelectItem value="in_progress">En cours</SelectItem>
+              <SelectItem value="in_review">En revue</SelectItem>
+              <SelectItem value="done">Terminé</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -125,13 +125,13 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label>Assignee</Label>
+          <Label>Assigné à</Label>
           <Select value={assigneeId} onValueChange={(v) => setAssigneeId(v ?? '')}>
             <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="Unassigned" />
+              <SelectValue placeholder="Non assigné" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Unassigned</SelectItem>
+              <SelectItem value="">Non assigné</SelectItem>
               {currentWorkspaceMembers.map((m) => {
                 const member = m as { user_id: string; profile?: { full_name?: string; email: string } }
                 return (
@@ -145,7 +145,7 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="due">Due date</Label>
+          <Label htmlFor="due">Date d&apos;échéance</Label>
           <Input
             id="due"
             type="date"
@@ -158,13 +158,13 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
 
       {projects.length > 0 && !projectId && (
         <div className="space-y-2">
-          <Label>Project</Label>
+          <Label>Projet</Label>
           <Select value={selectedProjectId} onValueChange={(v) => setSelectedProjectId(v ?? '')}>
             <SelectTrigger className="h-8 text-sm">
-              <SelectValue placeholder="No project" />
+              <SelectValue placeholder="Aucun projet" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No project</SelectItem>
+              <SelectItem value="">Aucun projet</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
@@ -176,11 +176,11 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
       <div className="flex justify-end gap-2 pt-2">
         {onCancel && (
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            Annuler
           </Button>
         )}
         <Button type="submit" size="sm" disabled={loading || !title.trim()}>
-          {loading ? 'Creating…' : 'Create task'}
+          {loading ? 'Création…' : 'Créer la tâche'}
         </Button>
       </div>
     </form>

@@ -12,7 +12,6 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault()
@@ -32,12 +31,12 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-sm space-y-4 p-8 text-center">
-          <h1 className="text-2xl font-semibold">Check your email</h1>
+          <h1 className="text-2xl font-semibold">Vérifiez votre e-mail</h1>
           <p className="text-muted-foreground text-sm">
-            We sent a reset link to <strong>{email}</strong>
+            Lien de réinitialisation envoyé à <strong>{email}</strong>
           </p>
           <Link href="/login">
-            <Button variant="outline" className="w-full">Back to sign in</Button>
+            <Button variant="outline" className="w-full">Retour à la connexion</Button>
           </Link>
         </div>
       </div>
@@ -48,16 +47,16 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6 p-8">
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Reset password</h1>
-          <p className="text-sm text-muted-foreground">Enter your email to receive a reset link</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Mot de passe oublié</h1>
+          <p className="text-sm text-muted-foreground">Saisissez votre e-mail pour recevoir un lien de réinitialisation</p>
         </div>
         <form onSubmit={handleReset} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Adresse e-mail</Label>
             <Input
               id="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="vous@exemple.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -65,12 +64,12 @@ export default function ResetPasswordPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Sending…' : 'Send reset link'}
+            {loading ? 'Envoi…' : 'Envoyer le lien'}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
           <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
-            Back to sign in
+            Retour à la connexion
           </Link>
         </p>
       </div>

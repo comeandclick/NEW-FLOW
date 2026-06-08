@@ -47,18 +47,18 @@ export function CommandPalette({ workspaceSlug }: { workspaceSlug: string }) {
 
   return (
     <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
-      <CommandInput placeholder="Search or jump to…" />
+      <CommandInput placeholder="Rechercher ou naviguer…" />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>Aucun résultat.</CommandEmpty>
 
-        <CommandGroup heading="Navigate">
+        <CommandGroup heading="Naviguer">
           <CommandItem onSelect={() => navigate(base)}>
             <LayoutDashboard className="mr-2 h-4 w-4" />
-            Home
+            Accueil
           </CommandItem>
           <CommandItem onSelect={() => navigate(`${base}/tasks`)}>
             <CheckSquare className="mr-2 h-4 w-4" />
-            Tasks
+            Tâches
           </CommandItem>
           <CommandItem onSelect={() => navigate(`${base}/notes`)}>
             <FileText className="mr-2 h-4 w-4" />
@@ -66,7 +66,7 @@ export function CommandPalette({ workspaceSlug }: { workspaceSlug: string }) {
           </CommandItem>
           <CommandItem onSelect={() => navigate(`${base}/calendar`)}>
             <Calendar className="mr-2 h-4 w-4" />
-            Calendar
+            Calendrier
           </CommandItem>
           <CommandItem onSelect={() => navigate(`${base}/messages`)}>
             <MessageSquare className="mr-2 h-4 w-4" />
@@ -74,35 +74,35 @@ export function CommandPalette({ workspaceSlug }: { workspaceSlug: string }) {
           </CommandItem>
           <CommandItem onSelect={() => navigate(`${base}/files`)}>
             <FolderOpen className="mr-2 h-4 w-4" />
-            Files
+            Fichiers
           </CommandItem>
           <CommandItem onSelect={() => navigate(`${base}/meetings`)}>
             <Video className="mr-2 h-4 w-4" />
-            Meetings
+            Réunions
           </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
-        <CommandGroup heading="Create">
+        <CommandGroup heading="Créer">
           <CommandItem onSelect={() => { navigate(`${base}/tasks`); setCommandPaletteOpen(false) }}>
             <Plus className="mr-2 h-4 w-4" />
-            New Task
+            Nouvelle tâche
           </CommandItem>
           <CommandItem onSelect={() => { navigate(`${base}/notes`); setCommandPaletteOpen(false) }}>
             <Plus className="mr-2 h-4 w-4" />
-            New Note
+            Nouvelle note
           </CommandItem>
           <CommandItem onSelect={() => { navigate(`${base}/meetings`); setCommandPaletteOpen(false) }}>
             <Plus className="mr-2 h-4 w-4" />
-            New Meeting
+            Nouvelle réunion
           </CommandItem>
         </CommandGroup>
 
         {tasks.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Recent Tasks">
+            <CommandGroup heading="Tâches récentes">
               {tasks.slice(0, 5).map((task) => (
                 <CommandItem
                   key={task.id}
@@ -119,7 +119,7 @@ export function CommandPalette({ workspaceSlug }: { workspaceSlug: string }) {
         {workspaces.length > 1 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Switch Workspace">
+            <CommandGroup heading="Changer d'espace">
               {workspaces.map((ws) => (
                 <CommandItem
                   key={ws.id}

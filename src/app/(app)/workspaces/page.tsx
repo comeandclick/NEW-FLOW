@@ -30,8 +30,8 @@ export default async function WorkspacesPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-8">
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-semibold">Your workspaces</h1>
-          <p className="text-muted-foreground text-sm">Select a workspace to continue</p>
+          <h1 className="text-2xl font-semibold">Vos espaces</h1>
+          <p className="text-muted-foreground text-sm">Sélectionnez un espace pour continuer</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -58,7 +58,7 @@ export default async function WorkspacesPage() {
                   <div className="h-9 w-9 rounded-lg border-2 border-dashed flex items-center justify-center">
                     <Plus className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">Create workspace</p>
+                  <p className="text-sm text-muted-foreground">Créer un espace</p>
                 </div>
               </Card>
             </Link>
@@ -67,11 +67,11 @@ export default async function WorkspacesPage() {
 
         {workspaces.length === 0 && (
           <div className="text-center space-y-4">
-            <p className="text-muted-foreground text-sm">You don&apos;t have any workspaces yet</p>
+            <p className="text-muted-foreground text-sm">Vous n&apos;avez pas encore d&apos;espace</p>
             <Link href="/workspaces/new">
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Create your first workspace
+                Créer mon premier espace
               </Button>
             </Link>
           </div>

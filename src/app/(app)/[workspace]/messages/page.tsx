@@ -54,7 +54,7 @@ export default function MessagesPage({ params }: Props) {
       setChannelName('')
       router.push(`/${slug}/messages/${conv.id}`)
     } catch {
-      toast.error('Failed to create channel')
+      toast.error('Impossible de créer le canal')
     }
   }
 
@@ -66,18 +66,18 @@ export default function MessagesPage({ params }: Props) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <h1 className="text-lg font-semibold">Messages</h1>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> New channel
+          <Plus className="h-3.5 w-3.5" /> Nouveau canal
         </Button>
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-6">
         {loading ? (
-          <div className="text-sm text-muted-foreground">Loading…</div>
+          <div className="text-sm text-muted-foreground">Chargement…</div>
         ) : (
           <>
             {channels.length > 0 && (
               <section className="space-y-1">
-                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Channels</h2>
+                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Canaux</h2>
                 {channels.map((conv) => (
                   <Link key={conv.id} href={`/${slug}/messages/${conv.id}`}>
                     <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer">
@@ -91,7 +91,7 @@ export default function MessagesPage({ params }: Props) {
 
             {dms.length > 0 && (
               <section className="space-y-1">
-                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Direct Messages</h2>
+                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Messages directs</h2>
                 {dms.map((conv) => {
                   const otherMember = conv.members?.find((m: { user_id: string }) => m.user_id !== user?.id)
                   const memberWithProfile = otherMember as { profile?: { full_name?: string; email: string } } | undefined
@@ -100,7 +100,7 @@ export default function MessagesPage({ params }: Props) {
                       <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer">
                         <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-sm">
-                          {memberWithProfile?.profile?.full_name ?? memberWithProfile?.profile?.email ?? 'Unknown'}
+                          {memberWithProfile?.profile?.full_name ?? memberWithProfile?.profile?.email ?? 'Inconnu'}
                         </span>
                       </div>
                     </Link>
@@ -112,9 +112,9 @@ export default function MessagesPage({ params }: Props) {
             {conversations.length === 0 && (
               <div className="text-center py-12 space-y-3">
                 <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto" />
-                <p className="text-sm text-muted-foreground">No conversations yet</p>
+                <p className="text-sm text-muted-foreground">Aucune conversation</p>
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Create first channel
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Créer un canal
                 </Button>
               </div>
             )}
@@ -125,11 +125,11 @@ export default function MessagesPage({ params }: Props) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>New channel</DialogTitle>
+            <DialogTitle>Nouveau canal</DialogTitle>
           </DialogHeader>
           <form onSubmit={createChannel} className="space-y-4">
             <div className="space-y-2">
-              <Label>Channel name</Label>
+              <Label>Nom du canal</Label>
               <Input
                 placeholder="general"
                 value={channelName}
@@ -139,10 +139,10 @@ export default function MessagesPage({ params }: Props) {
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label>Private channel</Label>
+              <Label>Canal privé</Label>
               <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
             </div>
-            <Button type="submit" className="w-full" size="sm">Create channel</Button>
+            <Button type="submit" className="w-full" size="sm">Créer le canal</Button>
           </form>
         </DialogContent>
       </Dialog>

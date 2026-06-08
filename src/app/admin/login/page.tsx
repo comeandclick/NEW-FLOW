@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,37 +9,31 @@ import { toast } from 'sonner'
 import { Shield } from 'lucide-react'
 
 export default function AdminLoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
 
+  async function signIn(e_mail: string, pwd: string) {
+    const { error } = await getSupabaseClient().auth.signInWithPassword({ email: e_mail, password: pwd })
+    if (error) {
+      toast.error(error.message)
+      return false
+    }
+    window.location.href = '/admin'
+    return true
+  }
+
   async function handleDemoLogin() {
     setDemoLoading(true)
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
-      email: 'demo@flow.app',
-      password: 'demo123456',
-    })
-    if (error) {
-      toast.error('Échec: ' + error.message)
-    } else {
-      router.push('/admin')
-      router.refresh()
-    }
+    await signIn('demo@flow.app', 'demo123456')
     setDemoLoading(false)
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await getSupabaseClient().auth.signInWithPassword({ email, password })
-    if (error) {
-      toast.error(error.message)
-    } else {
-      router.push('/admin')
-      router.refresh()
-    }
+    await signIn(email, password)
     setLoading(false)
   }
 
@@ -54,16 +47,15 @@ export default function AdminLoginPage() {
             </div>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Flow Admin</h1>
-          <p className="text-sm text-muted-foreground">Accès super-admin uniquement</p>
+          <p className="text-sm text-muted-foreground">Accès super-administrateur uniquement</p>
         </div>
 
         <Button
-          className="w-full border-2 font-medium"
-          variant="secondary"
+          className="w-full font-semibold h-11 text-base"
           onClick={handleDemoLogin}
           disabled={demoLoading}
         >
-          {demoLoading ? 'Connexion…' : '⚡ Accès démo admin — connexion automatique'}
+          {demoLoading ? 'Connexion en cours…' : '⚡ Accès démo admin — connexion automatique'}
         </Button>
 
         <div className="relative">
@@ -77,11 +69,11 @@ export default function AdminLoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email admin</Label>
+            <Label htmlFor="email">Adresse e-mail admin</Label>
             <Input
               id="email"
               type="email"
-              placeholder="admin@example.com"
+              placeholder="admin@exemple.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

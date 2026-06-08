@@ -36,9 +36,9 @@ export default function WorkspaceSettingsPage({ params }: Props) {
         .eq('id', currentWorkspace.id)
       if (error) throw error
       updateWorkspace(currentWorkspace.id, { name: name.trim() })
-      toast.success('Settings saved')
+      toast.success('Paramètres enregistrés')
     } catch {
-      toast.error('Failed to save')
+      toast.error('Échec de l\'enregistrement')
     } finally {
       setSaving(false)
     }
@@ -47,15 +47,15 @@ export default function WorkspaceSettingsPage({ params }: Props) {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-8">
       <div>
-        <h1 className="text-lg font-semibold">Workspace Settings</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Manage your workspace</p>
+        <h1 className="text-lg font-semibold">Paramètres de l&apos;espace</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Gérez votre espace de travail</p>
       </div>
 
       <Separator />
 
       <form onSubmit={handleSave} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="name">Workspace name</Label>
+          <Label htmlFor="name">Nom de l&apos;espace</Label>
           <Input
             id="name"
             value={name}
@@ -66,13 +66,13 @@ export default function WorkspaceSettingsPage({ params }: Props) {
         </div>
 
         <div className="space-y-2">
-          <Label>Workspace URL</Label>
+          <Label>URL de l&apos;espace</Label>
           <Input
             value={currentWorkspace?.slug ?? ''}
             disabled
             className="max-w-sm text-muted-foreground"
           />
-          <p className="text-xs text-muted-foreground">Slug cannot be changed</p>
+          <p className="text-xs text-muted-foreground">Le slug ne peut pas être modifié</p>
         </div>
 
         <div className="space-y-2">
@@ -80,13 +80,13 @@ export default function WorkspaceSettingsPage({ params }: Props) {
           <div className="flex items-center gap-2">
             <span className="text-sm capitalize">{currentWorkspace?.plan ?? 'free'}</span>
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-              {currentWorkspace?.plan === 'free' ? 'Free tier' : 'Paid'}
+              {currentWorkspace?.plan === 'free' ? 'Gratuit' : 'Payant'}
             </span>
           </div>
         </div>
 
         <Button type="submit" size="sm" disabled={saving}>
-          {saving ? 'Saving…' : 'Save changes'}
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
         </Button>
       </form>
     </div>

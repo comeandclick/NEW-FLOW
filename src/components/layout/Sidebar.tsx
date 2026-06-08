@@ -54,13 +54,13 @@ function NavLink({ item, collapsed, workspaceSlug }: { item: NavItem; collapsed:
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Home', href: '', icon: LayoutDashboard },
-  { label: 'Tasks', href: '/tasks', icon: CheckSquare },
+  { label: 'Accueil', href: '', icon: LayoutDashboard },
+  { label: 'Tâches', href: '/tasks', icon: CheckSquare },
   { label: 'Notes', href: '/notes', icon: FileText },
-  { label: 'Calendar', href: '/calendar', icon: Calendar },
+  { label: 'Calendrier', href: '/calendar', icon: Calendar },
   { label: 'Messages', href: '/messages', icon: MessageSquare },
-  { label: 'Files', href: '/files', icon: FolderOpen },
-  { label: 'Meetings', href: '/meetings', icon: Video },
+  { label: 'Fichiers', href: '/files', icon: FolderOpen },
+  { label: 'Réunions', href: '/meetings', icon: Video },
 ]
 
 export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
@@ -110,7 +110,7 @@ export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
               <Separator className="my-3" />
               <div className="space-y-0.5">
                 <div className="flex items-center justify-between px-2.5 mb-1">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Projects</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Projets</span>
                   <Link href={`/${workspaceSlug}/projects`}>
                     <Button variant="ghost" size="icon" className="h-4 w-4">
                       <Plus className="h-3 w-3" />
@@ -146,12 +146,12 @@ export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
         {/* Bottom nav */}
         <div className={cn('border-t border-border px-2 py-2 space-y-0.5')}>
           <NavLink
-            item={{ label: 'Members', href: '/settings/members', icon: Users }}
+            item={{ label: 'Membres', href: '/settings/members', icon: Users }}
             collapsed={collapsed}
             workspaceSlug={workspaceSlug}
           />
           <NavLink
-            item={{ label: 'Settings', href: '/settings', icon: Settings }}
+            item={{ label: 'Paramètres', href: '/settings', icon: Settings }}
             collapsed={collapsed}
             workspaceSlug={workspaceSlug}
           />

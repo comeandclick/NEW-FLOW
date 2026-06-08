@@ -57,13 +57,13 @@ export default function MembersPage({ params }: Props) {
     setInviting(true)
     try {
       await workspacesService.inviteMember(currentWorkspace.id, inviteEmail, inviteRole, user.id)
-      toast.success(`Invited ${inviteEmail}`)
+      toast.success(`Invitation envoyée à ${inviteEmail}`)
       setInviteEmail('')
       // Refresh members
       const fresh = await workspacesService.getMembers(currentWorkspace.id)
       setMembers(fresh as unknown as MemberWithProfile[])
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to invite')
+      toast.error(err instanceof Error ? err.message : 'Échec de l\'invitation')
     } finally {
       setInviting(false)
     }
@@ -76,20 +76,20 @@ export default function MembersPage({ params }: Props) {
       setMembers((prev) =>
         prev.map((m) => (m.user_id === userId ? { ...m, role } : m))
       )
-      toast.success('Role updated')
+      toast.success('Rôle mis à jour')
     } catch {
-      toast.error('Failed to update role')
+      toast.error('Échec de la mise à jour')
     }
   }
 
   async function handleRemove(userId: string) {
-    if (!currentWorkspace?.id || !confirm('Remove this member?')) return
+    if (!currentWorkspace?.id || !confirm('Retirer ce membre ?')) return
     try {
       await workspacesService.removeMember(currentWorkspace.id, userId)
       setMembers((prev) => prev.filter((m) => m.user_id !== userId))
-      toast.success('Member removed')
+      toast.success('Membre retiré')
     } catch {
-      toast.error('Failed to remove')
+      toast.error('Échec de la suppression')
     }
   }
 
@@ -98,19 +98,19 @@ export default function MembersPage({ params }: Props) {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-8">
       <div>
-        <h1 className="text-lg font-semibold">Members</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+        <h1 className="text-lg font-semibold">Membres</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{members.length} membre{members.length !== 1 ? 's' : ''}</p>
       </div>
 
       {canManage && (
         <>
           <Separator />
           <form onSubmit={handleInvite} className="space-y-3">
-            <h2 className="text-sm font-medium">Invite member</h2>
+            <h2 className="text-sm font-medium">Inviter un membre</h2>
             <div className="flex gap-2">
               <Input
                 type="email"
-                placeholder="colleague@company.com"
+                placeholder="collegue@entreprise.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 required
@@ -122,13 +122,13 @@ export default function MembersPage({ params }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="member">Membre</SelectItem>
+                  <SelectItem value="viewer">Lecteur</SelectItem>
                 </SelectContent>
               </Select>
               <Button type="submit" size="sm" className="h-8 gap-1" disabled={inviting}>
                 <UserPlus className="h-3.5 w-3.5" />
-                {inviting ? 'Inviting…' : 'Invite'}
+                {inviting ? 'Envoi…' : 'Inviter'}
               </Button>
             </div>
           </form>
@@ -161,8 +161,8 @@ export default function MembersPage({ params }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="member">Membre</SelectItem>
+                    <SelectItem value="viewer">Lecteur</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -171,7 +171,7 @@ export default function MembersPage({ params }: Props) {
                   className="h-6 text-xs text-destructive"
                   onClick={() => handleRemove(member.user_id)}
                 >
-                  Remove
+                  Retirer
                 </Button>
               </div>
             ) : (

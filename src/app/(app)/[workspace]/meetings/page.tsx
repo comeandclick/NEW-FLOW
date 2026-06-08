@@ -69,31 +69,31 @@ export default function MeetingsPage({ params }: Props) {
       setMeetings((prev) => [data, ...prev])
       setCreateOpen(false)
       setTitle('')
-      toast.success('Meeting created')
+      toast.success('Réunion créée')
       router.push(`/${slug}/meetings/${data.id}`)
     } catch {
-      toast.error('Failed to create meeting')
+      toast.error('Impossible de créer la réunion')
     }
   }
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-lg font-semibold">Meetings</h1>
+        <h1 className="text-lg font-semibold">Réunions</h1>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> New meeting
+          <Plus className="h-3.5 w-3.5" /> Nouvelle réunion
         </Button>
       </div>
 
       <div className="flex-1 overflow-auto p-6 space-y-3">
         {loading ? (
-          <div className="text-sm text-muted-foreground">Loading…</div>
+          <div className="text-sm text-muted-foreground">Chargement…</div>
         ) : meetings.length === 0 ? (
           <div className="text-center py-12 space-y-3">
             <Video className="h-8 w-8 text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">No meetings yet</p>
+            <p className="text-sm text-muted-foreground">Aucune réunion</p>
             <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Create meeting
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Créer une réunion
             </Button>
           </div>
         ) : (
@@ -131,13 +131,13 @@ export default function MeetingsPage({ params }: Props) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>New meeting</DialogTitle>
+            <DialogTitle>Nouvelle réunion</DialogTitle>
           </DialogHeader>
           <form onSubmit={createMeeting} className="space-y-4">
             <div className="space-y-2">
-              <Label>Title</Label>
+              <Label>Titre</Label>
               <Input
-                placeholder="Weekly sync"
+                placeholder="Réunion hebdomadaire"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -145,7 +145,7 @@ export default function MeetingsPage({ params }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Schedule (optional)</Label>
+              <Label>Planifier (optionnel)</Label>
               <Input
                 type="datetime-local"
                 className="text-sm"
@@ -153,7 +153,7 @@ export default function MeetingsPage({ params }: Props) {
                 onChange={(e) => setScheduledAt(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full" size="sm">Create &amp; join</Button>
+            <Button type="submit" className="w-full" size="sm">Créer et rejoindre</Button>
           </form>
         </DialogContent>
       </Dialog>
