@@ -91,6 +91,19 @@ export const notesService = {
     if (error && !error.message.includes('unique')) throw error
   },
 
+  async search(workspaceId: string, query: string) {
+    const { data, error } = await supabase()
+      .from('notes')
+      .select('id, title, icon')
+      .eq('workspace_id', workspaceId)
+      .eq('is_archived', false)
+      .ilike('title', `%${query}%`)
+      .order('updated_at', { ascending: false })
+      .limit(6)
+    if (error) throw error
+    return data ?? []
+  },
+
   async convertToTask(noteId: string, workspaceId: string, userId: string, title: string) {
     const { data: task, error } = await supabase()
       .from('tasks')

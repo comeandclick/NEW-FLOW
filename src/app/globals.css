@@ -128,3 +128,12 @@
     @apply font-sans;
   }
 }
+
+/* PWA safe-area support (iOS notch/home bar) */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

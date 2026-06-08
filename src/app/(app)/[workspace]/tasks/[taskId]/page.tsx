@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useState, useRef } from 'react'
 import { tasksService } from '@/services/tasks.service'
 import { useTaskStore } from '@/stores/taskStore'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { ArrowLeft, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, Send, Trash2, Plus, CheckSquare, Square } from 'lucide-react'
 import Link from 'next/link'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { Task } from '@/types/database'
@@ -38,10 +38,18 @@ export default function TaskDetailPage({ params }: Props) {
   const { user } = useAuth()
   const tasks = useTaskStore(s => s.tasks)
   const updateTask = useTaskStore(s => s.updateTask)
+  const addTask = useTaskStore(s => s.addTask)
   const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const comments = useTaskComments(taskId)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [newSubtask, setNewSubtask] = useState('')
+  const [addingSubtask, setAddingSubtask] = useState(false)
+  const [showSubtaskInput, setShowSubtaskInput] = useState(false)
+  const subtaskInputRef = useRef<HTMLInputElement>(null)
+
+  // Subtasks: filter from store (realtime-aware)
+  const subtasks = tasks.filter((t) => t.parent_task_id === taskId)
 
   const task = tasks.find((t) => t.id === taskId) as (Task & {
     assignee?: { id: string; full_name?: string; avatar_url?: string; email: string } | null
@@ -53,6 +61,14 @@ export default function TaskDetailPage({ params }: Props) {
         if (t) updateTask(t.id, t)
       })
     }
+    // Load subtasks from DB (not in main tasks list since they're filtered out)
+    tasksService.getSubtasks(taskId).then((subs) => {
+      subs.forEach((sub) => {
+        if (!tasks.some((t) => t.id === sub.id)) {
+          addTask(sub as Task)
+        }
+      })
+    }).catch(() => {})
   }, [taskId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleStatusChange(value: Task['status'] | null) {
@@ -66,6 +82,39 @@ export default function TaskDetailPage({ params }: Props) {
     if (!task || !value) return
     updateTask(task.id, { priority: value })
     await tasksService.update(task.id, { priority: value })
+  }
+
+  async function handleSubtaskToggle(subtask: Task) {
+    const newStatus = subtask.status === 'done' ? 'todo' : 'done'
+    updateTask(subtask.id, { status: newStatus })
+    await tasksService.update(subtask.id, { status: newStatus }).catch(() => {
+      updateTask(subtask.id, { status: subtask.status })
+      toast.error('Erreur')
+    })
+  }
+
+  async function handleAddSubtask(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newSubtask.trim() || !currentWorkspace?.id || !user) return
+    setAddingSubtask(true)
+    try {
+      const subtask = await tasksService.create({
+        workspace_id: currentWorkspace.id,
+        project_id: task?.project_id ?? null,
+        parent_task_id: taskId,
+        title: newSubtask.trim(),
+        status: 'todo',
+        priority: 'medium',
+        created_by: user.id,
+      })
+      addTask(subtask as Task)
+      setNewSubtask('')
+      subtaskInputRef.current?.focus()
+    } catch {
+      toast.error('Impossible de créer la sous-tâche')
+    } finally {
+      setAddingSubtask(false)
+    }
   }
 
   async function handleAddComment(e: React.FormEvent) {
@@ -152,6 +201,103 @@ export default function TaskDetailPage({ params }: Props) {
       {task.description && (
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.description}</p>
       )}
+
+      <Separator />
+
+      {/* Subtasks */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium flex items-center gap-2">
+            Sous-tâches
+            {subtasks.length > 0 && (
+              <span className="text-xs text-muted-foreground font-normal">
+                {subtasks.filter(s => s.status === 'done').length}/{subtasks.length}
+              </span>
+            )}
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs gap-1 text-muted-foreground"
+            onClick={() => {
+              setShowSubtaskInput(true)
+              setTimeout(() => subtaskInputRef.current?.focus(), 50)
+            }}
+          >
+            <Plus className="h-3 w-3" />
+            Ajouter
+          </Button>
+        </div>
+
+        {/* Progress bar */}
+        {subtasks.length > 0 && (
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{
+                width: `${(subtasks.filter(s => s.status === 'done').length / subtasks.length) * 100}%`,
+              }}
+            />
+          </div>
+        )}
+
+        {/* Subtask list */}
+        {subtasks.map((sub) => (
+          <div
+            key={sub.id}
+            className="flex items-center gap-2.5 group rounded-md px-2 py-1.5 hover:bg-muted/40 transition-colors -mx-2"
+          >
+            <button
+              onClick={() => handleSubtaskToggle(sub)}
+              className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+            >
+              {sub.status === 'done'
+                ? <CheckSquare className="h-4 w-4 text-primary" />
+                : <Square className="h-4 w-4" />
+              }
+            </button>
+            <span className={cn('text-sm flex-1', sub.status === 'done' && 'line-through text-muted-foreground')}>
+              {sub.title}
+            </span>
+          </div>
+        ))}
+
+        {/* Add subtask form */}
+        {showSubtaskInput && (
+          <form onSubmit={handleAddSubtask} className="flex gap-2">
+            <Input
+              ref={subtaskInputRef}
+              placeholder="Titre de la sous-tâche…"
+              value={newSubtask}
+              onChange={(e) => setNewSubtask(e.target.value)}
+              className="h-8 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setShowSubtaskInput(false)
+                  setNewSubtask('')
+                }
+              }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              className="h-8 text-xs"
+              disabled={addingSubtask || !newSubtask.trim()}
+            >
+              {addingSubtask ? '…' : 'Ajouter'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => { setShowSubtaskInput(false); setNewSubtask('') }}
+            >
+              Annuler
+            </Button>
+          </form>
+        )}
+      </div>
 
       <Separator />
 

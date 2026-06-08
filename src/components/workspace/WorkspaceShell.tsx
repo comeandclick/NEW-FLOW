@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation'
 import { Search, LayoutGrid } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 interface WorkspaceShellProps {
   workspaceSlug: string
@@ -91,6 +92,7 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
               <Search className="h-4 w-4" />
             </Button>
 
+            <ThemeToggle />
             <NotificationBell userId={userId} />
 
             <DropdownMenu>

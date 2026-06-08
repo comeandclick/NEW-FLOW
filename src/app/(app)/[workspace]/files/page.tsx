@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  Upload, Search, FileText, Image, Film, File, Trash2, Download
+  Upload, Search, FileText, Image, Film, File, Trash2, Download, Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { FlowFile } from '@/types/database'
+import { FilePreviewModal } from '@/components/files/FilePreviewModal'
 
 interface Props {
   params: Promise<{ workspace: string }>
@@ -41,6 +42,7 @@ export default function FilesPage({ params }: Props) {
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [previewFile, setPreviewFile] = useState<FlowFile | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -142,7 +144,11 @@ export default function FilesPage({ params }: Props) {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((file) => (
-                <tr key={file.id} className="hover:bg-muted/30 transition-colors group">
+                <tr
+                  key={file.id}
+                  className="hover:bg-muted/30 transition-colors group cursor-pointer"
+                  onClick={() => setPreviewFile(file)}
+                >
                   <td className="px-6 py-2.5">
                     <div className="flex items-center gap-2.5">
                       <FileIcon mimeType={file.mime_type} />
@@ -156,9 +162,17 @@ export default function FilesPage({ params }: Props) {
                     {format(new Date(file.created_at), 'MMM d, yyyy')}
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => { e.stopPropagation(); setPreviewFile(file) }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
                       {file.url && (
-                        <a href={file.url} download={file.name} target="_blank" rel="noopener noreferrer">
+                        <a href={file.url} download={file.name} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="h-6 w-6">
                             <Download className="h-3.5 w-3.5" />
                           </Button>
@@ -168,7 +182,7 @@ export default function FilesPage({ params }: Props) {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 text-destructive"
-                        onClick={() => handleDelete(file)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(file) }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -180,6 +194,12 @@ export default function FilesPage({ params }: Props) {
           </table>
         )}
       </div>
+
+      <FilePreviewModal
+        file={previewFile}
+        open={previewFile !== null}
+        onClose={() => setPreviewFile(null)}
+      />
     </div>
   )
 }
