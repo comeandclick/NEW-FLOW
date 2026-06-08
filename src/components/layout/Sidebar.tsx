@@ -8,7 +8,7 @@ import { useUIStore } from '@/stores/uiStore'
 import {
   CheckSquare, FileText, Calendar, MessageSquare, FolderOpen,
   Video, Bell, Settings, ChevronLeft, ChevronRight, Plus,
-  LayoutDashboard, Users
+  LayoutDashboard, Users, User
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -151,6 +151,11 @@ export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
           />
           <NavLink
             item={{ label: 'Paramètres', href: '/settings', icon: Settings }}
+            collapsed={collapsed}
+            workspaceSlug={workspaceSlug}
+          />
+          <NavLink
+            item={{ label: 'Profil', href: '/settings/profile', icon: User }}
             collapsed={collapsed}
             workspaceSlug={workspaceSlug}
           />

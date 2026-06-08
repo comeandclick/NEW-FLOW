@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { MobileNav } from '@/components/layout/MobileNav'
 import { CommandPalette } from '@/components/layout/CommandPalette'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -17,8 +18,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Search, LayoutGrid } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 
 interface WorkspaceShellProps {
   workspaceSlug: string
@@ -32,35 +34,63 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
   const workspace = useWorkspace(workspaceSlug)
   const { unreadCount } = useNotifications(userId)
   const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
 
   const initials = profile?.full_name
     ?.split(' ')
     .map((n) => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2) ?? '?'
+    .slice(0, 2) ?? (profile?.email?.[0]?.toUpperCase() ?? '?')
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar workspaceSlug={workspaceSlug} />
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
+      {/* ── Desktop sidebar (hidden on mobile) ── */}
+      <div className="hidden md:flex h-full shrink-0">
+        <Sidebar workspaceSlug={workspaceSlug} />
+      </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* ── Main column ── */}
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         {/* Topbar */}
-        <header className="flex h-11 items-center justify-between border-b border-border px-4 shrink-0">
+        <header className="flex h-11 items-center justify-between border-b border-border px-3 md:px-4 shrink-0 gap-2">
+          {/* Mobile: workspace name */}
+          <div className="md:hidden flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => router.push('/workspaces')}
+              className="flex items-center gap-1.5 text-sm font-semibold truncate hover:text-muted-foreground transition-colors"
+            >
+              <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{currentWorkspace?.name ?? 'Flow'}</span>
+            </button>
+          </div>
+
+          {/* Desktop: search */}
           <Button
             variant="ghost"
             size="sm"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm h-7 px-2"
+            className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm h-7 px-2"
             onClick={() => setCommandPaletteOpen(true)}
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Rechercher</span>
-            <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] opacity-60">
+            <span>Rechercher</span>
+            <kbd className="inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] opacity-60">
               ⌘K
             </kbd>
           </Button>
 
-          <div className="flex items-center gap-2">
+          {/* Right actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Mobile search */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden h-8 w-8"
+              onClick={() => setCommandPaletteOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+
             <NotificationBell userId={userId} />
 
             <DropdownMenu>
@@ -72,14 +102,17 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
                   </Avatar>
                 </Button>
               } />
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
                 <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{profile?.full_name}</p>
+                  <p className="text-sm font-medium truncate">{profile?.full_name ?? 'Utilisateur'}</p>
                   <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push(`/${workspaceSlug}/settings/profile`)}>
+                  Mon profil
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push(`/${workspaceSlug}/settings`)}>
-                  Paramètres
+                  Paramètres de l&apos;espace
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/workspaces')}>
                   Changer d&apos;espace
@@ -100,6 +133,14 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
         <main className="flex-1 overflow-auto">
           {children}
         </main>
+
+        {/* ── Mobile bottom nav (hidden on desktop) ── */}
+        <div className="md:hidden shrink-0">
+          <MobileNav
+            workspaceSlug={workspaceSlug}
+            workspaceId={currentWorkspace?.id ?? ''}
+          />
+        </div>
       </div>
 
       <CommandPalette workspaceSlug={workspaceSlug} />
