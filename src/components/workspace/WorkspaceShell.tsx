@@ -23,6 +23,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher'
 
 interface WorkspaceShellProps {
   workspaceSlug: string
@@ -58,15 +59,13 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         {/* Topbar */}
         <header className="flex h-11 items-center justify-between border-b border-border px-3 md:px-4 shrink-0 gap-2">
-          {/* Mobile: workspace name */}
-          <div className="md:hidden flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => router.push('/workspaces')}
-              className="flex items-center gap-1.5 text-sm font-semibold truncate hover:text-muted-foreground transition-colors"
-            >
-              <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{currentWorkspace?.name ?? 'Flow'}</span>
-            </button>
+          {/* Mobile: workspace switcher */}
+          <div className="md:hidden flex items-center gap-1 min-w-0">
+            <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <WorkspaceSwitcher
+              currentSlug={workspaceSlug}
+              currentName={currentWorkspace?.name ?? 'Flow'}
+            />
           </div>
 
           {/* Desktop: search */}

@@ -7,13 +7,14 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useUIStore } from '@/stores/uiStore'
 import {
   CheckSquare, FileText, Calendar, MessageSquare, FolderOpen,
-  Video, Bell, Settings, ChevronLeft, ChevronRight, Plus,
+  Video, Settings, ChevronLeft, ChevronRight, Plus,
   LayoutDashboard, Users, User
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher'
 import type { Project } from '@/types/database'
 
 interface NavItem {
@@ -79,10 +80,13 @@ export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
         )}
       >
         {/* Workspace header */}
-        <div className={cn('flex items-center gap-2 px-3 py-3 border-b border-border', collapsed && 'justify-center')}>
+        <div className={cn('flex items-center gap-1 px-2 py-2.5 border-b border-border', collapsed && 'justify-center px-1')}>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{currentWorkspace?.name ?? 'Flow'}</p>
+              <WorkspaceSwitcher
+                currentSlug={workspaceSlug}
+                currentName={currentWorkspace?.name ?? 'Flow'}
+              />
             </div>
           )}
           <Button
