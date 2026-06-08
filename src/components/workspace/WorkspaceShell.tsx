@@ -22,6 +22,7 @@ import { Search, LayoutGrid } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface WorkspaceShellProps {
   workspaceSlug: string
@@ -36,6 +37,8 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
   const { unreadCount } = useNotifications(userId)
   const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
   const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
+
+  useKeyboardShortcuts(workspaceSlug)
 
   const initials = profile?.full_name
     ?.split(' ')
