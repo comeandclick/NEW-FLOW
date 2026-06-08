@@ -8,8 +8,9 @@ import { Plus, Building2 } from 'lucide-react'
 
 export default async function WorkspacesPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) redirect('/login')
+  const user = session.user
 
   const { data: memberships } = await supabase
     .from('workspace_members')

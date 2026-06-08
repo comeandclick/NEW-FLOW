@@ -31,7 +31,8 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession reads from cookie — no network call, fast
+  const { data: { session } } = await supabase.auth.getSession()
 
   const pathname = request.nextUrl.pathname
 
@@ -39,7 +40,7 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/reset-password'
   const isAdminRoute = pathname.startsWith('/admin') && pathname !== '/admin/login'
 
-  if (!user && !isPublic) {
+  if (!session && !isPublic) {
     const redirectUrl = isAdminRoute
       ? new URL('/admin/login', request.url)
       : new URL('/login', request.url)
@@ -48,7 +49,7 @@ export async function middleware(request: NextRequest) {
     return redirectResponse
   }
 
-  if (user && isAuthPage) {
+  if (session && isAuthPage) {
     const redirectResponse = NextResponse.redirect(new URL('/workspaces', request.url))
     supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value))
     return redirectResponse

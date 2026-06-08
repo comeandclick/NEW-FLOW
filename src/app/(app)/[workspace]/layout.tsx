@@ -12,10 +12,9 @@ export default async function WorkspaceLayout({ children, params }: WorkspaceLay
   const { workspace: slug } = await params
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) redirect('/login')
 
-  // Verify workspace exists and user is a member
   const { data: workspace } = await supabase
     .from('workspaces')
     .select('id, name, slug')
@@ -28,13 +27,13 @@ export default async function WorkspaceLayout({ children, params }: WorkspaceLay
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspace.id)
-    .eq('user_id', user.id)
+    .eq('user_id', session.user.id)
     .single()
 
   if (!membership) redirect('/workspaces')
 
   return (
-    <WorkspaceShell workspaceSlug={slug} userId={user.id}>
+    <WorkspaceShell workspaceSlug={slug} userId={session.user.id}>
       {children}
     </WorkspaceShell>
   )
