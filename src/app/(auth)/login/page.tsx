@@ -14,6 +14,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+
+  async function handleDemoLogin() {
+    setDemoLoading(true)
+    const { error } = await getSupabaseClient().auth.signInWithPassword({
+      email: 'demo@flow.app',
+      password: 'demo123456',
+    })
+    if (error) {
+      toast.error('Demo login failed: ' + error.message)
+    } else {
+      router.push('/workspaces')
+      router.refresh()
+    }
+    setDemoLoading(false)
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -88,6 +105,15 @@ export default function LoginPage() {
 
         <Button variant="outline" className="w-full" onClick={handleGoogle}>
           Continue with Google
+        </Button>
+
+        <Button
+          variant="secondary"
+          className="w-full border-2 border-dashed font-medium"
+          onClick={handleDemoLogin}
+          disabled={demoLoading}
+        >
+          {demoLoading ? 'Connexion…' : '⚡ Essayer la démo — connexion automatique'}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">
