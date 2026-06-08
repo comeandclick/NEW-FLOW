@@ -7,7 +7,7 @@ create table if not exists public.workspace_invitations (
   workspace_id uuid references public.workspaces(id) on delete cascade not null,
   email text not null,
   role text not null default 'member',
-  token text unique not null default encode(gen_random_bytes(32), 'hex'),
+  token text unique not null default replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
   invited_by uuid references public.profiles(id),
   welcome_message text,
   accepted_at timestamptz,

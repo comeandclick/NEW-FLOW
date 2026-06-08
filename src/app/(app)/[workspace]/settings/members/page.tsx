@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useAuth } from '@/hooks/useAuth'
@@ -24,6 +24,7 @@ import { toast } from 'sonner'
 import {
   UserPlus, MessageSquare, MoreHorizontal, Shield, Clock,
   Mail, Copy, CheckCircle2, CheckSquare, Loader2, UserMinus, Crown,
+  Search, User,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -55,6 +56,13 @@ interface PendingInvitation {
   token: string
 }
 
+interface SearchedProfile {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  email: string
+}
+
 const ROLE_LABELS: Record<string, string> = {
   owner: 'Propriétaire',
   admin: 'Admin',
@@ -80,17 +88,25 @@ export default function MembersPage({ params }: Props) {
   const [myRole, setMyRole] = useState<string>('member')
   const [loading, setLoading] = useState(true)
 
-  // Invite dialog state
+  // Invite dialog
   const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchedProfile[]>([])
+  const [searching, setSearching] = useState(false)
+  const [selectedProfile, setSelectedProfile] = useState<SearchedProfile | null>(null)
   const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'viewer'>('member')
   const [welcomeMsg, setWelcomeMsg] = useState('')
   const [inviting, setInviting] = useState(false)
-  const [inviteResult, setInviteResult] = useState<{ type: string; inviteUrl?: string; name?: string; dmId?: string } | null>(null)
+  const [inviteResult, setInviteResult] = useState<{
+    type: string; inviteUrl?: string; name?: string; dmId?: string
+  } | null>(null)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Assign tasks dialog
   const [assignTarget, setAssignTarget] = useState<MemberWithProfile | null>(null)
-  const [availableTasks, setAvailableTasks] = useState<{ id: string; title: string; status: string }[]>([])
+  const [availableTasks, setAvailableTasks] = useState<{
+    id: string; title: string; status: string; assignee_id?: string | null
+  }[]>([])
   const [assigningTask, setAssigningTask] = useState<string | null>(null)
 
   const canManage = myRole === 'owner' || myRole === 'admin'
@@ -106,20 +122,17 @@ export default function MembersPage({ params }: Props) {
     try {
       const supabase = getSupabaseClient()
 
-      // Members with task count
-      const { data: rawMembers } = await supabase
+      const { data: rawMembers, error: membersErr } = await supabase
         .from('workspace_members')
-        .select(`
-          id, user_id, role, joined_at,
-          profile:profiles(id, full_name, avatar_url, email)
-        `)
+        .select('id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, email)')
         .eq('workspace_id', currentWorkspace.id)
         .order('joined_at', { ascending: true })
 
-      // Task counts per assignee
+      if (membersErr) console.error('members err:', membersErr)
+
       const { data: tasks } = await supabase
         .from('tasks')
-        .select('assignee_id, status')
+        .select('assignee_id')
         .eq('workspace_id', currentWorkspace.id)
         .neq('status', 'done')
         .not('assignee_id', 'is', null)
@@ -138,7 +151,6 @@ export default function MembersPage({ params }: Props) {
       const me = enriched.find((m) => m.user_id === user?.id)
       if (me) setMyRole(me.role)
 
-      // Pending invitations
       if (me && ['owner', 'admin'].includes(me.role)) {
         const { data: invitations } = await supabase
           .from('workspace_invitations')
@@ -150,15 +162,62 @@ export default function MembersPage({ params }: Props) {
         setPending((invitations ?? []) as PendingInvitation[])
       }
     } catch (err) {
-      console.error(err)
+      console.error('loadAll error:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  // Live search — name OR email
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    const q = searchQuery.trim()
+    if (q.length < 2) {
+      setSearchResults([])
+      return
+    }
+    setSearching(true)
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await getSupabaseClient()
+          .from('profiles')
+          .select('id, full_name, avatar_url, email')
+          .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
+          .limit(8)
+        // Exclude existing members
+        const memberIds = new Set(members.map((m) => m.user_id))
+        setSearchResults(
+          ((data ?? []) as SearchedProfile[]).filter((p) => !memberIds.has(p.id))
+        )
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+  }, [searchQuery, members]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function resetInviteDialog() {
+    setSearchQuery('')
+    setSearchResults([])
+    setSelectedProfile(null)
+    setWelcomeMsg('')
+    setInviteRole('member')
+    setInviteResult(null)
+    setInviting(false)
+  }
+
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
     if (!currentWorkspace?.id) return
+
+    // Need either a selected profile OR a raw email
+    const email = selectedProfile?.email ?? searchQuery.trim()
+    if (!email || !email.includes('@')) {
+      toast.error('Saisissez un email valide ou sélectionnez un profil')
+      return
+    }
+
     setInviting(true)
     setInviteResult(null)
     try {
@@ -167,37 +226,36 @@ export default function MembersPage({ params }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workspaceId: currentWorkspace.id,
-          email: inviteEmail.trim(),
+          email,
           role: inviteRole,
           welcomeMessage: welcomeMsg.trim() || undefined,
         }),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
+      if (!res.ok) throw new Error(json.error ?? 'Erreur serveur')
 
       setInviteResult({
         type: json.type,
         inviteUrl: json.inviteUrl,
-        name: json.member?.name,
+        name: json.member?.name ?? selectedProfile?.full_name ?? email,
         dmId: json.dmConversationId,
       })
-      setInviteEmail('')
-      setWelcomeMsg('')
-      loadAll()
 
       if (json.type === 'added') {
-        toast.success(`${json.member?.name} ajouté à l'espace !`)
+        toast.success(`${json.member?.name ?? email} ajouté à l'espace !`)
       } else {
-        toast.success(`Invitation envoyée à ${inviteEmail}`)
+        toast.success(`Lien d'invitation créé pour ${email}`)
       }
+
+      loadAll()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Échec de l\'invitation')
+      toast.error(err instanceof Error ? err.message : 'Impossible d\'inviter')
     } finally {
       setInviting(false)
     }
   }
 
-  async function handleRoleChange(memberId: string, userId: string, role: 'admin' | 'member' | 'viewer') {
+  async function handleRoleChange(memberId: string, role: 'admin' | 'member' | 'viewer') {
     try {
       const { error } = await getSupabaseClient()
         .from('workspace_members')
@@ -207,13 +265,12 @@ export default function MembersPage({ params }: Props) {
       setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)))
       toast.success('Rôle mis à jour')
     } catch {
-      toast.error('Échec')
+      toast.error('Échec de la mise à jour')
     }
   }
 
   async function handleRemove(member: MemberWithProfile) {
-    if (!currentWorkspace?.id) return
-    if (!confirm(`Retirer ${member.profile?.full_name ?? member.profile?.email} de l'espace ?`)) return
+    if (!confirm(`Retirer ${member.profile?.full_name ?? member.profile?.email ?? 'ce membre'} ?`)) return
     try {
       const { error } = await getSupabaseClient()
         .from('workspace_members')
@@ -223,7 +280,7 @@ export default function MembersPage({ params }: Props) {
       setMembers((prev) => prev.filter((m) => m.id !== member.id))
       toast.success('Membre retiré')
     } catch {
-      toast.error('Échec')
+      toast.error('Impossible de retirer le membre')
     }
   }
 
@@ -250,8 +307,8 @@ export default function MembersPage({ params }: Props) {
       .eq('workspace_id', currentWorkspace.id)
       .neq('status', 'done')
       .order('created_at', { ascending: false })
-      .limit(30)
-    setAvailableTasks((data ?? []) as { id: string; title: string; status: string }[])
+      .limit(40)
+    setAvailableTasks((data ?? []) as { id: string; title: string; status: string; assignee_id?: string | null }[])
   }
 
   async function handleAssignTask(taskId: string) {
@@ -263,7 +320,7 @@ export default function MembersPage({ params }: Props) {
         .update({ assignee_id: assignTarget.user_id })
         .eq('id', taskId)
       if (error) throw error
-      toast.success(`Tâche assignée à ${assignTarget.profile?.full_name ?? 'ce membre'}`)
+      toast.success(`Assigné à ${assignTarget.profile?.full_name ?? 'ce membre'}`)
       setAvailableTasks((prev) =>
         prev.map((t) => t.id === taskId ? { ...t, assignee_id: assignTarget.user_id } : t)
       )
@@ -278,7 +335,6 @@ export default function MembersPage({ params }: Props) {
   async function openDM(memberId: string) {
     if (!currentWorkspace?.id || !user?.id) return
     try {
-      // Find or create DM
       const supabase = getSupabaseClient()
       const { data: convs } = await supabase
         .from('conversations')
@@ -312,10 +368,11 @@ export default function MembersPage({ params }: Props) {
     }
   }
 
-  const initials = (m: MemberWithProfile) => {
-    const n = m.profile?.full_name ?? m.profile?.email ?? '?'
-    return n.split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2)
-  }
+  const initials = (m: MemberWithProfile) =>
+    (m.profile?.full_name ?? m.profile?.email ?? '?')
+      .split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2)
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
@@ -325,25 +382,27 @@ export default function MembersPage({ params }: Props) {
           <h1 className="text-lg font-semibold">Membres</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {members.length} membre{members.length !== 1 ? 's' : ''}
-            {pending.length > 0 && ` · ${pending.length} invitation${pending.length > 1 ? 's' : ''} en attente`}
+            {pending.length > 0 && ` · ${pending.length} en attente`}
           </p>
         </div>
         {canManage && (
-          <Button size="sm" className="gap-1.5" onClick={() => { setInviteOpen(true); setInviteResult(null) }}>
+          <Button
+            size="sm"
+            className="gap-1.5"
+            onClick={() => { resetInviteDialog(); setInviteOpen(true) }}
+          >
             <UserPlus className="h-4 w-4" />
-            Inviter
+            Inviter un collègue
           </Button>
         )}
       </div>
 
       <Separator />
 
-      {/* Member cards */}
+      {/* Member list */}
       {loading ? (
         <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
-          ))}
+          {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />)}
         </div>
       ) : (
         <div className="space-y-2">
@@ -352,61 +411,48 @@ export default function MembersPage({ params }: Props) {
               key={member.id}
               className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/30 transition-colors group"
             >
-              {/* Avatar */}
               <Avatar className="h-9 w-9 shrink-0">
                 <AvatarImage src={member.profile?.avatar_url ?? undefined} />
                 <AvatarFallback className="text-xs font-semibold">{initials(member)}</AvatarFallback>
               </Avatar>
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium truncate">
+                  <span className="text-sm font-medium">
                     {member.profile?.full_name ?? member.profile?.email ?? '—'}
                     {member.user_id === user?.id && (
                       <span className="text-xs text-muted-foreground ml-1">(vous)</span>
                     )}
                   </span>
                   <Badge className={`text-[10px] px-1.5 py-0 ${ROLE_COLORS[member.role] ?? ROLE_COLORS.member}`}>
-                    {member.role === 'owner' && <Crown className="h-2.5 w-2.5 mr-0.5" />}
+                    {member.role === 'owner' && <Crown className="h-2.5 w-2.5 mr-0.5 inline" />}
                     {ROLE_LABELS[member.role] ?? member.role}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                  <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
+                <div className="flex items-center gap-3 mt-0.5 flex-wrap text-xs text-muted-foreground">
+                  <span className="truncate">{member.profile?.email}</span>
                   {(member.taskCount ?? 0) > 0 && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                    <span className="flex items-center gap-0.5">
                       <CheckSquare className="h-3 w-3" />
                       {member.taskCount} tâche{(member.taskCount ?? 0) > 1 ? 's' : ''}
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                  <span className="flex items-center gap-0.5">
                     <Clock className="h-3 w-3" />
                     {formatDistanceToNow(new Date(member.joined_at), { locale: fr, addSuffix: true })}
                   </span>
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {member.user_id !== user?.id && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    title="Envoyer un message"
-                    onClick={() => openDM(member.user_id)}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="Message"
+                    onClick={() => openDM(member.user_id)}>
                     <MessageSquare className="h-3.5 w-3.5" />
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  title="Assigner des tâches"
-                  onClick={() => openAssignTasks(member)}
-                >
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="Assigner des tâches"
+                  onClick={() => openAssignTasks(member)}>
                   <CheckSquare className="h-3.5 w-3.5" />
                 </Button>
                 {canManage && member.user_id !== user?.id && member.role !== 'owner' && (
@@ -417,25 +463,17 @@ export default function MembersPage({ params }: Props) {
                       </Button>
                     } />
                     <DropdownMenuContent align="end" className="w-44">
-                      <div className="px-2 py-1.5">
-                        <p className="text-xs font-medium text-muted-foreground">Changer le rôle</p>
-                      </div>
+                      <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Changer le rôle</p>
                       {(['admin', 'member', 'viewer'] as const).map((r) => (
-                        <DropdownMenuItem
-                          key={r}
-                          onClick={() => handleRoleChange(member.id, member.user_id, r)}
-                          className="flex items-center gap-2"
-                        >
+                        <DropdownMenuItem key={r} onClick={() => handleRoleChange(member.id, r)}
+                          className="gap-2">
                           <Shield className="h-3.5 w-3.5 text-muted-foreground" />
                           {ROLE_LABELS[r]}
                           {member.role === r && <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-primary" />}
                         </DropdownMenuItem>
                       ))}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive gap-2"
-                        onClick={() => handleRemove(member)}
-                      >
+                      <DropdownMenuItem className="text-destructive gap-2" onClick={() => handleRemove(member)}>
                         <UserMinus className="h-3.5 w-3.5" />
                         Retirer de l&apos;espace
                       </DropdownMenuItem>
@@ -453,12 +491,10 @@ export default function MembersPage({ params }: Props) {
         <>
           <Separator />
           <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground">Invitations en attente</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">Invitations en attente ({pending.length})</h2>
             {pending.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-border"
-              >
+              <div key={inv.id}
+                className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-border">
                 <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -473,44 +509,32 @@ export default function MembersPage({ params }: Props) {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    title="Copier le lien"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${window.location.origin}/invite/${inv.token}`
-                      )
-                      toast.success('Lien copié')
-                    }}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-destructive"
-                    onClick={() => handleCancelInvite(inv.id)}
-                  >
-                    Annuler
-                  </Button>
-                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="Copier le lien"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/invite/${inv.token}`)
+                    toast.success('Lien copié !')
+                  }}>
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive"
+                  onClick={() => handleCancelInvite(inv.id)}>
+                  Annuler
+                </Button>
               </div>
             ))}
           </div>
         </>
       )}
 
-      {/* ── Invite Dialog ───────────────────────────────────────── */}
-      <Dialog open={inviteOpen} onOpenChange={(o) => { setInviteOpen(o); if (!o) setInviteResult(null) }}>
+      {/* ── Invite Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={inviteOpen} onOpenChange={(o) => { setInviteOpen(o); if (!o) resetInviteDialog() }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Inviter un collègue</DialogTitle>
           </DialogHeader>
 
           {inviteResult ? (
+            /* Result screen */
             <div className="space-y-4 py-2">
               {inviteResult.type === 'added' ? (
                 <>
@@ -519,24 +543,21 @@ export default function MembersPage({ params }: Props) {
                     <div>
                       <p className="font-medium">{inviteResult.name} a rejoint l&apos;espace !</p>
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        Une conversation directe a été ouverte automatiquement.
+                        Une conversation directe a été créée automatiquement.
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     {inviteResult.dmId && (
-                      <Button
-                        className="flex-1 gap-1.5"
-                        onClick={() => {
-                          setInviteOpen(false)
-                          router.push(`/${slug}/messages/${inviteResult.dmId}`)
-                        }}
-                      >
+                      <Button className="flex-1 gap-1.5" onClick={() => {
+                        setInviteOpen(false)
+                        router.push(`/${slug}/messages/${inviteResult.dmId}`)
+                      }}>
                         <MessageSquare className="h-4 w-4" />
                         Ouvrir la conversation
                       </Button>
                     )}
-                    <Button variant="outline" className="flex-1" onClick={() => setInviteResult(null)}>
+                    <Button variant="outline" className="flex-1" onClick={resetInviteDialog}>
                       Inviter quelqu&apos;un d&apos;autre
                     </Button>
                   </div>
@@ -546,49 +567,110 @@ export default function MembersPage({ params }: Props) {
                   <div className="flex flex-col items-center gap-3 py-4 text-center">
                     <Mail className="h-10 w-10 text-primary" />
                     <div>
-                      <p className="font-medium">Invitation créée</p>
+                      <p className="font-medium">Lien d&apos;invitation créé</p>
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        Partagez ce lien avec {inviteResult.name ?? inviteEmail}
+                        Partagez ce lien avec <strong>{inviteResult.name}</strong>
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Input
-                      value={inviteResult.inviteUrl ?? ''}
-                      readOnly
-                      className="text-xs flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        navigator.clipboard.writeText(inviteResult.inviteUrl ?? '')
-                        toast.success('Lien copié !')
-                      }}
-                    >
+                    <Input value={inviteResult.inviteUrl ?? ''} readOnly className="text-xs flex-1" />
+                    <Button variant="outline" size="icon" onClick={() => {
+                      navigator.clipboard.writeText(inviteResult.inviteUrl ?? '')
+                      toast.success('Lien copié !')
+                    }}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button variant="outline" className="w-full" onClick={() => setInviteResult(null)}>
+                  <Button variant="outline" className="w-full" onClick={resetInviteDialog}>
                     Inviter quelqu&apos;un d&apos;autre
                   </Button>
                 </>
               )}
             </div>
           ) : (
+            /* Invite form */
             <form onSubmit={handleInvite} className="space-y-4 py-2">
+
+              {/* Search / email field */}
               <div className="space-y-1.5">
-                <Label>Email du collègue</Label>
-                <Input
-                  type="email"
-                  placeholder="collegue@entreprise.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  required
-                  autoFocus
-                />
+                <Label>Nom, prénom ou email</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Rechercher ou saisir un email…"
+                    value={selectedProfile ? (selectedProfile.full_name ?? selectedProfile.email) : searchQuery}
+                    onChange={(e) => {
+                      setSelectedProfile(null)
+                      setSearchQuery(e.target.value)
+                    }}
+                    autoFocus
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+
+                {/* Selected profile chip */}
+                {selectedProfile && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
+                    <Avatar className="h-6 w-6 shrink-0">
+                      <AvatarImage src={selectedProfile.avatar_url ?? undefined} />
+                      <AvatarFallback className="text-[10px]">
+                        {(selectedProfile.full_name ?? selectedProfile.email)[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{selectedProfile.full_name ?? selectedProfile.email}</p>
+                      {selectedProfile.full_name && (
+                        <p className="text-[10px] text-muted-foreground">{selectedProfile.email}</p>
+                      )}
+                    </div>
+                    <button type="button" className="text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => { setSelectedProfile(null); setSearchQuery('') }}>
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Live search dropdown */}
+                {!selectedProfile && searchResults.length > 0 && (
+                  <div className="rounded-lg border border-border bg-popover shadow-md overflow-hidden">
+                    {searchResults.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { setSelectedProfile(p); setSearchQuery(''); setSearchResults([]) }}
+                        className="flex items-center gap-2.5 w-full px-3 py-2 hover:bg-accent transition-colors text-left"
+                      >
+                        <Avatar className="h-7 w-7 shrink-0">
+                          <AvatarImage src={p.avatar_url ?? undefined} />
+                          <AvatarFallback className="text-[10px]">
+                            {(p.full_name ?? p.email)[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.full_name ?? p.email}</p>
+                          {p.full_name && <p className="text-xs text-muted-foreground truncate">{p.email}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* No results — suggest invite by link */}
+                {!selectedProfile && !searching && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                    <User className="h-4 w-4 shrink-0" />
+                    {searchQuery.includes('@')
+                      ? `Aucun compte trouvé — un lien d'invitation sera créé pour ${searchQuery}`
+                      : 'Aucun résultat. Essayez avec l\'adresse email complète.'}
+                  </div>
+                )}
               </div>
 
+              {/* Role */}
               <div className="space-y-1.5">
                 <Label>Rôle</Label>
                 <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as typeof inviteRole)}>
@@ -596,48 +678,40 @@ export default function MembersPage({ params }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">
-                      <div>
-                        <p className="font-medium">Admin</p>
-                        <p className="text-xs text-muted-foreground">Gère membres, projets, paramètres</p>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="member">
-                      <div>
-                        <p className="font-medium">Membre</p>
-                        <p className="text-xs text-muted-foreground">Crée et modifie le contenu</p>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="viewer">
-                      <div>
-                        <p className="font-medium">Lecteur</p>
-                        <p className="text-xs text-muted-foreground">Lecture seule</p>
-                      </div>
-                    </SelectItem>
+                    <SelectItem value="admin">Admin — gère membres, projets, paramètres</SelectItem>
+                    <SelectItem value="member">Membre — crée et modifie le contenu</SelectItem>
+                    <SelectItem value="viewer">Lecteur — accès en lecture seule</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Welcome message */}
               <div className="space-y-1.5">
-                <Label>Message de bienvenue <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+                <Label>
+                  Message de bienvenue
+                  <span className="text-muted-foreground font-normal ml-1">(optionnel)</span>
+                </Label>
                 <Textarea
                   placeholder="Bienvenue dans l'équipe ! Heureux de t'avoir avec nous…"
                   value={welcomeMsg}
                   onChange={(e) => setWelcomeMsg(e.target.value)}
-                  rows={3}
+                  rows={2}
                   className="resize-none text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Envoyé automatiquement dans la conversation directe.
+                  Envoyé automatiquement dans la conversation directe à l&apos;arrivée.
                 </p>
               </div>
 
-              <Button type="submit" className="w-full gap-1.5" disabled={inviting || !inviteEmail.trim()}>
-                {inviting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Envoi…</>
-                ) : (
-                  <><UserPlus className="h-4 w-4" /> Envoyer l&apos;invitation</>
-                )}
+              <Button
+                type="submit"
+                className="w-full gap-1.5"
+                disabled={inviting || (!selectedProfile && !searchQuery.trim())}
+              >
+                {inviting
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Envoi en cours…</>
+                  : <><UserPlus className="h-4 w-4" /> Inviter</>
+                }
               </Button>
             </form>
           )}
@@ -649,20 +723,21 @@ export default function MembersPage({ params }: Props) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Assigner des tâches à {assignTarget?.profile?.full_name ?? assignTarget?.profile?.email}
+              Assigner des tâches — {assignTarget?.profile?.full_name ?? assignTarget?.profile?.email}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 max-h-80 overflow-auto py-2">
+          <div className="space-y-1.5 max-h-80 overflow-auto py-2">
             {availableTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
+              <p className="text-sm text-muted-foreground text-center py-8">
                 Aucune tâche active disponible
               </p>
             ) : (
               availableTasks.map((task) => {
-                const isAssigned = (task as unknown as { assignee_id?: string }).assignee_id === assignTarget?.user_id
+                const isAssigned = task.assignee_id === assignTarget?.user_id
                 return (
                   <button
                     key={task.id}
+                    type="button"
                     onClick={() => !isAssigned && handleAssignTask(task.id)}
                     disabled={isAssigned || assigningTask === task.id}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
@@ -671,13 +746,12 @@ export default function MembersPage({ params }: Props) {
                         : 'hover:bg-accent border-border cursor-pointer'
                     }`}
                   >
-                    {assigningTask === task.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
-                    ) : isAssigned ? (
-                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    ) : (
-                      <CheckSquare className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
+                    {assigningTask === task.id
+                      ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+                      : isAssigned
+                        ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        : <CheckSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+                    }
                     <span className="text-sm flex-1 truncate">{task.title}</span>
                     <Badge variant="outline" className="text-[10px] capitalize shrink-0">{task.status}</Badge>
                   </button>
