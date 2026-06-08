@@ -107,6 +107,13 @@ export type Reaction = ReactionRow
 export type Notification = NotificationRow
 export type ActivityLog = ActivityLogRow
 
+export type WorkspaceInvitationRow = {
+  id: string; workspace_id: string; email: string; role: string; token: string
+  invited_by: string | null; welcome_message: string | null
+  accepted_at: string | null; expires_at: string; created_at: string
+}
+export type WorkspaceInvitation = WorkspaceInvitationRow
+
 // Insert types (all fields optional except workspace_id/required keys)
 export type InsertTask = Partial<TaskRow> & Pick<TaskRow, 'workspace_id' | 'title'>
 export type InsertNote = Partial<NoteRow> & Pick<NoteRow, 'workspace_id'>
@@ -138,6 +145,7 @@ export type Database = {
       reactions: { Row: ReactionRow; Insert: Partial<ReactionRow> & Pick<ReactionRow, 'user_id' | 'emoji'>; Update: Partial<ReactionRow>; Relationships: [] }
       notifications: { Row: NotificationRow; Insert: Partial<NotificationRow> & Pick<NotificationRow, 'user_id' | 'type' | 'title'>; Update: Partial<NotificationRow>; Relationships: [] }
       activity_logs: { Row: ActivityLogRow; Insert: Partial<ActivityLogRow> & Pick<ActivityLogRow, 'workspace_id' | 'action'>; Update: Partial<ActivityLogRow>; Relationships: [] }
+      workspace_invitations: { Row: WorkspaceInvitationRow; Insert: Partial<WorkspaceInvitationRow> & Pick<WorkspaceInvitationRow, 'workspace_id' | 'email'>; Update: Partial<WorkspaceInvitationRow>; Relationships: [] }
     }
     Views: { [_ in never]: never }
     Functions: {
