@@ -109,15 +109,17 @@ export default function MembersPage({ params }: Props) {
   }[]>([])
   const [assigningTask, setAssigningTask] = useState<string | null>(null)
 
-  const canManage = myRole === 'owner' || myRole === 'admin'
+  // Owner fallback: if members empty but user owns the workspace → they have rights
+  const isOwnerByWorkspace = currentWorkspace?.owner_id === user?.id
+  const canManage = myRole === 'owner' || myRole === 'admin' || (isOwnerByWorkspace && members.length === 0)
 
   useEffect(() => {
-    if (!currentWorkspace?.id) return
+    if (!currentWorkspace?.id || !user?.id) return
     loadAll()
   }, [currentWorkspace?.id, user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadAll() {
-    if (!currentWorkspace?.id) return
+    if (!currentWorkspace?.id || !user?.id) return
     setLoading(true)
     try {
       const supabase = getSupabaseClient()
@@ -128,7 +130,7 @@ export default function MembersPage({ params }: Props) {
         .eq('workspace_id', currentWorkspace.id)
         .order('joined_at', { ascending: true })
 
-      if (membersErr) console.error('members err:', membersErr)
+      if (membersErr) console.error('members err:', membersErr.message)
 
       const { data: tasks } = await supabase
         .from('tasks')
@@ -146,9 +148,44 @@ export default function MembersPage({ params }: Props) {
         ...m,
         taskCount: taskCountMap[m.user_id] ?? 0,
       }))
-      setMembers(enriched)
 
-      const me = enriched.find((m) => m.user_id === user?.id)
+      // Auto-repair: owner missing from members → add them silently then reload
+      const isMember = enriched.some((m) => m.user_id === user.id)
+      if (!isMember && currentWorkspace.owner_id === user.id) {
+        const res = await fetch('/api/workspaces/repair-owner', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspaceId: currentWorkspace.id }),
+        })
+        const json = await res.json()
+        if (json.repaired) {
+          // Re-fetch members with the new row
+          const { data: fresh } = await supabase
+            .from('workspace_members')
+            .select('id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, email)')
+            .eq('workspace_id', currentWorkspace.id)
+            .order('joined_at', { ascending: true })
+          const freshEnriched = ((fresh ?? []) as unknown as MemberWithProfile[]).map((m) => ({
+            ...m,
+            taskCount: taskCountMap[m.user_id] ?? 0,
+          }))
+          setMembers(freshEnriched)
+          setMyRole('owner')
+          setLoading(false)
+          // Load pending invitations
+          const { data: invitations } = await supabase
+            .from('workspace_invitations')
+            .select('id, email, role, created_at, expires_at, token')
+            .eq('workspace_id', currentWorkspace.id)
+            .is('accepted_at', null)
+            .gt('expires_at', new Date().toISOString())
+          setPending((invitations ?? []) as PendingInvitation[])
+          return
+        }
+      }
+
+      setMembers(enriched)
+      const me = enriched.find((m) => m.user_id === user.id)
       if (me) setMyRole(me.role)
 
       if (me && ['owner', 'admin'].includes(me.role)) {
