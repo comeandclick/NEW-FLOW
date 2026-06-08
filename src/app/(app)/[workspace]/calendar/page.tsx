@@ -25,7 +25,7 @@ interface Props {
 export default function CalendarPage({ params }: Props) {
   use(params)
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [createOpen, setCreateOpen] = useState(false)

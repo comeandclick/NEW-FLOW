@@ -30,7 +30,7 @@ export default function MeetingsPage({ params }: Props) {
   const { workspace: slug } = use(params)
   const router = useRouter()
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [title, setTitle] = useState('')

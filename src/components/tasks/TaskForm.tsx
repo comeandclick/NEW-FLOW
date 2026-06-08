@@ -28,8 +28,9 @@ interface TaskFormProps {
 }
 
 export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSuccess, onCancel }: TaskFormProps) {
-  const { addTask } = useTaskStore()
-  const { projects, currentWorkspaceMembers } = useWorkspaceStore()
+  const addTask = useTaskStore(s => s.addTask)
+  const projects = useWorkspaceStore(s => s.projects)
+  const currentWorkspaceMembers = useWorkspaceStore(s => s.currentWorkspaceMembers)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<Task['priority']>('medium')

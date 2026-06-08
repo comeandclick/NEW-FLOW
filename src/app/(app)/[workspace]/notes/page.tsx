@@ -23,7 +23,7 @@ export default function NotesPage({ params }: Props) {
   const { workspace: slug } = use(params)
   const router = useRouter()
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const [notes, setNotes] = useState<Note[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)

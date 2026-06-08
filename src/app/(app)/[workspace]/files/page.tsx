@@ -36,7 +36,7 @@ function FileIcon({ mimeType }: { mimeType: string | null }) {
 export default function FilesPage({ params }: Props) {
   use(params)
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const [files, setFiles] = useState<FlowFile[]>([])
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)

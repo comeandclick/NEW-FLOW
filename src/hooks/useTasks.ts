@@ -5,7 +5,11 @@ import { useTaskStore } from '@/stores/taskStore'
 import { tasksService } from '@/services/tasks.service'
 
 export function useTasks(workspaceId: string, projectId?: string) {
-  const { tasks, setTasks, filters, isLoading, setLoading } = useTaskStore()
+  const tasks = useTaskStore(s => s.tasks)
+  const filters = useTaskStore(s => s.filters)
+  const isLoading = useTaskStore(s => s.isLoading)
+  const setTasks = useTaskStore(s => s.setTasks)
+  const setLoading = useTaskStore(s => s.setLoading)
 
   useEffect(() => {
     if (!workspaceId) return
@@ -38,7 +42,8 @@ export function useTasks(workspaceId: string, projectId?: string) {
 }
 
 export function useTaskComments(taskId: string) {
-  const { taskComments, setTaskComments } = useTaskStore()
+  const taskComments = useTaskStore(s => s.taskComments)
+  const setTaskComments = useTaskStore(s => s.setTaskComments)
 
   useEffect(() => {
     if (!taskId) return

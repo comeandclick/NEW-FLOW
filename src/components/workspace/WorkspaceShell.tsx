@@ -31,7 +31,7 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
   const { profile, signOut } = useAuth()
   const workspace = useWorkspace(workspaceSlug)
   const { unreadCount } = useNotifications(userId)
-  const { setCommandPaletteOpen } = useUIStore()
+  const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
 
   const initials = profile?.full_name
     ?.split(' ')

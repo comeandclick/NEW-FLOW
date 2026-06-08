@@ -20,7 +20,7 @@ interface Props {
 export default function TasksPage({ params }: Props) {
   const { workspace: slug } = use(params)
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const { tasks, byStatus, isLoading } = useTasks(currentWorkspace?.id ?? '')
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [createOpen, setCreateOpen] = useState(false)

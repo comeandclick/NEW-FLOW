@@ -6,7 +6,9 @@ import { workspacesService } from '@/services/workspaces.service'
 import { subscribeToTasks } from '@/lib/realtime/subscriptions'
 
 export function useWorkspaces(userId: string) {
-  const { workspaces, setWorkspaces, setLoading } = useWorkspaceStore()
+  const workspaces = useWorkspaceStore(s => s.workspaces)
+  const setWorkspaces = useWorkspaceStore(s => s.setWorkspaces)
+  const setLoading = useWorkspaceStore(s => s.setLoading)
 
   useEffect(() => {
     if (!userId) return
@@ -22,8 +24,10 @@ export function useWorkspaces(userId: string) {
 }
 
 export function useWorkspace(slug: string) {
-  const { currentWorkspace, setCurrentWorkspace, setProjects, setCurrentWorkspaceMembers } =
-    useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
+  const setCurrentWorkspace = useWorkspaceStore(s => s.setCurrentWorkspace)
+  const setProjects = useWorkspaceStore(s => s.setProjects)
+  const setCurrentWorkspaceMembers = useWorkspaceStore(s => s.setCurrentWorkspaceMembers)
 
   useEffect(() => {
     if (!slug) return

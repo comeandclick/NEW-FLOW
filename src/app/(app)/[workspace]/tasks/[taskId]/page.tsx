@@ -36,8 +36,9 @@ const PRIORITY_COLORS: Record<Task['priority'], string> = {
 export default function TaskDetailPage({ params }: Props) {
   const { workspace: slug, taskId } = use(params)
   const { user } = useAuth()
-  const { tasks, updateTask, selectedTask, setSelectedTask } = useTaskStore()
-  const { currentWorkspace } = useWorkspaceStore()
+  const tasks = useTaskStore(s => s.tasks)
+  const updateTask = useTaskStore(s => s.updateTask)
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const comments = useTaskComments(taskId)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)

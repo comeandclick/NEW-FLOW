@@ -35,7 +35,7 @@ type MemberWithProfile = {
 export default function MembersPage({ params }: Props) {
   use(params)
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const [members, setMembers] = useState<MemberWithProfile[]>([])
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'viewer'>('member')

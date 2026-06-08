@@ -24,7 +24,7 @@ interface TaskListProps {
 }
 
 export function TaskList({ tasks, workspaceSlug }: TaskListProps) {
-  const { updateTask } = useTaskStore()
+  const updateTask = useTaskStore(s => s.updateTask)
 
   async function toggleDone(task: Task, checked: boolean) {
     const newStatus = checked ? 'done' : 'todo'

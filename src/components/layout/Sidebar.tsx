@@ -64,11 +64,10 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
-  const { collapsed, toggleSidebar } = useUIStore((s) => ({
-    collapsed: s.sidebarCollapsed,
-    toggleSidebar: s.toggleSidebar,
-  }))
-  const { projects, currentWorkspace } = useWorkspaceStore()
+  const collapsed = useUIStore(s => s.sidebarCollapsed)
+  const toggleSidebar = useUIStore(s => s.toggleSidebar)
+  const projects = useWorkspaceStore(s => s.projects)
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const pathname = usePathname()
 
   return (

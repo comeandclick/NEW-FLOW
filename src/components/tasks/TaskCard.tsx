@@ -23,7 +23,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, workspaceId, isDragging }: TaskCardProps) {
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const slug = currentWorkspace?.slug ?? ''
 
   const dueDate = task.due_date ? new Date(task.due_date) : null

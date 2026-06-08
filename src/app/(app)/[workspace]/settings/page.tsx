@@ -17,7 +17,8 @@ interface Props {
 export default function WorkspaceSettingsPage({ params }: Props) {
   use(params)
   const { user } = useAuth()
-  const { currentWorkspace, updateWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
+  const updateWorkspace = useWorkspaceStore(s => s.updateWorkspace)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
 

@@ -63,7 +63,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ byStatus, workspaceId, userId }: KanbanBoardProps) {
-  const { updateTask } = useTaskStore()
+  const updateTask = useTaskStore(s => s.updateTask)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [addingToColumn, setAddingToColumn] = useState<ColumnId | null>(null)
 

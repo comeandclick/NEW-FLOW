@@ -20,9 +20,10 @@ import {
 } from 'lucide-react'
 
 export function CommandPalette({ workspaceSlug }: { workspaceSlug: string }) {
-  const { commandPaletteOpen, setCommandPaletteOpen } = useUIStore()
-  const { workspaces } = useWorkspaceStore()
-  const { tasks } = useTaskStore()
+  const commandPaletteOpen = useUIStore(s => s.commandPaletteOpen)
+  const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
+  const workspaces = useWorkspaceStore(s => s.workspaces)
+  const tasks = useTaskStore(s => s.tasks)
   const router = useRouter()
 
   const toggle = useCallback(() => setCommandPaletteOpen(!commandPaletteOpen), [commandPaletteOpen, setCommandPaletteOpen])

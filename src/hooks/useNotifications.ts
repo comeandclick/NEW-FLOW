@@ -6,8 +6,11 @@ import { notificationsService } from '@/services/notifications.service'
 import { subscribeToNotifications } from '@/lib/realtime/subscriptions'
 
 export function useNotifications(userId: string) {
-  const { notifications, unreadCount, setNotifications, markRead, markAllRead } =
-    useNotificationStore()
+  const notifications = useNotificationStore(s => s.notifications)
+  const unreadCount = useNotificationStore(s => s.unreadCount)
+  const setNotifications = useNotificationStore(s => s.setNotifications)
+  const markRead = useNotificationStore(s => s.markRead)
+  const markAllRead = useNotificationStore(s => s.markAllRead)
 
   useEffect(() => {
     if (!userId) return

@@ -24,7 +24,7 @@ export default function MessagesPage({ params }: Props) {
   const { workspace: slug } = use(params)
   const router = useRouter()
   const { user } = useAuth()
-  const { currentWorkspace } = useWorkspaceStore()
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const [conversations, setConversations] = useState<ConversationWithMembers[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [channelName, setChannelName] = useState('')

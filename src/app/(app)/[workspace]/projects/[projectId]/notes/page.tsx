@@ -10,7 +10,7 @@ interface Props {
 
 export default function ProjectNotesPage({ params }: Props) {
   const { workspace: slug, projectId } = use(params)
-  const { projects } = useWorkspaceStore()
+  const projects = useWorkspaceStore(s => s.projects)
   const project = projects.find((p) => p.id === projectId)
 
   return (
