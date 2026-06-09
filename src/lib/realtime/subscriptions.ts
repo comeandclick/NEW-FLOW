@@ -57,7 +57,9 @@ export function subscribeToNotifications(userId: string) {
 
 export function subscribeToMessages(
   conversationId: string,
-  onNewMessage: (message: unknown) => void
+  onNewMessage: (message: unknown) => void,
+  onUpdateMessage?: (message: unknown) => void,
+  onTyping?: (payload: { userId: string; name: string; typing: boolean }) => void
 ) {
   // Always unsubscribe stale channel — stale callback causes missed messages on re-mount
   const existing = messageChannels.get(conversationId)
@@ -67,7 +69,7 @@ export function subscribeToMessages(
   }
 
   const channel = supabase()
-    .channel(`messages:${conversationId}`)
+    .channel(`messages:${conversationId}`, { config: { broadcast: { self: false } } })
     .on(
       'postgres_changes',
       {
@@ -78,6 +80,19 @@ export function subscribeToMessages(
       },
       (payload) => { onNewMessage(payload.new) }
     )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => { if (onUpdateMessage) onUpdateMessage(payload.new) }
+    )
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (onTyping) onTyping(payload as { userId: string; name: string; typing: boolean })
+    })
     .subscribe()
 
   messageChannels.set(conversationId, channel)
@@ -85,6 +100,13 @@ export function subscribeToMessages(
   return () => {
     channel.unsubscribe()
     messageChannels.delete(conversationId)
+  }
+}
+
+export function broadcastTyping(conversationId: string, userId: string, name: string, typing: boolean) {
+  const channel = messageChannels.get(conversationId)
+  if (channel) {
+    channel.send({ type: 'broadcast', event: 'typing', payload: { userId, name, typing } })
   }
 }
 

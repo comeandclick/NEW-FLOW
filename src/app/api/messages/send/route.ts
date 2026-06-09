@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supa.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { conversationId, content } = await request.json()
+  const { conversationId, content, replyToId } = await request.json()
   if (!conversationId || !content?.trim()) {
     return NextResponse.json({ error: 'conversationId et content requis' }, { status: 400 })
   }
@@ -36,7 +36,12 @@ export async function POST(request: Request) {
   // Insert message
   const { data: msg, error } = await admin
     .from('messages')
-    .insert({ conversation_id: conversationId, user_id: user.id, content: content.trim() })
+    .insert({
+      conversation_id: conversationId,
+      user_id: user.id,
+      content: content.trim(),
+      parent_id: replyToId ?? null,
+    })
     .select('*, user:profiles(id, full_name, avatar_url, email)')
     .single()
 

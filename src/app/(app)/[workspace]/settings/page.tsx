@@ -155,6 +155,41 @@ export default function WorkspaceSettingsPage({ params }: Props) {
 
       <Separator />
 
+      {/* Demo data */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Données de démonstration</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Peuple l&apos;espace avec des notes, tâches, événements et conversations d&apos;exemple pour tester les fonctionnalités.
+        </p>
+        <Button
+          variant="outline" size="sm" className="gap-1.5"
+          onClick={async () => {
+            if (!currentWorkspace?.id) return
+            const t = toast.loading('Génération des données…')
+            try {
+              const res = await fetch('/api/seed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workspaceId: currentWorkspace.id }),
+              })
+              const d = await res.json()
+              if (!res.ok) throw new Error(d.error)
+              toast.success(`${d.created} éléments créés`, { id: t })
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : 'Erreur', { id: t })
+            }
+          }}
+        >
+          <Zap className="h-3.5 w-3.5" />
+          Générer données de démo
+        </Button>
+      </section>
+
+      <Separator />
+
       {/* Export */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
