@@ -44,11 +44,36 @@ export default function MessagesPage({ params }: Props) {
 
   useEffect(() => {
     if (!currentWorkspace?.id || !user?.id) return
-    messagesService
-      .getConversations(currentWorkspace.id, user.id)
-      .then((data) => setConversations(data as unknown as ConversationWithMembers[]))
-      .catch(console.error)
-      .finally(() => setLoading(false))
+    const wsId = currentWorkspace.id
+    const uid = user.id
+
+    function reload() {
+      messagesService
+        .getConversations(wsId, uid)
+        .then((data) => setConversations(data as unknown as ConversationWithMembers[]))
+        .catch(console.error)
+        .finally(() => setLoading(false))
+    }
+    reload()
+
+    // Real-time: new DM/channel membership added → reload list instantly
+    const channel = getSupabaseClient()
+      .channel(`convlist:${wsId}:${uid}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversation_members',
+        filter: `user_id=eq.${uid}`,
+      }, reload)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversations',
+        filter: `workspace_id=eq.${wsId}`,
+      }, reload)
+      .subscribe()
+
+    return () => { channel.unsubscribe() }
   }, [currentWorkspace?.id, user?.id])
 
   // Load members for DM dialog

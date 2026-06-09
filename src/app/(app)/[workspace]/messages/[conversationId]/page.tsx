@@ -3,11 +3,12 @@
 import { use, useEffect, useState, useRef } from 'react'
 import { messagesService } from '@/services/messages.service'
 import { subscribeToMessages } from '@/lib/realtime/subscriptions'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, ArrowLeft, Hash } from 'lucide-react'
+import { Send, ArrowLeft, Hash, MessageSquare } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { Message } from '@/types/database'
@@ -18,9 +19,8 @@ interface Props {
   params: Promise<{ workspace: string; conversationId: string }>
 }
 
-type MessageWithUser = Message & {
-  user: { id: string; full_name?: string; avatar_url?: string; email: string }
-}
+type UserProfile = { id: string; full_name?: string | null; avatar_url?: string | null; email: string }
+type MessageWithUser = Message & { user: UserProfile }
 
 function formatMessageDate(date: Date) {
   if (isToday(date)) return format(date, 'h:mm a')
@@ -36,42 +36,62 @@ export default function ConversationPage({ params }: Props) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  // Profile cache: avoid re-fetching same user on each new message
+  const profileCache = useRef<Map<string, UserProfile>>(new Map())
 
   useEffect(() => {
     // Load messages
     messagesService.getMessages(conversationId).then((data) => {
-      setMessages(data as unknown as MessageWithUser[])
+      const msgs = data as unknown as MessageWithUser[]
+      setMessages(msgs)
+      // Populate profile cache from loaded messages
+      msgs.forEach((m) => { if (m.user) profileCache.current.set(m.user_id, m.user) })
       bottomRef.current?.scrollIntoView()
     })
 
     // Load conversation info
-    import('@/lib/supabase/client').then(({ getSupabaseClient }) => {
-      getSupabaseClient()
-        .from('conversations')
-        .select('name, type')
-        .eq('id', conversationId)
-        .single()
-        .then(({ data }) => setConversation(data))
-    })
+    getSupabaseClient()
+      .from('conversations')
+      .select('name, type')
+      .eq('id', conversationId)
+      .single()
+      .then(({ data }) => setConversation(data))
 
-    // Subscribe to realtime
-    const unsub = subscribeToMessages(conversationId, (newMsg) => {
+    // Subscribe to realtime — use payload directly, no extra fetch
+    const unsub = subscribeToMessages(conversationId, async (rawMsg) => {
+      const newMsg = rawMsg as Message
+
+      // De-dupe: might get fired for own message too
       setMessages((prev) => {
-        const exists = prev.some((m) => m.id === (newMsg as unknown as MessageWithUser).id)
-        if (exists) return prev
-        // Fetch full message with user
-        messagesService.getMessages(conversationId, 1).then((data) => {
-          if (data.length > 0) {
-            setMessages((p) => {
-              const latest = data[data.length - 1] as unknown as MessageWithUser
-              if (p.some((m) => m.id === latest.id)) return p
-              return [...p, latest]
-            })
-            bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-          }
-        })
-        return prev
+        if (prev.some((m) => m.id === newMsg.id)) return prev
+        return prev // will update after profile lookup below
       })
+
+      // Resolve user profile (cache-first)
+      let userProfile = profileCache.current.get(newMsg.user_id)
+      if (!userProfile) {
+        const { data } = await getSupabaseClient()
+          .from('profiles')
+          .select('id, full_name, avatar_url, email')
+          .eq('id', newMsg.user_id)
+          .single()
+        if (data) {
+          userProfile = data as UserProfile
+          profileCache.current.set(newMsg.user_id, userProfile)
+        }
+      }
+
+      const fullMsg: MessageWithUser = {
+        ...newMsg,
+        user: userProfile ?? { id: newMsg.user_id, email: '', full_name: null, avatar_url: null },
+      }
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === fullMsg.id)) return prev
+        return [...prev, fullMsg]
+      })
+      // Scroll only if near bottom
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     })
 
     if (user?.id) {
@@ -91,7 +111,14 @@ export default function ConversationPage({ params }: Props) {
         user_id: user.id,
         content: text.trim(),
       })
-      setMessages((prev) => [...prev, msg as unknown as MessageWithUser])
+      // Add own message immediately (don't wait for realtime)
+      const fullMsg = msg as unknown as MessageWithUser
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === fullMsg.id)) return prev
+        return [...prev, fullMsg]
+      })
+      // Cache own profile
+      if (fullMsg.user) profileCache.current.set(user.id, fullMsg.user)
       setText('')
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     } catch {
@@ -119,14 +146,16 @@ export default function ConversationPage({ params }: Props) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <Hash className="h-4 w-4 text-muted-foreground" />
+        {conversation?.type === 'channel'
+          ? <Hash className="h-4 w-4 text-muted-foreground" />
+          : <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        }
         <span className="font-medium text-sm">{conversation?.name ?? 'Conversation'}</span>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-auto px-4 py-4 space-y-1">
         {groupedMessages.map(({ msg, showDate }) => {
-          const isOwn = msg.user_id === user?.id
           const isDeleted = msg.is_deleted
 
           return (
@@ -135,7 +164,11 @@ export default function ConversationPage({ params }: Props) {
                 <div className="flex items-center gap-2 my-4">
                   <span className="flex-1 border-t border-border" />
                   <span className="text-[10px] text-muted-foreground px-2">
-                    {isToday(new Date(msg.created_at)) ? 'Today' : isYesterday(new Date(msg.created_at)) ? 'Yesterday' : format(new Date(msg.created_at), 'MMMM d, yyyy')}
+                    {isToday(new Date(msg.created_at))
+                      ? 'Today'
+                      : isYesterday(new Date(msg.created_at))
+                      ? 'Yesterday'
+                      : format(new Date(msg.created_at), 'MMMM d, yyyy')}
                   </span>
                   <span className="flex-1 border-t border-border" />
                 </div>
@@ -154,7 +187,7 @@ export default function ConversationPage({ params }: Props) {
                   {isDeleted ? (
                     <p className="text-xs text-muted-foreground italic">This message was deleted</p>
                   ) : (
-                    <p className="text-sm break-words">{msg.content}</p>
+                    <p className="text-sm break-words whitespace-pre-wrap">{msg.content}</p>
                   )}
                 </div>
               </div>

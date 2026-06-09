@@ -111,9 +111,9 @@ export default function MeetingRoomPage({ params }: Props) {
 
     supabase.from('meetings').update({ status: 'active', started_at: new Date().toISOString() }).eq('id', meetingId)
     if (user?.id) {
-      supabase.from('meeting_participants').insert({
+      supabase.from('meeting_participants').upsert({
         meeting_id: meetingId, user_id: user.id, joined_at: new Date().toISOString(),
-      }).then(() => {})
+      }, { onConflict: 'meeting_id,user_id' }).then(() => {})
     }
 
     return () => {

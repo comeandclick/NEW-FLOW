@@ -59,8 +59,12 @@ export function subscribeToMessages(
   conversationId: string,
   onNewMessage: (message: unknown) => void
 ) {
+  // Always unsubscribe stale channel — stale callback causes missed messages on re-mount
   const existing = messageChannels.get(conversationId)
-  if (existing) return () => {}
+  if (existing) {
+    existing.unsubscribe()
+    messageChannels.delete(conversationId)
+  }
 
   const channel = supabase()
     .channel(`messages:${conversationId}`)

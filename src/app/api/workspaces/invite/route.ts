@@ -123,6 +123,50 @@ export async function POST(request: Request) {
         // DM creation failure is non-fatal
       }
 
+      // Insert real-time notification for the new member
+      try {
+        const inviterName = (await admin.from('profiles').select('full_name').eq('id', user.id).single()).data?.full_name ?? 'Un admin'
+        await admin.from('notifications').insert({
+          user_id: profile.id,
+          workspace_id: workspaceId,
+          type: 'workspace_invite',
+          title: `Vous avez rejoint ${workspace.name}`,
+          body: `${inviterName} vous a ajouté(e) en tant que ${role}. Cliquez pour accéder à l'espace.`,
+          is_read: false,
+          action_url: `/${workspace.slug}`,
+          metadata: { workspace_id: workspaceId, role, invited_by: user.id },
+        })
+      } catch { /* non-fatal */ }
+
+      // Send email notification (requires RESEND_API_KEY in env)
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const inviterProfile = (await admin.from('profiles').select('full_name').eq('id', user.id).single()).data
+          const inviterName = inviterProfile?.full_name ?? 'Un membre'
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://new-flow-dashboard.vercel.app'
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'Flow <onboarding@resend.dev>',
+              to: [profile.email],
+              subject: `${inviterName} vous a ajouté(e) à ${workspace.name}`,
+              html: `
+                <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#09090b;color:#fafafa;border-radius:12px">
+                  <h2 style="margin:0 0 8px;font-size:20px">Bienvenue dans <strong>${workspace.name}</strong> 👋</h2>
+                  <p style="color:#a1a1aa;margin:0 0 24px">${inviterName} vous a ajouté(e) en tant que <strong>${role}</strong>.</p>
+                  <a href="${appUrl}/${workspace.slug}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Accéder à l'espace →</a>
+                  <p style="color:#52525b;font-size:12px;margin-top:32px">Flow · Votre espace de travail collaboratif</p>
+                </div>
+              `,
+            }),
+          })
+        } catch { /* non-fatal */ }
+      }
+
       return NextResponse.json({
         success: true,
         type: 'added',
@@ -151,7 +195,37 @@ export async function POST(request: Request) {
 
       if (invError) throw invError
 
-      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://new-flow-dashboard.vercel.app'}/invite/${invitation.token}`
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://new-flow-dashboard.vercel.app'
+      const inviteUrl = `${appUrl}/invite/${invitation.token}`
+
+      // Send invitation email
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const inviterProfile = (await admin.from('profiles').select('full_name').eq('id', user.id).single()).data
+          const inviterName = inviterProfile?.full_name ?? 'Un membre'
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'Flow <onboarding@resend.dev>',
+              to: [email],
+              subject: `${inviterName} vous invite à rejoindre ${workspace.name}`,
+              html: `
+                <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#09090b;color:#fafafa;border-radius:12px">
+                  <h2 style="margin:0 0 8px;font-size:20px">Invitation à rejoindre <strong>${workspace.name}</strong></h2>
+                  <p style="color:#a1a1aa;margin:0 0 8px">${inviterName} vous invite à collaborer en tant que <strong>${role}</strong>.</p>
+                  ${welcomeMessage ? `<blockquote style="border-left:3px solid #6366f1;margin:0 0 24px;padding:8px 16px;color:#d4d4d8">${welcomeMessage}</blockquote>` : '<br/>'}
+                  <a href="${inviteUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Accepter l'invitation →</a>
+                  <p style="color:#52525b;font-size:12px;margin-top:32px">Ce lien expire dans 7 jours · Flow</p>
+                </div>
+              `,
+            }),
+          })
+        } catch { /* non-fatal */ }
+      }
 
       return NextResponse.json({
         success: true,
