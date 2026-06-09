@@ -10,11 +10,76 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Building2, Download, Globe, Shield, Trash2, Zap } from 'lucide-react'
+import { Building2, Bell, Download, Globe, Shield, Trash2, Zap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface Props {
   params: Promise<{ workspace: string }>
+}
+
+// ── Notification preferences component ────────────────────────────────────────
+
+const NOTIF_PREFS = [
+  { key: 'task_assigned', label: 'Tâche assignée', desc: 'Quand on vous assigne une tâche' },
+  { key: 'task_due', label: 'Échéance proche', desc: '24h avant la date limite' },
+  { key: 'message_mention', label: 'Mention dans un message', desc: 'Quand quelqu\'un vous mentionne' },
+  { key: 'comment_added', label: 'Commentaire sur une tâche', desc: 'Sur vos tâches assignées' },
+  { key: 'meeting_starting', label: 'Réunion imminente', desc: '15 min avant le début' },
+]
+
+function NotificationPreferences({ workspaceId, userId }: { workspaceId?: string; userId?: string }) {
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({})
+  const [saving, setSaving] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!workspaceId || !userId) return
+    async function load() {
+      try {
+        const { data } = await getSupabaseClient().from('profiles').select('preferences').eq('id', userId!).single()
+        const p = (data?.preferences as Record<string, unknown>) ?? {}
+        const notifPrefs = (p.notifications as Record<string, boolean>) ?? {}
+        const defaults: Record<string, boolean> = {}
+        NOTIF_PREFS.forEach(n => { defaults[n.key] = notifPrefs[n.key] ?? true })
+        setPrefs(defaults)
+      } catch { /* ignore */ }
+    }
+    load()
+  }, [workspaceId, userId])
+
+  async function toggle(key: string) {
+    if (!userId) return
+    const newVal = !prefs[key]
+    setPrefs(p => ({ ...p, [key]: newVal }))
+    setSaving(key)
+    try {
+      // Load current preferences first
+      const { data } = await getSupabaseClient().from('profiles').select('preferences').eq('id', userId).single()
+      const current = (data?.preferences as Record<string, unknown>) ?? {}
+      const notifPrefs = (current.notifications as Record<string, boolean>) ?? {}
+      const updated = { ...current, notifications: { ...notifPrefs, [key]: newVal } }
+      await getSupabaseClient().from('profiles').update({ preferences: updated }).eq('id', userId)
+    } catch { setPrefs(p => ({ ...p, [key]: !newVal })) } finally { setSaving(null) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {NOTIF_PREFS.map(n => (
+        <div key={n.key} className="flex items-center justify-between py-1">
+          <div>
+            <p className="text-sm">{n.label}</p>
+            <p className="text-xs text-muted-foreground">{n.desc}</p>
+          </div>
+          <button
+            onClick={() => toggle(n.key)}
+            disabled={saving === n.key}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${prefs[n.key] ? 'bg-primary' : 'bg-muted'}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${prefs[n.key] ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -224,6 +289,17 @@ export default function WorkspaceSettingsPage({ params }: Props) {
             </Button>
           ))}
         </div>
+      </section>
+
+      <Separator />
+
+      {/* Notifications */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Notifications</h2>
+        </div>
+        <NotificationPreferences workspaceId={currentWorkspace?.id} userId={user?.id} />
       </section>
 
       <Separator />
