@@ -252,6 +252,11 @@ export default function MessagesPage({ params }: Props) {
                         <span className={`text-sm flex-1 truncate ${unread ? 'font-semibold' : ''}`}>
                           {otherMember?.profile?.full_name ?? otherMember?.profile?.email ?? 'Inconnu'}
                         </span>
+                        {conv.updated_at && (
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: false })}
+                          </span>
+                        )}
                         {unread > 0 && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
                       </div>
                     </Link>
