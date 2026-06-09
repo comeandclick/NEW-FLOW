@@ -354,36 +354,16 @@ export default function MembersPage({ params }: Props) {
   }
 
   async function openDM(memberId: string) {
-    if (!currentWorkspace?.id || !user?.id) return
+    if (!currentWorkspace?.id) return
     try {
-      const supabase = getSupabaseClient()
-      const { data: convs } = await supabase
-        .from('conversations')
-        .select('id, members:conversation_members(user_id)')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('type', 'dm')
-      type C = { id: string; members: { user_id: string }[] }
-      const existing = (convs as unknown as C[] ?? []).find(
-        (c) =>
-          c.members.some((m) => m.user_id === user.id) &&
-          c.members.some((m) => m.user_id === memberId)
-      )
-      if (existing) {
-        router.push(`/${slug}/messages/${existing.id}`)
-      } else {
-        const { data: dm } = await supabase
-          .from('conversations')
-          .insert({ workspace_id: currentWorkspace.id, type: 'dm', created_by: user.id })
-          .select()
-          .single()
-        if (dm) {
-          await supabase.from('conversation_members').insert([
-            { conversation_id: dm.id, user_id: user.id },
-            { conversation_id: dm.id, user_id: memberId },
-          ])
-          router.push(`/${slug}/messages/${dm.id}`)
-        }
-      }
+      const res = await fetch('/api/messages/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'dm', workspaceId: currentWorkspace.id, memberIds: [memberId] }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Erreur')
+      router.push(`/${slug}/messages/${data.id}`)
     } catch {
       toast.error('Impossible d\'ouvrir la conversation')
     }

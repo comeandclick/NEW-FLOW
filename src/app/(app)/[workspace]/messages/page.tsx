@@ -7,7 +7,6 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Hash, Lock, MessageSquare, Plus, UserPlus } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -24,8 +23,10 @@ interface Props {
 }
 
 interface WorkspaceMember {
+  id: string
   user_id: string
-  profile: { id: string; full_name?: string | null; avatar_url?: string | null; email: string }
+  role: string
+  profile: { id: string; full_name: string | null; avatar_url: string | null; email: string } | null
 }
 
 export default function MessagesPage({ params }: Props) {
@@ -37,10 +38,13 @@ export default function MessagesPage({ params }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [dmOpen, setDmOpen] = useState(false)
   const [channelName, setChannelName] = useState('')
+  const [channelDesc, setChannelDesc] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [members, setMembers] = useState<WorkspaceMember[]>([])
   const [memberSearch, setMemberSearch] = useState('')
+  const [membersLoading, setMembersLoading] = useState(false)
 
   useEffect(() => {
     if (!currentWorkspace?.id || !user?.id) return
@@ -56,63 +60,86 @@ export default function MessagesPage({ params }: Props) {
     }
     reload()
 
-    // Real-time: new DM/channel membership added → reload list instantly
     const channel = getSupabaseClient()
       .channel(`convlist:${wsId}:${uid}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'conversation_members',
-        filter: `user_id=eq.${uid}`,
-      }, reload)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'conversations',
-        filter: `workspace_id=eq.${wsId}`,
-      }, reload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members', filter: `user_id=eq.${uid}` }, reload)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `workspace_id=eq.${wsId}` }, reload)
       .subscribe()
 
     return () => { channel.unsubscribe() }
   }, [currentWorkspace?.id, user?.id])
 
-  // Load members for DM dialog
+  // Load members via admin route (bypasses RLS join issue)
   useEffect(() => {
-    if (!dmOpen || !currentWorkspace?.id) return
-    getSupabaseClient()
-      .from('workspace_members')
-      .select('user_id, profile:profiles(id, full_name, avatar_url, email)')
-      .eq('workspace_id', currentWorkspace.id)
-      .then(({ data }) => {
-        if (data) setMembers((data as unknown as WorkspaceMember[]).filter((m) => m.user_id !== user?.id))
+    if (!dmOpen || !currentWorkspace?.id || members.length > 0) return
+    setMembersLoading(true)
+    fetch(`/api/workspaces/members?workspaceId=${currentWorkspace.id}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: WorkspaceMember[]) => {
+        setMembers(data.filter(m => m.user_id !== user?.id))
       })
-  }, [dmOpen, currentWorkspace?.id, user?.id])
+      .catch(console.error)
+      .finally(() => setMembersLoading(false))
+  }, [dmOpen, currentWorkspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function createChannel(e: React.FormEvent) {
     e.preventDefault()
-    if (!currentWorkspace?.id || !user?.id || !channelName.trim()) return
+    if (!currentWorkspace?.id || !channelName.trim()) return
+    setSaving(true)
     try {
-      const conv = await messagesService.createChannel(
-        currentWorkspace.id, user.id,
-        channelName.trim().toLowerCase().replace(/\s+/g, '-'),
-        isPrivate
-      )
+      const res = await fetch('/api/messages/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'channel',
+          workspaceId: currentWorkspace.id,
+          name: channelName.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+          isPrivate,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 409 && data.existing) {
+          toast.info('Canal déjà existant, redirection…')
+          setCreateOpen(false)
+          router.push(`/${slug}/messages/${data.existing.id}`)
+          return
+        }
+        throw new Error(data.error ?? 'Erreur')
+      }
       setCreateOpen(false)
       setChannelName('')
-      router.push(`/${slug}/messages/${conv.id}`)
-    } catch {
-      toast.error('Impossible de créer le canal')
+      setChannelDesc('')
+      toast.success(`Canal #${data.name} créé`)
+      router.push(`/${slug}/messages/${data.id}`)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Impossible de créer le canal')
+    } finally {
+      setSaving(false)
     }
   }
 
   async function startDM(memberId: string) {
-    if (!currentWorkspace?.id || !user?.id) return
+    if (!currentWorkspace?.id) return
+    setSaving(true)
     try {
-      const conv = await messagesService.createDM(currentWorkspace.id, [user.id, memberId])
+      const res = await fetch('/api/messages/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'dm',
+          workspaceId: currentWorkspace.id,
+          memberIds: [memberId],
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Erreur')
       setDmOpen(false)
-      router.push(`/${slug}/messages/${conv.id}`)
-    } catch {
-      toast.error('Impossible de démarrer la conversation')
+      router.push(`/${slug}/messages/${data.id}`)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Impossible de démarrer la conversation')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -125,9 +152,11 @@ export default function MessagesPage({ params }: Props) {
 
   const channels = conversations.filter((c) => c.type === 'channel')
   const dms = conversations.filter((c) => c.type !== 'channel')
-  const filteredMembers = members.filter((m) =>
-    (m.profile?.full_name ?? m.profile?.email ?? '').toLowerCase().includes(memberSearch.toLowerCase())
-  )
+  const filteredMembers = memberSearch.trim()
+    ? members.filter((m) =>
+        (m.profile?.full_name ?? m.profile?.email ?? '').toLowerCase().includes(memberSearch.toLowerCase())
+      )
+    : members
 
   return (
     <div className="flex flex-col h-full">
@@ -163,9 +192,7 @@ export default function MessagesPage({ params }: Props) {
                           : <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         }
                         <span className={`text-sm flex-1 ${unread ? 'font-semibold' : ''}`}>{conv.name}</span>
-                        {unread > 0 && (
-                          <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                        )}
+                        {unread > 0 && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
                         {conv.updated_at && (
                           <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                             {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
@@ -188,16 +215,18 @@ export default function MessagesPage({ params }: Props) {
                   return (
                     <Link key={conv.id} href={`/${slug}/messages/${conv.id}`}>
                       <div className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-accent transition-colors cursor-pointer">
-                        <Avatar className="h-6 w-6 shrink-0">
-                          <AvatarImage src={otherMember?.profile?.avatar_url ?? undefined} />
-                          <AvatarFallback className="text-[9px]">
-                            {otherMember?.profile?.full_name?.[0] ?? otherMember?.profile?.email?.[0] ?? '?'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative shrink-0">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={otherMember?.profile?.avatar_url ?? undefined} />
+                            <AvatarFallback className="text-[9px]">
+                              {otherMember?.profile?.full_name?.[0] ?? otherMember?.profile?.email?.[0] ?? '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
                         <span className={`text-sm flex-1 truncate ${unread ? 'font-semibold' : ''}`}>
                           {otherMember?.profile?.full_name ?? otherMember?.profile?.email ?? 'Inconnu'}
                         </span>
-                        {unread > 0 && <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />}
+                        {unread > 0 && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
                       </div>
                     </Link>
                   )
@@ -224,54 +253,75 @@ export default function MessagesPage({ params }: Props) {
       </div>
 
       {/* Create channel dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) { setChannelName(''); setChannelDesc(''); setIsPrivate(false) } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Nouveau canal</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Hash className="h-4 w-4" /> Nouveau canal
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={createChannel} className="space-y-4">
             <div className="space-y-2">
-              <Label>Nom du canal</Label>
-              <Input placeholder="general" value={channelName}
-                onChange={(e) => setChannelName(e.target.value)} required autoFocus />
-              <p className="text-xs text-muted-foreground">Espaces convertis en tirets, minuscules.</p>
+              <Label>Nom du canal *</Label>
+              <div className="relative">
+                <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  className="pl-7"
+                  placeholder="general, annonces, dev…"
+                  value={channelName}
+                  onChange={(e) => setChannelName(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Minuscules, tirets uniquement.</p>
             </div>
-            <div className="flex items-center justify-between">
-              <Label>Canal privé</Label>
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div>
+                <p className="text-sm font-medium">Canal privé</p>
+                <p className="text-xs text-muted-foreground">Uniquement sur invitation</p>
+              </div>
               <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
             </div>
-            <Button type="submit" className="w-full" size="sm">Créer le canal</Button>
+            <Button type="submit" className="w-full" size="sm" disabled={saving || !channelName.trim()}>
+              {saving ? 'Création…' : 'Créer le canal'}
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* New DM dialog */}
-      <Dialog open={dmOpen} onOpenChange={setDmOpen}>
+      <Dialog open={dmOpen} onOpenChange={(o) => { setDmOpen(o); if (!o) setMemberSearch('') }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Nouveau message direct</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              placeholder="Rechercher un membre…"
+              placeholder="Filtrer par nom ou email…"
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               autoFocus
             />
-            <div className="space-y-1 max-h-60 overflow-auto">
-              {filteredMembers.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucun membre trouvé</p>
+            <div className="space-y-1 max-h-64 overflow-auto">
+              {membersLoading ? (
+                <div className="space-y-2 py-2">
+                  {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
+                </div>
+              ) : filteredMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Aucun membre trouvé</p>
               ) : (
                 filteredMembers.map((m) => (
                   <button
                     key={m.user_id}
                     onClick={() => startDM(m.user_id)}
-                    className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
+                    disabled={saving}
+                    className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left disabled:opacity-50"
                   >
-                    <Avatar className="h-7 w-7 shrink-0">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={m.profile?.avatar_url ?? undefined} />
                       <AvatarFallback className="text-[10px]">
-                        {m.profile?.full_name?.[0] ?? m.profile?.email?.[0]}
+                        {(m.profile?.full_name ?? m.profile?.email ?? '?')[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
