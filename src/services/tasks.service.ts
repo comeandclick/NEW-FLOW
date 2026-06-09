@@ -83,7 +83,7 @@ export const tasksService = {
     return data
   },
 
-  async update(id: string, updates: Partial<Task>) {
+  async update(id: string, updates: Partial<Task>, meta?: { userId?: string; workspaceId?: string }) {
     const { data, error } = await supabase()
       .from('tasks')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -98,6 +98,19 @@ export const tasksService = {
         .from('tasks')
         .update({ completed_at: new Date().toISOString() })
         .eq('id', id)
+    }
+
+    // Auto-insert version history (fire-and-forget)
+    if (meta?.workspaceId) {
+      supabase().from('version_history').insert({
+        workspace_id: meta.workspaceId,
+        entity_type: 'task',
+        entity_id: id,
+        entity_title: data?.title ?? null,
+        content_snapshot: null,
+        changed_fields: Object.keys(updates) as unknown as import('@/types/database').Json,
+        changed_by: meta.userId ?? null,
+      }).then(() => {}) // silent
     }
 
     return data

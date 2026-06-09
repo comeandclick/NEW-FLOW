@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  Upload, Search, FileText, Image, Film, File, Trash2, Download, Eye
+  Upload, Search, FileText, Image, Film, File, Trash2, Download, Eye, Link2
 } from 'lucide-react'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -67,6 +68,31 @@ export default function FilesPage({ params }: Props) {
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  async function handleCopyLink(file: FlowFile) {
+    try {
+      // Try signed URL first (for private buckets), fallback to public URL
+      const { data } = await getSupabaseClient()
+        .storage
+        .from('workspace-files')
+        .createSignedUrl(file.storage_path, 3600 * 24) // 24h
+      const url = data?.signedUrl ?? file.url
+      if (url) {
+        await navigator.clipboard.writeText(url)
+        toast.success('Lien copié (valide 24h)')
+      } else {
+        toast.error('Impossible de générer le lien')
+      }
+    } catch {
+      // Fallback: copy direct url
+      if (file.url) {
+        await navigator.clipboard.writeText(file.url)
+        toast.success('Lien copié')
+      } else {
+        toast.error('Pas d\'URL disponible')
+      }
     }
   }
 
@@ -163,27 +189,27 @@ export default function FilesPage({ params }: Props) {
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
+                      <Button variant="ghost" size="icon" className="h-6 w-6"
                         onClick={(e) => { e.stopPropagation(); setPreviewFile(file) }}
-                      >
+                        title="Aperçu">
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6"
+                        onClick={(e) => { e.stopPropagation(); handleCopyLink(file) }}
+                        title="Copier le lien">
+                        <Link2 className="h-3.5 w-3.5" />
+                      </Button>
                       {file.url && (
-                        <a href={file.url} download={file.name} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                        <a href={file.url} download={file.name} target="_blank" rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()} title="Télécharger">
                           <Button variant="ghost" size="icon" className="h-6 w-6">
                             <Download className="h-3.5 w-3.5" />
                           </Button>
                         </a>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive"
+                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive"
                         onClick={(e) => { e.stopPropagation(); handleDelete(file) }}
-                      >
+                        title="Supprimer">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

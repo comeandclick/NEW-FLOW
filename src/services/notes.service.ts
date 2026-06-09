@@ -61,7 +61,7 @@ export const notesService = {
     return data
   },
 
-  async update(id: string, updates: Partial<Note>) {
+  async update(id: string, updates: Partial<Note>, meta?: { userId?: string; workspaceId?: string }) {
     const { data, error } = await supabase()
       .from('notes')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -69,6 +69,20 @@ export const notesService = {
       .select()
       .single()
     if (error) throw error
+
+    // Auto-insert version history (fire-and-forget, never blocks save)
+    if (meta?.workspaceId && (updates.content !== undefined || updates.title !== undefined)) {
+      supabase().from('version_history').insert({
+        workspace_id: meta.workspaceId,
+        entity_type: 'note',
+        entity_id: id,
+        entity_title: data?.title ?? null,
+        content_snapshot: updates.content ?? null,
+        changed_fields: Object.keys(updates) as unknown as import('@/types/database').Json,
+        changed_by: meta.userId ?? null,
+      }).then(r => { if (r.error) {} }).then(() => {}) // silent
+    }
+
     return data
   },
 
