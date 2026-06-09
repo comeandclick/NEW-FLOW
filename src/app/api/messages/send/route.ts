@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   // Get conversation info + all other members
   const { data: conv } = await admin
     .from('conversations')
-    .select('workspace_id, name, type')
+    .select('workspace_id, name, type, workspaces(slug)')
     .eq('id', conversationId)
     .single()
 
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
 
   const senderName = senderProfile?.full_name ?? senderProfile?.email ?? 'Quelqu\'un'
   const convLabel = conv?.type === 'channel' ? `#${conv.name}` : senderName
+  const wsSlug = (conv as { workspaces?: { slug?: string } } | null)?.workspaces?.slug ?? conv?.workspace_id
 
   // Send in-app notification to each other member
   if (conv?.workspace_id && allMembers?.length) {
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       title: `Nouveau message de ${senderName}`,
       body: `${convLabel}: ${content.trim().slice(0, 100)}`,
       is_read: false,
-      action_url: `/${conv.workspace_id}/messages/${conversationId}`,
+      action_url: `/${wsSlug}/messages/${conversationId}`,
       metadata: { conversation_id: conversationId, sender_id: user.id },
     }))
     await admin.from('notifications').insert(notifs)
