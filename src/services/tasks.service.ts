@@ -80,10 +80,21 @@ export const tasksService = {
       metadata: { title: task.title },
     })
 
+    // Fire automations (fire-and-forget)
+    fetch('/api/automations/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trigger_type: 'task_created',
+        workspace_id: task.workspace_id,
+        payload: { task_id: data.id, task_title: task.title, assignee_id: task.assignee_id ?? null, project_id: task.project_id ?? null },
+      }),
+    }).catch(() => {})
+
     return data
   },
 
-  async update(id: string, updates: Partial<Task>, meta?: { userId?: string; workspaceId?: string }) {
+  async update(id: string, updates: Partial<Task>, meta?: { userId?: string; workspaceId?: string; prevStatus?: string }) {
     const { data, error } = await supabase()
       .from('tasks')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -111,6 +122,26 @@ export const tasksService = {
         changed_fields: Object.keys(updates) as unknown as import('@/types/database').Json,
         changed_by: meta.userId ?? null,
       }).then(() => {}) // silent
+    }
+
+    // Fire automations on status change (fire-and-forget)
+    if (updates.status && meta?.workspaceId) {
+      fetch('/api/automations/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trigger_type: 'task_status_changed',
+          workspace_id: meta.workspaceId,
+          payload: {
+            task_id: id,
+            task_title: data?.title ?? '',
+            from_status: meta.prevStatus ?? null,
+            to_status: updates.status,
+            assignee_id: data?.assignee_id ?? null,
+            project_id: data?.project_id ?? null,
+          },
+        }),
+      }).catch(() => {})
     }
 
     return data

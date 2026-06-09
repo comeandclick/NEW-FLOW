@@ -5,8 +5,8 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ZoomIn, ZoomOut, RotateCcw, Network } from 'lucide-react'
-import Link from 'next/link'
+import { ZoomIn, ZoomOut, RotateCcw, Network, X, ExternalLink, Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 interface Props { params: Promise<{ workspace: string }> }
@@ -48,6 +48,7 @@ const NODE_SIZES: Record<GraphNode['type'], number> = {
 
 export default function KnowledgeGraphPage({ params }: Props) {
   const { workspace: slug } = use(params)
+  const router = useRouter()
   const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const svgRef = useRef<SVGSVGElement>(null)
   const animRef = useRef<number>(0)
@@ -60,8 +61,14 @@ export default function KnowledgeGraphPage({ params }: Props) {
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState<{ sx: number; sy: number; ox: number; oy: number } | null>(null)
+  const panMovedRef = useRef(false)
   const [filter, setFilter] = useState<GraphNode['type'] | 'all'>('all')
+  const [search, setSearch] = useState('')
+  // Node dragging state
+  const draggingNodeRef = useRef<{ id: string; ox: number; oy: number; sx: number; sy: number } | null>(null)
 
   useEffect(() => {
     if (!currentWorkspace?.id) return
@@ -211,7 +218,17 @@ export default function KnowledgeGraphPage({ params }: Props) {
           <h1 className="text-lg font-semibold">Knowledge Graph</h1>
           <p className="text-xs text-muted-foreground">{nodes.length} nœuds · {edges.length} liens</p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher…"
+              className="h-7 w-40 text-xs pl-6 pr-2 rounded-md border border-border bg-background/50 focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setScale(s => Math.min(3, s * 1.2))}><ZoomIn className="h-3.5 w-3.5" /></Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setScale(s => Math.max(0.2, s * 0.8))}><ZoomOut className="h-3.5 w-3.5" /></Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setScale(1); setPan({ x: 0, y: 0 }) }}><RotateCcw className="h-3.5 w-3.5" /></Button>
@@ -251,11 +268,41 @@ export default function KnowledgeGraphPage({ params }: Props) {
         ) : (
           <svg
             ref={svgRef}
-            className="w-full h-full cursor-grab active:cursor-grabbing"
-            onMouseDown={e => { if (e.button === 0) setPanning({ sx: e.clientX, sy: e.clientY, ox: pan.x, oy: pan.y }) }}
-            onMouseMove={e => { if (panning) setPan({ x: panning.ox + e.clientX - panning.sx, y: panning.oy + e.clientY - panning.sy }) }}
-            onMouseUp={() => setPanning(null)}
-            onMouseLeave={() => setPanning(null)}
+            className="w-full h-full"
+            style={{ cursor: panning ? 'grabbing' : 'grab' }}
+            onMouseDown={e => {
+              if (e.button === 0 && !draggingNodeRef.current) {
+                setPanning({ sx: e.clientX, sy: e.clientY, ox: pan.x, oy: pan.y })
+                panMovedRef.current = false
+              }
+            }}
+            onMouseMove={e => {
+              if (draggingNodeRef.current) {
+                // Drag node
+                const dn = draggingNodeRef.current
+                const dx = (e.clientX - dn.sx) / scale
+                const dy = (e.clientY - dn.sy) / scale
+                const idx = nodesRef.current.findIndex(n => n.id === dn.id)
+                if (idx !== -1) {
+                  nodesRef.current[idx].x = dn.ox + dx
+                  nodesRef.current[idx].y = dn.oy + dy
+                  setNodes([...nodesRef.current])
+                }
+              } else if (panning) {
+                panMovedRef.current = true
+                setPan({ x: panning.ox + e.clientX - panning.sx, y: panning.oy + e.clientY - panning.sy })
+              }
+            }}
+            onMouseUp={e => {
+              if (draggingNodeRef.current) {
+                draggingNodeRef.current = null
+              } else {
+                // Click on empty space → deselect
+                if (!panMovedRef.current) setSelectedId(null)
+                setPanning(null)
+              }
+            }}
+            onMouseLeave={() => { setPanning(null); draggingNodeRef.current = null }}
             onWheel={e => { e.preventDefault(); setScale(s => Math.min(3, Math.max(0.2, s * (e.deltaY > 0 ? 0.9 : 1.1)))) }}
           >
             <g transform={`translate(${pan.x},${pan.y}) scale(${scale})`}>
@@ -284,28 +331,64 @@ export default function KnowledgeGraphPage({ params }: Props) {
               {visibleNodes.map(node => {
                 const r = NODE_SIZES[node.type]
                 const isHovered = hoveredId === node.id
+                const isSelected = selectedId === node.id
+                const isHighlighted = search && node.label.toLowerCase().includes(search.toLowerCase())
                 return (
                   <g
                     key={node.id}
                     transform={`translate(${node.x},${node.y})`}
-                    onMouseEnter={() => setHoveredId(node.id)}
+                    onMouseEnter={e => { setHoveredId(node.id); setTooltipPos({ x: e.clientX, y: e.clientY }) }}
                     onMouseLeave={() => setHoveredId(null)}
-                    style={{ cursor: node.url ? 'pointer' : 'default' }}
+                    onMouseMove={e => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                    onMouseDown={e => {
+                      // Stop propagation so SVG pan doesn't start
+                      e.stopPropagation()
+                      draggingNodeRef.current = { id: node.id, ox: node.x, oy: node.y, sx: e.clientX, sy: e.clientY }
+                    }}
+                    onMouseUp={e => {
+                      e.stopPropagation()
+                      const dn = draggingNodeRef.current
+                      if (dn) {
+                        const dx = e.clientX - dn.sx
+                        const dy = e.clientY - dn.sy
+                        const moved = Math.sqrt(dx * dx + dy * dy)
+                        draggingNodeRef.current = null
+                        // Only click if barely moved
+                        if (moved < 5) {
+                          if (isSelected) {
+                            // Second click → navigate
+                            if (node.url) router.push(node.url)
+                          } else {
+                            setSelectedId(node.id)
+                          }
+                        }
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
                   >
+                    {/* Highlight ring for search match */}
+                    {isHighlighted && (
+                      <circle r={r * 2.2} fill={NODE_COLORS[node.type]} opacity={0.15} />
+                    )}
+                    {/* Selected ring */}
+                    {isSelected && (
+                      <circle r={r * 1.8} fill="none" stroke={NODE_COLORS[node.type]} strokeWidth={2.5} opacity={0.8} strokeDasharray="4 2" />
+                    )}
                     <circle
-                      r={isHovered ? r * 1.3 : r}
+                      r={isHovered || isSelected ? r * 1.3 : r}
                       fill={NODE_COLORS[node.type]}
-                      opacity={isHovered ? 1 : 0.85}
+                      opacity={isHovered || isSelected ? 1 : 0.85}
                       style={{ transition: 'r 0.15s, opacity 0.15s' }}
                     />
-                    {isHovered && (
+                    {isHovered && !isSelected && (
                       <circle r={r * 1.6} fill="none" stroke={NODE_COLORS[node.type]} strokeWidth={2} opacity={0.3} />
                     )}
                     <text
                       textAnchor="middle"
                       y={r + 12}
-                      fontSize={isHovered ? 11 : 9}
+                      fontSize={isHovered || isSelected ? 11 : 9}
                       className="fill-foreground select-none"
+                      fontWeight={isSelected ? 600 : 400}
                       style={{ transition: 'font-size 0.15s' }}
                     >
                       {node.label.length > 20 ? node.label.slice(0, 18) + '…' : node.label}
@@ -317,16 +400,73 @@ export default function KnowledgeGraphPage({ params }: Props) {
           </svg>
         )}
 
-        {/* Hover tooltip */}
-        {hoveredId && (() => {
+        {/* Hover tooltip — follows cursor */}
+        {hoveredId && hoveredId !== selectedId && (() => {
           const n = nodes.find(nd => nd.id === hoveredId)
           if (!n) return null
+          const svgRect = svgRef.current?.getBoundingClientRect()
+          const tx = svgRect ? tooltipPos.x - svgRect.left : tooltipPos.x
+          const ty = svgRect ? tooltipPos.y - svgRect.top : tooltipPos.y
           return (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-sm pointer-events-none">
+            <div
+              className="absolute flex items-center gap-2 bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-sm pointer-events-none z-10"
+              style={{ left: tx + 12, top: ty - 36, transform: 'translateY(-50%)' }}
+            >
               <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: NODE_COLORS[n.type] }} />
-              <span className="font-medium">{n.label}</span>
-              <Badge className="text-[10px]">{n.type}</Badge>
-              {n.url && <span className="text-[10px] text-muted-foreground">Cliquer pour ouvrir</span>}
+              <span className="font-medium whitespace-nowrap">{n.label}</span>
+              <Badge className="text-[10px]" variant="secondary">{n.type}</Badge>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Clic = sélectionner · 2e clic = ouvrir</span>
+            </div>
+          )
+        })()}
+
+        {/* Selected node detail panel */}
+        {selectedId && (() => {
+          const n = nodes.find(nd => nd.id === selectedId)
+          if (!n) return null
+          const connectedEdges = edges.filter(e => e.source === n.id || e.target === n.id)
+          const connectedNodes = connectedEdges.map(e => {
+            const otherId = e.source === n.id ? e.target : e.source
+            return nodes.find(nd => nd.id === otherId)
+          }).filter(Boolean) as GraphNode[]
+          return (
+            <div className="absolute top-3 left-3 bg-popover border border-border rounded-xl p-4 shadow-xl w-64 z-10">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: NODE_COLORS[n.type] }} />
+                  <span className="font-semibold text-sm leading-tight">{n.label}</span>
+                </div>
+                <button onClick={() => setSelectedId(null)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <Badge variant="secondary" className="text-[10px] mb-3 capitalize">{n.type}</Badge>
+              {connectedNodes.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">{connectedNodes.length} connexion{connectedNodes.length > 1 ? 's' : ''}</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {connectedNodes.map(cn => (
+                      <button
+                        key={cn.id}
+                        className="flex items-center gap-1.5 w-full text-left text-xs hover:bg-accent rounded px-1.5 py-1 transition-colors"
+                        onClick={() => setSelectedId(cn.id)}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: NODE_COLORS[cn.type] }} />
+                        <span className="truncate">{cn.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {n.url && (
+                <button
+                  className="flex items-center gap-1.5 w-full text-xs bg-primary text-primary-foreground rounded-lg px-3 py-1.5 hover:bg-primary/90 transition-colors"
+                  onClick={() => router.push(n.url!)}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Ouvrir {n.type === 'task' ? 'la tâche' : n.type === 'note' ? 'la note' : n.type === 'meeting' ? 'la réunion' : n.type === 'project' ? 'le projet' : 'la page'}
+                </button>
+              )}
             </div>
           )
         })()}

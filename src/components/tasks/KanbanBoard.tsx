@@ -4,13 +4,13 @@ import { useState, useCallback } from 'react'
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
   closestCorners,
+  useDroppable,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -39,6 +39,22 @@ interface ByStatus {
   in_review: Task[]
   done: Task[]
   cancelled: Task[]
+}
+
+function DroppableColumn({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'flex-1 overflow-y-auto p-2 space-y-2 rounded-b-lg transition-colors duration-150',
+        isOver ? 'bg-primary/5 ring-1 ring-primary/20' : '',
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 function SortableTaskCard({ task, workspaceId }: { task: Task; workspaceId: string }) {
@@ -86,16 +102,33 @@ export function KanbanBoard({ byStatus, workspaceId, userId }: KanbanBoardProps)
     const taskId = active.id as string
     const overId = over.id as string
 
-    // Check if dropped onto a column
-    const newStatus = COLUMNS.find((c) => c.id === overId)?.id
+    // Dropped onto a column header
+    let newStatus = COLUMNS.find((c) => c.id === overId)?.id
+
+    // Dropped onto another task → use that task's column
+    if (!newStatus) {
+      for (const col of COLUMNS) {
+        if ((byStatus[col.id] ?? []).some(t => t.id === overId)) {
+          newStatus = col.id
+          break
+        }
+      }
+    }
+
     if (newStatus) {
       const task = Object.values(byStatus).flat().find((t) => t.id === taskId)
       if (task && task.status !== newStatus) {
+        const prevStatus = task.status
         updateTask(taskId, { status: newStatus })
-        await tasksService.update(taskId, { status: newStatus })
+        try {
+          await tasksService.update(taskId, { status: newStatus }, { workspaceId, prevStatus })
+        } catch {
+          // revert on failure
+          updateTask(taskId, { status: prevStatus })
+        }
       }
     }
-  }, [byStatus, updateTask])
+  }, [byStatus, updateTask, workspaceId])
 
   return (
     <DndContext
@@ -144,16 +177,16 @@ export function KanbanBoard({ byStatus, workspaceId, userId }: KanbanBoardProps)
               )}
 
               <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <DroppableColumn id={column.id}>
                   {tasks.map((task) => (
                     <SortableTaskCard key={task.id} task={task} workspaceId={workspaceId} />
                   ))}
                   {tasks.length === 0 && (
-                    <div className="text-center py-8 text-xs text-muted-foreground">
-                      No tasks
+                    <div className="text-center py-10 text-xs text-muted-foreground">
+                      Glissez une tâche ici
                     </div>
                   )}
-                </div>
+                </DroppableColumn>
               </SortableContext>
             </div>
           )

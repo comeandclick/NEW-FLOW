@@ -135,23 +135,27 @@ export default function ConversationPage({ params }: Props) {
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (!text.trim() || !user) return
+    const content = text.trim()
+    setText('') // optimistic clear
     setSending(true)
     try {
-      const msg = await messagesService.send({
-        conversation_id: conversationId,
-        user_id: user.id,
-        content: text.trim(),
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, content }),
       })
-      const fullMsg = msg as unknown as MessageWithUser
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Erreur')
+      const fullMsg = data as MessageWithUser
       setMessages((prev) => {
         if (prev.some((m) => m.id === fullMsg.id)) return prev
         return [...prev, { ...fullMsg, reactions: [] }]
       })
       if (fullMsg.user) profileCache.current.set(user.id, fullMsg.user)
-      setText('')
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    } catch {
-      toast.error('Impossible d\'envoyer le message')
+    } catch (err) {
+      setText(content) // restore on failure
+      toast.error(err instanceof Error ? err.message : 'Impossible d\'envoyer le message')
     } finally {
       setSending(false)
     }
