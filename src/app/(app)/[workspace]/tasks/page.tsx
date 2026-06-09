@@ -107,59 +107,55 @@ export default function TasksPage({ params }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-        <div>
-          <h1 className="text-lg font-semibold">Tâches</h1>
-          <div className="flex items-center gap-3 mt-0.5">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0 gap-2">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold">Tâches</h1>
+          <div className="flex items-center gap-2 sm:gap-3 mt-0.5 flex-wrap">
             <span className="text-xs text-muted-foreground">{total} tâche{total !== 1 ? 's' : ''}</span>
             {inProgress > 0 && (
               <span className="flex items-center gap-1 text-xs text-blue-400">
-                <Clock className="h-3 w-3" />{inProgress} en cours
-              </span>
-            )}
-            {done > 0 && (
-              <span className="flex items-center gap-1 text-xs text-green-400">
-                <CheckCircle2 className="h-3 w-3" />{done} terminées
+                <Clock className="h-3 w-3" />{inProgress}
               </span>
             )}
             {overdue > 0 && (
               <span className="flex items-center gap-1 text-xs text-red-400">
-                <AlertCircle className="h-3 w-3" />{overdue} en retard
+                <AlertCircle className="h-3 w-3" />{overdue}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Button
             variant={showFilters ? 'secondary' : 'outline'}
             size="sm" className="h-7 gap-1 text-xs"
             onClick={() => setShowFilters(!showFilters)}
           >
             <SlidersHorizontal className="h-3 w-3" />
-            Filtres
+            <span className="hidden sm:inline">Filtres</span>
             {activeFiltersCount > 0 && (
               <Badge className="h-4 px-1 text-[9px] ml-0.5">{activeFiltersCount}</Badge>
             )}
           </Button>
           <Tabs value={view} onValueChange={(v) => setView(v as 'kanban' | 'list')}>
             <TabsList className="h-7">
-              <TabsTrigger value="kanban" className="h-5 px-2 text-xs gap-1">
-                <LayoutGrid className="h-3 w-3" /> Kanban
+              <TabsTrigger value="kanban" className="h-5 px-2 text-xs">
+                <LayoutGrid className="h-3 w-3" />
               </TabsTrigger>
-              <TabsTrigger value="list" className="h-5 px-2 text-xs gap-1">
-                <List className="h-3 w-3" /> Liste
+              <TabsTrigger value="list" className="h-5 px-2 text-xs">
+                <List className="h-3 w-3" />
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nouvelle tâche
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Nouvelle tâche</span>
           </Button>
         </div>
       </div>
 
       {/* Filter bar */}
       {showFilters && (
-        <div className="px-6 py-3 border-b border-border bg-muted/20 flex flex-wrap items-center gap-2 shrink-0">
+        <div className="px-4 sm:px-6 py-2 sm:py-3 border-b border-border bg-muted/20 flex flex-wrap items-center gap-2 shrink-0">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input

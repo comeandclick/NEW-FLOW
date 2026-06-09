@@ -90,18 +90,19 @@ export default function NotesPage({ params }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-lg font-semibold">Notes</h1>
+          <h1 className="text-base sm:text-lg font-semibold">Notes</h1>
           <p className="text-xs text-muted-foreground">{notes.filter(n => !n.is_archived).length} note{notes.length !== 1 ? 's' : ''}</p>
         </div>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={createNote}>
-          <Plus className="h-3.5 w-3.5" /> Nouvelle note
+          <Plus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Nouvelle note</span>
         </Button>
       </div>
 
       {/* Search + filters */}
-      <div className="px-6 py-3 border-b border-border space-y-2 shrink-0">
+      <div className="px-4 sm:px-6 py-2 sm:py-3 border-b border-border space-y-2 shrink-0">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

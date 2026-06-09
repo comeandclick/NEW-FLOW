@@ -183,14 +183,17 @@ export default function MessagesPage({ params }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-lg font-semibold">Messages</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
+        <h1 className="text-base sm:text-lg font-semibold">Messages</h1>
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setDmOpen(true)}>
-            <UserPlus className="h-3.5 w-3.5" /> Message direct
+            <UserPlus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Message direct</span>
+            <span className="sm:hidden">DM</span>
           </Button>
           <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Canal
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Canal</span>
           </Button>
         </div>
       </div>

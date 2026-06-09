@@ -68,7 +68,23 @@ export default function ConversationPage({ params }: Props) {
   // ── Load initial data ────────────────────────────────────────────────────
   useEffect(() => {
     messagesService.getMessages(conversationId).then((data) => {
-      const msgs = data as unknown as MessageWithUser[]
+      // Transform raw reactions rows to ReactionCount[]
+      const msgs = (data as unknown as Array<MessageWithUser & {
+        reactions?: Array<{ emoji: string; user_id: string; message_id: string }>
+      }>).map(m => {
+        const rawReactions = (m.reactions as unknown as Array<{ emoji: string; user_id: string }>) ?? []
+        const reactionMap = new Map<string, ReactionCount>()
+        for (const r of rawReactions) {
+          const existing = reactionMap.get(r.emoji)
+          if (existing) {
+            existing.count++
+            if (r.user_id === user?.id) existing.userReacted = true
+          } else {
+            reactionMap.set(r.emoji, { emoji: r.emoji, count: 1, userReacted: r.user_id === user?.id })
+          }
+        }
+        return { ...m, reactions: Array.from(reactionMap.values()) }
+      }) as MessageWithUser[]
       setMessages(msgs)
       msgs.forEach((m) => { if (m.user) profileCache.current.set(m.user_id, m.user) })
       setTimeout(() => bottomRef.current?.scrollIntoView(), 50)
@@ -81,7 +97,8 @@ export default function ConversationPage({ params }: Props) {
       .single()
       .then(({ data }) => setConversation(data))
 
-    loadReactions()
+    // Reactions already included via messagesService.getMessages() reactions(*) join
+    // loadReactions() removed — it fetched ALL reactions without conversation filter (bug)
 
     const unsub = subscribeToMessages(
       conversationId,
@@ -145,11 +162,15 @@ export default function ConversationPage({ params }: Props) {
     if (data) setMembers(data as unknown as { user_id: string; profile: UserProfile | null }[])
   }
 
-  // ── Reactions ─────────────────────────────────────────────────────────────
-  async function loadReactions() {
+  // ── Reactions (filtered by conversation messages) ─────────────────────────
+  async function loadReactions(msgIds?: string[]) {
     if (!user?.id) return
+    const ids = msgIds ?? messages.map(m => m.id)
+    if (!ids.length) return
     const { data } = await getSupabaseClient()
-      .from('reactions').select('emoji, user_id, message_id').not('message_id', 'is', null)
+      .from('reactions')
+      .select('emoji, user_id, message_id')
+      .in('message_id', ids)
     if (!data) return
     const byMsg: Record<string, ReactionCount[]> = {}
     for (const r of data) {
@@ -159,7 +180,7 @@ export default function ConversationPage({ params }: Props) {
       if (existing) { existing.count++; if (r.user_id === user?.id) existing.userReacted = true }
       else byMsg[r.message_id].push({ emoji: r.emoji, count: 1, userReacted: r.user_id === user?.id })
     }
-    setMessages(prev => prev.map(m => ({ ...m, reactions: byMsg[m.id] ?? [] })))
+    setMessages(prev => prev.map(m => ids.includes(m.id) ? { ...m, reactions: byMsg[m.id] ?? m.reactions ?? [] } : m))
   }
 
   // ── Typing broadcast ──────────────────────────────────────────────────────
@@ -301,7 +322,7 @@ export default function ConversationPage({ params }: Props) {
         </Button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Messages area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-auto px-4 py-4">
@@ -492,7 +513,7 @@ export default function ConversationPage({ params }: Props) {
             <div className="flex gap-2 items-end">
               <textarea
                 ref={inputRef}
-                placeholder={`Message ${conversation?.type === 'channel' ? '#' : ''}${conversation?.name ?? '…'} · Entrée pour envoyer · Maj+Entrée pour saut de ligne`}
+                placeholder={`Message ${conversation?.type === 'channel' ? '#' + (conversation?.name ?? '') : (conversation?.name ?? '…')}`}
                 value={text}
                 onChange={handleTextChange}
                 onKeyDown={handleKeyDown}
@@ -512,9 +533,9 @@ export default function ConversationPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Members sidebar */}
+        {/* Members sidebar — overlay on mobile, side panel on desktop */}
         {showMembers && (
-          <div className="w-52 border-l border-border flex flex-col shrink-0">
+          <div className="absolute inset-y-0 right-0 w-52 md:relative md:inset-auto border-l border-border flex flex-col shrink-0 bg-background z-20 shadow-xl md:shadow-none">
             <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Membres</p>
               <button onClick={() => setShowMembers(false)} className="text-muted-foreground hover:text-foreground">

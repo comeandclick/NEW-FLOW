@@ -114,11 +114,11 @@ export default async function WorkspaceHomePage({ params }: Props) {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-6">
       {/* Hero greeting */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {firstName} 👋</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{greeting}, {firstName} 👋</h1>
           <p className="text-muted-foreground text-sm mt-1 capitalize">
             {format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}
           </p>

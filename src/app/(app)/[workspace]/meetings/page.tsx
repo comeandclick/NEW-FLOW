@@ -78,14 +78,16 @@ export default function MeetingsPage({ params }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-lg font-semibold">Réunions</h1>
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
+        <h1 className="text-base sm:text-lg font-semibold">Réunions</h1>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> Nouvelle réunion
+          <Plus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Nouvelle réunion</span>
+          <span className="sm:hidden">Créer</span>
         </Button>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-3">
+      <div className="flex-1 overflow-auto p-3 sm:p-6 space-y-2 sm:space-y-3">
         {loading ? (
           <div className="text-sm text-muted-foreground">Chargement…</div>
         ) : meetings.length === 0 ? (

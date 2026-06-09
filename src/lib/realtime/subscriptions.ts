@@ -69,7 +69,9 @@ export function subscribeToMessages(
   }
 
   const channel = supabase()
-    .channel(`messages:${conversationId}`, { config: { broadcast: { self: false } } })
+    .channel(`messages:${conversationId}:v2`, {
+      config: { broadcast: { self: false } },
+    })
     .on(
       'postgres_changes',
       {
@@ -93,7 +95,9 @@ export function subscribeToMessages(
     .on('broadcast', { event: 'typing' }, ({ payload }) => {
       if (onTyping) onTyping(payload as { userId: string; name: string; typing: boolean })
     })
-    .subscribe()
+    .subscribe((status, err) => {
+      if (err) console.error(`[realtime] messages:${conversationId} error:`, err)
+    })
 
   messageChannels.set(conversationId, channel)
 
