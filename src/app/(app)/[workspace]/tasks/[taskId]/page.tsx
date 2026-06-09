@@ -72,17 +72,19 @@ export default function TaskDetailPage({ params }: Props) {
     }).catch(() => {})
   }, [taskId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleStatusChange(value: Task['status'] | null) {
+  async function handleStatusChange(value: string | null) {
     if (!task || !value) return
-    updateTask(task.id, { status: value })
-    await tasksService.update(task.id, { status: value })
+    const status = value as Task['status']
+    updateTask(task.id, { status })
+    await tasksService.update(task.id, { status })
     toast.success('Statut mis à jour')
   }
 
-  async function handlePriorityChange(value: Task['priority'] | null) {
+  async function handlePriorityChange(value: string | null) {
     if (!task || !value) return
-    updateTask(task.id, { priority: value })
-    await tasksService.update(task.id, { priority: value })
+    const priority = value as Task['priority']
+    updateTask(task.id, { priority })
+    await tasksService.update(task.id, { priority })
   }
 
   async function handleSubtaskToggle(subtask: Task) {

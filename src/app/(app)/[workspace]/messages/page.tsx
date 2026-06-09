@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { messagesService } from '@/services/messages.service'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import type { ConversationWithMembers } from '@/types/database'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 interface Props {
   params: Promise<{ workspace: string }>
@@ -45,6 +46,9 @@ export default function MessagesPage({ params }: Props) {
   const [members, setMembers] = useState<WorkspaceMember[]>([])
   const [memberSearch, setMemberSearch] = useState('')
   const [membersLoading, setMembersLoading] = useState(false)
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const presenceRef = useRef<any>(null)
 
   useEffect(() => {
     if (!currentWorkspace?.id || !user?.id) return
@@ -67,6 +71,25 @@ export default function MessagesPage({ params }: Props) {
       .subscribe()
 
     return () => { channel.unsubscribe() }
+  }, [currentWorkspace?.id, user?.id])
+
+  // Presence tracking
+  useEffect(() => {
+    if (!currentWorkspace?.id || !user?.id) return
+    const ch = getSupabaseClient()
+      .channel(`presence:messages:${currentWorkspace.id}`)
+      .on('presence', { event: 'sync' }, () => {
+        const state = ch.presenceState() as Record<string, Array<{ userId: string }>>
+        const ids = new Set(Object.values(state).flat().map(p => p.userId))
+        setOnlineUsers(ids)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await ch.track({ userId: user.id })
+        }
+      })
+    presenceRef.current = ch
+    return () => { ch.unsubscribe() }
   }, [currentWorkspace?.id, user?.id])
 
   // Load members via admin route (bypasses RLS join issue)
@@ -222,6 +245,9 @@ export default function MessagesPage({ params }: Props) {
                               {otherMember?.profile?.full_name?.[0] ?? otherMember?.profile?.email?.[0] ?? '?'}
                             </AvatarFallback>
                           </Avatar>
+                          {otherMember && onlineUsers.has(otherMember.user_id) && (
+                            <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border border-background" />
+                          )}
                         </div>
                         <span className={`text-sm flex-1 truncate ${unread ? 'font-semibold' : ''}`}>
                           {otherMember?.profile?.full_name ?? otherMember?.profile?.email ?? 'Inconnu'}
