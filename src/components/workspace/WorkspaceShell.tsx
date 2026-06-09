@@ -22,6 +22,7 @@ import { Search, LayoutGrid } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { VersionHistory } from '@/components/workspace/VersionHistory'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher'
 
@@ -94,6 +95,9 @@ export function WorkspaceShell({ workspaceSlug, userId, children }: WorkspaceShe
               <Search className="h-4 w-4" />
             </Button>
 
+            {currentWorkspace?.id && (
+              <VersionHistory workspaceId={currentWorkspace.id} workspaceSlug={workspaceSlug} />
+            )}
             <ThemeToggle />
             <NotificationBell userId={userId} />
 

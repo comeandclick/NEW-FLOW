@@ -14,6 +14,7 @@ import { format } from 'date-fns'
 import { toast } from 'sonner'
 import type { Note } from '@/types/database'
 import Link from 'next/link'
+import { FavoriteButton } from '@/components/workspace/FavoriteButton'
 
 interface Props {
   params: Promise<{ workspace: string }>
@@ -129,6 +130,14 @@ function NoteCard({ note, slug }: { note: Note; slug: string }) {
               {format(new Date(note.updated_at), 'MMM d, yyyy')}
             </p>
           </div>
+          <span onClick={(e) => e.preventDefault()}>
+            <FavoriteButton
+              entityType="note"
+              entityId={note.id}
+              entityTitle={note.title || 'Sans titre'}
+              entityUrl={`/${slug}/notes/${note.id}`}
+            />
+          </span>
         </div>
         {note.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">

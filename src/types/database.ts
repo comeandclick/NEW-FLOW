@@ -24,6 +24,7 @@ export type TaskRow = {
   priority: 'low' | 'medium' | 'high' | 'urgent'; assignee_id: string | null; created_by: string | null
   due_date: string | null; start_date: string | null; completed_at: string | null
   position: number; tags: string[]; metadata: Json; created_at: string; updated_at: string
+  deleted_at: string | null
 }
 export type TaskCommentRow = {
   id: string; task_id: string; user_id: string; content: string; parent_id: string | null
@@ -33,6 +34,7 @@ export type NoteRow = {
   id: string; workspace_id: string; project_id: string | null; title: string; content: Json
   created_by: string | null; icon: string | null; cover_url: string | null
   is_pinned: boolean; is_archived: boolean; tags: string[]; created_at: string; updated_at: string
+  deleted_at: string | null
 }
 export type NoteLinkRow = {
   id: string; source_note_id: string; target_note_id: string | null; target_task_id: string | null; created_at: string
@@ -114,6 +116,79 @@ export type WorkspaceInvitationRow = {
 }
 export type WorkspaceInvitation = WorkspaceInvitationRow
 
+export type WhiteboardItemRow = {
+  id: string; workspace_id: string; board_id: string; type: string
+  content: string | null; x: number; y: number; width: number; height: number
+  color: string; style: Json; from_id: string | null; to_id: string | null
+  z_index: number; created_by: string | null; created_at: string; updated_at: string
+}
+export type WhiteboardItem = WhiteboardItemRow
+
+export type TaskRelationRow = {
+  id: string; workspace_id: string; task_id: string
+  related_type: string; related_id: string; label: string
+  created_by: string | null; created_at: string
+}
+export type TaskRelation = TaskRelationRow
+
+export type VersionHistoryRow = {
+  id: string; workspace_id: string; entity_type: string; entity_id: string
+  entity_title: string | null; content_snapshot: Json | null; changed_fields: Json | null
+  changed_by: string | null; created_at: string
+}
+export type VersionHistory = VersionHistoryRow
+
+export type TrashItemRow = {
+  id: string; workspace_id: string; entity_type: string; entity_id: string
+  entity_title: string; entity_data: Json; deleted_by: string | null
+  deleted_at: string; restore_url: string | null
+}
+export type TrashItem = TrashItemRow
+
+export type FavoriteRow = {
+  id: string; user_id: string; workspace_id: string; entity_type: string
+  entity_id: string; entity_title: string; entity_url: string; created_at: string
+}
+export type Favorite = FavoriteRow
+
+export type GoalRow = {
+  id: string; workspace_id: string; title: string; description: string | null
+  target_value: number; current_value: number; unit: string; status: string
+  due_date: string | null; color: string | null; created_by: string | null
+  created_at: string; updated_at: string
+}
+export type Goal = GoalRow
+
+export type GoalKeyResultRow = {
+  id: string; goal_id: string; title: string; target_value: number
+  current_value: number; unit: string; created_at: string; updated_at: string
+}
+export type GoalKeyResult = GoalKeyResultRow
+
+export type CrmContactRow = {
+  id: string; workspace_id: string; name: string; email: string | null
+  phone: string | null; company: string | null; position: string | null
+  status: string; tags: string[]; notes: string | null; avatar_url: string | null
+  created_by: string | null; created_at: string; updated_at: string
+}
+export type CrmContact = CrmContactRow
+
+export type CrmDealRow = {
+  id: string; workspace_id: string; contact_id: string | null; title: string
+  value: number; currency: string; stage: string; probability: number
+  close_date: string | null; notes: string | null; position: number
+  created_by: string | null; created_at: string; updated_at: string
+}
+export type CrmDeal = CrmDealRow
+
+export type AutomationRow = {
+  id: string; workspace_id: string; name: string; description: string | null
+  trigger_type: string; trigger_config: Json; action_type: string; action_config: Json
+  is_active: boolean; run_count: number; last_run_at: string | null
+  created_by: string | null; created_at: string; updated_at: string
+}
+export type Automation = AutomationRow
+
 // Insert types (all fields optional except workspace_id/required keys)
 export type InsertTask = Partial<TaskRow> & Pick<TaskRow, 'workspace_id' | 'title'>
 export type InsertNote = Partial<NoteRow> & Pick<NoteRow, 'workspace_id'>
@@ -146,6 +221,16 @@ export type Database = {
       notifications: { Row: NotificationRow; Insert: Partial<NotificationRow> & Pick<NotificationRow, 'user_id' | 'type' | 'title'>; Update: Partial<NotificationRow>; Relationships: [] }
       activity_logs: { Row: ActivityLogRow; Insert: Partial<ActivityLogRow> & Pick<ActivityLogRow, 'workspace_id' | 'action'>; Update: Partial<ActivityLogRow>; Relationships: [] }
       workspace_invitations: { Row: WorkspaceInvitationRow; Insert: Partial<WorkspaceInvitationRow> & Pick<WorkspaceInvitationRow, 'workspace_id' | 'email'>; Update: Partial<WorkspaceInvitationRow>; Relationships: [] }
+      whiteboard_items: { Row: WhiteboardItemRow; Insert: Partial<WhiteboardItemRow> & Pick<WhiteboardItemRow, 'workspace_id' | 'type'>; Update: Partial<WhiteboardItemRow>; Relationships: [] }
+      task_relations: { Row: TaskRelationRow; Insert: Partial<TaskRelationRow> & Pick<TaskRelationRow, 'workspace_id' | 'task_id' | 'related_type' | 'related_id'>; Update: Partial<TaskRelationRow>; Relationships: [] }
+      version_history: { Row: VersionHistoryRow; Insert: Partial<VersionHistoryRow> & Pick<VersionHistoryRow, 'workspace_id' | 'entity_type' | 'entity_id'>; Update: Partial<VersionHistoryRow>; Relationships: [] }
+      trash_items: { Row: TrashItemRow; Insert: Partial<TrashItemRow> & Pick<TrashItemRow, 'workspace_id' | 'entity_type' | 'entity_id' | 'entity_title' | 'entity_data'>; Update: Partial<TrashItemRow>; Relationships: [] }
+      favorites: { Row: FavoriteRow; Insert: Partial<FavoriteRow> & Pick<FavoriteRow, 'user_id' | 'workspace_id' | 'entity_type' | 'entity_id' | 'entity_title' | 'entity_url'>; Update: Partial<FavoriteRow>; Relationships: [] }
+      goals: { Row: GoalRow; Insert: Partial<GoalRow> & Pick<GoalRow, 'workspace_id' | 'title'>; Update: Partial<GoalRow>; Relationships: [] }
+      goal_key_results: { Row: GoalKeyResultRow; Insert: Partial<GoalKeyResultRow> & Pick<GoalKeyResultRow, 'goal_id' | 'title'>; Update: Partial<GoalKeyResultRow>; Relationships: [] }
+      crm_contacts: { Row: CrmContactRow; Insert: Partial<CrmContactRow> & Pick<CrmContactRow, 'workspace_id' | 'name'>; Update: Partial<CrmContactRow>; Relationships: [] }
+      crm_deals: { Row: CrmDealRow; Insert: Partial<CrmDealRow> & Pick<CrmDealRow, 'workspace_id' | 'title'>; Update: Partial<CrmDealRow>; Relationships: [] }
+      automations: { Row: AutomationRow; Insert: Partial<AutomationRow> & Pick<AutomationRow, 'workspace_id' | 'name' | 'trigger_type' | 'action_type'>; Update: Partial<AutomationRow>; Relationships: [] }
     }
     Views: { [_ in never]: never }
     Functions: {

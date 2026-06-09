@@ -8,7 +8,8 @@ import { useUIStore } from '@/stores/uiStore'
 import {
   CheckSquare, FileText, Calendar, MessageSquare, FolderOpen,
   Video, Settings, ChevronLeft, ChevronRight, Plus,
-  LayoutDashboard, Users, User
+  LayoutDashboard, Users, User, PenTool, Target, Briefcase,
+  Zap, Network, Trash2, Activity, Star,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -26,7 +27,8 @@ interface NavItem {
 function NavLink({ item, collapsed, workspaceSlug }: { item: NavItem; collapsed: boolean; workspaceSlug: string }) {
   const pathname = usePathname()
   const href = `/${workspaceSlug}${item.href}`
-  const active = pathname.startsWith(href)
+  // Exact match for home, prefix match for rest
+  const active = item.href === '' ? pathname === href : pathname.startsWith(href)
 
   const link = (
     <Link
@@ -54,7 +56,7 @@ function NavLink({ item, collapsed, workspaceSlug }: { item: NavItem; collapsed:
   return link
 }
 
-const NAV_ITEMS: NavItem[] = [
+const CORE_NAV: NavItem[] = [
   { label: 'Accueil', href: '', icon: LayoutDashboard },
   { label: 'Tâches', href: '/tasks', icon: CheckSquare },
   { label: 'Notes', href: '/notes', icon: FileText },
@@ -62,6 +64,23 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Messages', href: '/messages', icon: MessageSquare },
   { label: 'Fichiers', href: '/files', icon: FolderOpen },
   { label: 'Réunions', href: '/meetings', icon: Video },
+]
+
+const MODULE_NAV: NavItem[] = [
+  { label: 'Tableau blanc', href: '/whiteboard', icon: PenTool },
+  { label: 'Goals / OKR', href: '/goals', icon: Target },
+  { label: 'CRM', href: '/crm', icon: Briefcase },
+  { label: 'Automations', href: '/automations', icon: Zap },
+  { label: 'Graphe', href: '/graph', icon: Network },
+]
+
+const BOTTOM_NAV: NavItem[] = [
+  { label: 'Favoris', href: '/favorites', icon: Star },
+  { label: 'Activité', href: '/activity', icon: Activity },
+  { label: 'Corbeille', href: '/trash', icon: Trash2 },
+  { label: 'Membres', href: '/settings/members', icon: Users },
+  { label: 'Paramètres', href: '/settings', icon: Settings },
+  { label: 'Profil', href: '/settings/profile', icon: User },
 ]
 
 export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
@@ -100,9 +119,9 @@ export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
         </div>
 
         <ScrollArea className="flex-1 px-2 py-2">
-          {/* Main nav */}
+          {/* Core nav */}
           <nav className="space-y-0.5">
-            {NAV_ITEMS.map((item) => (
+            {CORE_NAV.map((item) => (
               <NavLink key={item.href} item={item} collapsed={collapsed} workspaceSlug={workspaceSlug} />
             ))}
           </nav>
@@ -144,25 +163,24 @@ export function Sidebar({ workspaceSlug }: { workspaceSlug: string }) {
               </div>
             </>
           )}
+
+          {/* Modules */}
+          <Separator className="my-3" />
+          {!collapsed && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2.5 mb-1">Modules</p>
+          )}
+          <nav className="space-y-0.5">
+            {MODULE_NAV.map((item) => (
+              <NavLink key={item.href} item={item} collapsed={collapsed} workspaceSlug={workspaceSlug} />
+            ))}
+          </nav>
         </ScrollArea>
 
         {/* Bottom nav */}
         <div className={cn('border-t border-border px-2 py-2 space-y-0.5')}>
-          <NavLink
-            item={{ label: 'Membres', href: '/settings/members', icon: Users }}
-            collapsed={collapsed}
-            workspaceSlug={workspaceSlug}
-          />
-          <NavLink
-            item={{ label: 'Paramètres', href: '/settings', icon: Settings }}
-            collapsed={collapsed}
-            workspaceSlug={workspaceSlug}
-          />
-          <NavLink
-            item={{ label: 'Profil', href: '/settings/profile', icon: User }}
-            collapsed={collapsed}
-            workspaceSlug={workspaceSlug}
-          />
+          {BOTTOM_NAV.map((item) => (
+            <NavLink key={item.href} item={item} collapsed={collapsed} workspaceSlug={workspaceSlug} />
+          ))}
         </div>
       </aside>
     </TooltipProvider>

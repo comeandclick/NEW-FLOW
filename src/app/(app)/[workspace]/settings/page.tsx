@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Building2, Globe, Shield, Trash2, Zap } from 'lucide-react'
+import { Building2, Download, Globe, Shield, Trash2, Zap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface Props {
@@ -151,6 +151,44 @@ export default function WorkspaceSettingsPage({ params }: Props) {
             Passer à Pro
           </Button>
         )}
+      </section>
+
+      <Separator />
+
+      {/* Export */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Download className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Export des données</h2>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { type: 'tasks', label: 'Tâches (CSV)' },
+            { type: 'notes', label: 'Notes (CSV)' },
+            { type: 'members', label: 'Membres (CSV)' },
+            { type: 'crm_contacts', label: 'CRM contacts (CSV)' },
+          ].map(({ type, label }) => (
+            <Button
+              key={type}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 justify-start"
+              onClick={() => {
+                if (!currentWorkspace?.id) return
+                const url = `/api/workspaces/export?workspaceId=${currentWorkspace.id}&type=${type}`
+                const a = document.createElement('a')
+                a.href = url
+                a.download = ''
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {label}
+            </Button>
+          ))}
+        </div>
       </section>
 
       <Separator />

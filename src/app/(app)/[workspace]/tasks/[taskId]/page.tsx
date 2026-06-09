@@ -16,11 +16,12 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { ArrowLeft, Send, Trash2, Plus, CheckSquare, Square } from 'lucide-react'
+import { ArrowLeft, Send, Trash2, Plus, CheckSquare, Square, Link2, ExternalLink, X } from 'lucide-react'
 import Link from 'next/link'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { Task } from '@/types/database'
 import { cn } from '@/lib/utils'
+import { FavoriteButton } from '@/components/workspace/FavoriteButton'
 
 interface Props {
   params: Promise<{ workspace: string; taskId: string }>
@@ -153,6 +154,12 @@ export default function TaskDetailPage({ params }: Props) {
         <h1 className={cn('text-xl font-semibold flex-1', task.status === 'done' && 'line-through text-muted-foreground')}>
           {task.title}
         </h1>
+        <FavoriteButton
+          entityType="task"
+          entityId={task.id}
+          entityTitle={task.title}
+          entityUrl={`/${slug}/tasks/${task.id}`}
+        />
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
@@ -301,6 +308,11 @@ export default function TaskDetailPage({ params }: Props) {
 
       <Separator />
 
+      {/* Task Relations */}
+      <TaskRelations taskId={taskId} workspaceId={currentWorkspace?.id ?? ''} workspaceSlug={slug} />
+
+      <Separator />
+
       {/* Comments */}
       <div className="space-y-4">
         <h2 className="text-sm font-medium">Commentaires ({comments.length})</h2>
@@ -338,6 +350,125 @@ export default function TaskDetailPage({ params }: Props) {
           </Button>
         </form>
       </div>
+    </div>
+  )
+}
+
+// ─── Task Relations sub-component ───────────────────────────────────────────
+
+interface TaskRelation {
+  id: string
+  related_type: string
+  related_id: string
+  label: string
+  title?: string
+}
+
+function TaskRelations({ taskId, workspaceId, workspaceSlug }: {
+  taskId: string; workspaceId: string; workspaceSlug: string
+}) {
+  const [relations, setRelations] = useState<TaskRelation[]>([])
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ type: 'task', id: '', label: 'related' })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!workspaceId) return
+    import('@/lib/supabase/client').then(({ getSupabaseClient }) => {
+      getSupabaseClient()
+        .from('task_relations')
+        .select('id, related_type, related_id, label')
+        .eq('task_id', taskId)
+        .then(({ data }) => setRelations((data ?? []) as TaskRelation[]))
+    })
+  }, [taskId, workspaceId])
+
+  async function addRelation(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.id.trim() || saving) return
+    setSaving(true)
+    try {
+      const { getSupabaseClient } = await import('@/lib/supabase/client')
+      const { data } = await getSupabaseClient()
+        .from('task_relations')
+        .insert({ task_id: taskId, workspace_id: workspaceId, related_type: form.type, related_id: form.id.trim(), label: form.label })
+        .select().single()
+      if (data) setRelations(prev => [...prev, data as TaskRelation])
+      setAdding(false)
+      setForm({ type: 'task', id: '', label: 'related' })
+    } catch { /* ignore */ } finally { setSaving(false) }
+  }
+
+  async function removeRelation(id: string) {
+    const { getSupabaseClient } = await import('@/lib/supabase/client')
+    await getSupabaseClient().from('task_relations').delete().eq('id', id)
+    setRelations(prev => prev.filter(r => r.id !== id))
+  }
+
+  const RELATION_TYPES = [
+    { key: 'task', label: 'Tâche' },
+    { key: 'note', label: 'Note' },
+    { key: 'file', label: 'Fichier' },
+  ]
+  const LABELS = ['related', 'blocks', 'blocked_by', 'duplicates']
+
+  function relUrl(r: TaskRelation) {
+    if (r.related_type === 'task') return `/${workspaceSlug}/tasks/${r.related_id}`
+    if (r.related_type === 'note') return `/${workspaceSlug}/notes/${r.related_id}`
+    return `/${workspaceSlug}/files`
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium flex items-center gap-2">
+          <Link2 className="h-4 w-4" />
+          Relations ({relations.length})
+        </h2>
+        <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-muted-foreground" onClick={() => setAdding(!adding)}>
+          <Plus className="h-3 w-3" /> Lier
+        </Button>
+      </div>
+
+      {relations.map(r => (
+        <div key={r.id} className="flex items-center gap-2 group rounded-md px-2 py-1.5 hover:bg-muted/40 -mx-2">
+          <span className="text-[10px] text-muted-foreground capitalize bg-muted px-1.5 py-0.5 rounded">{r.label}</span>
+          <Link href={relUrl(r)} className="text-xs flex-1 text-primary hover:underline truncate flex items-center gap-1">
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            {r.related_type}/{r.related_id.slice(0, 8)}…
+          </Link>
+          <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => removeRelation(r.id)}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      ))}
+
+      {adding && (
+        <form onSubmit={addRelation} className="flex gap-2 flex-wrap">
+          <select
+            value={form.type}
+            onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+            className="h-8 text-xs border border-input rounded-md px-2 bg-background"
+          >
+            {RELATION_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+          </select>
+          <Input
+            placeholder="ID de l'élément…"
+            value={form.id}
+            onChange={e => setForm(f => ({ ...f, id: e.target.value }))}
+            className="h-8 text-xs flex-1 min-w-24"
+          />
+          <select
+            value={form.label}
+            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+            className="h-8 text-xs border border-input rounded-md px-2 bg-background"
+          >
+            {LABELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <Button type="submit" size="sm" className="h-8 text-xs" disabled={saving}>Lier</Button>
+          <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setAdding(false)}>Annuler</Button>
+        </form>
+      )}
     </div>
   )
 }

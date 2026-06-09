@@ -124,13 +124,9 @@ export default function MembersPage({ params }: Props) {
     try {
       const supabase = getSupabaseClient()
 
-      const { data: rawMembers, error: membersErr } = await supabase
-        .from('workspace_members')
-        .select('id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, email)')
-        .eq('workspace_id', currentWorkspace.id)
-        .order('joined_at', { ascending: true })
-
-      if (membersErr) console.error('members err:', membersErr.message)
+      // Use admin API route to bypass RLS (RLS on profiles join can silently fail)
+      const membersRes = await fetch(`/api/workspaces/members?workspaceId=${currentWorkspace.id}`)
+      const rawMembers: MemberWithProfile[] = membersRes.ok ? await membersRes.json() : []
 
       const { data: tasks } = await supabase
         .from('tasks')
@@ -144,7 +140,7 @@ export default function MembersPage({ params }: Props) {
         if (t.assignee_id) taskCountMap[t.assignee_id] = (taskCountMap[t.assignee_id] ?? 0) + 1
       })
 
-      const enriched = ((rawMembers ?? []) as unknown as MemberWithProfile[]).map((m) => ({
+      const enriched = rawMembers.map((m) => ({
         ...m,
         taskCount: taskCountMap[m.user_id] ?? 0,
       }))
@@ -159,20 +155,13 @@ export default function MembersPage({ params }: Props) {
         })
         const json = await res.json()
         if (json.repaired) {
-          // Re-fetch members with the new row
-          const { data: fresh } = await supabase
-            .from('workspace_members')
-            .select('id, user_id, role, joined_at, profile:profiles(id, full_name, avatar_url, email)')
-            .eq('workspace_id', currentWorkspace.id)
-            .order('joined_at', { ascending: true })
-          const freshEnriched = ((fresh ?? []) as unknown as MemberWithProfile[]).map((m) => ({
-            ...m,
-            taskCount: taskCountMap[m.user_id] ?? 0,
-          }))
+          // Re-fetch via admin route after repair
+          const freshRes = await fetch(`/api/workspaces/members?workspaceId=${currentWorkspace.id}`)
+          const freshRaw: MemberWithProfile[] = freshRes.ok ? await freshRes.json() : []
+          const freshEnriched = freshRaw.map((m) => ({ ...m, taskCount: taskCountMap[m.user_id] ?? 0 }))
           setMembers(freshEnriched)
           setMyRole('owner')
           setLoading(false)
-          // Load pending invitations
           const { data: invitations } = await supabase
             .from('workspace_invitations')
             .select('id, email, role, created_at, expires_at, token')
