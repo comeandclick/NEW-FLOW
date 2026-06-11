@@ -24,7 +24,7 @@ import { toast } from 'sonner'
 import {
   UserPlus, MessageSquare, MoreHorizontal, Shield, Clock,
   Mail, Copy, CheckCircle2, CheckSquare, Loader2, UserMinus, Crown,
-  Search, User,
+  Search, User, X,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -630,7 +630,7 @@ export default function MembersPage({ params }: Props) {
                     </div>
                     <button type="button" className="text-xs text-muted-foreground hover:text-destructive"
                       onClick={() => { setSelectedProfile(null); setSearchQuery('') }}>
-                      ✕
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 )}

@@ -105,7 +105,7 @@ export default function TasksPage({ params }: Props) {
   const inProgress = tasks.filter(t => t.status === 'in_progress').length
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0 gap-2">
         <div className="min-w-0">
@@ -172,10 +172,10 @@ export default function TasksPage({ params }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes priorités</SelectItem>
-              <SelectItem value="urgent">🔴 Urgent</SelectItem>
-              <SelectItem value="high">🟠 Haute</SelectItem>
-              <SelectItem value="medium">🟡 Moyenne</SelectItem>
-              <SelectItem value="low">🔵 Basse</SelectItem>
+              <SelectItem value="urgent"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-500 inline-block shrink-0" />Urgent</span></SelectItem>
+              <SelectItem value="high"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block shrink-0" />Haute</span></SelectItem>
+              <SelectItem value="medium"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-yellow-500 inline-block shrink-0" />Moyenne</span></SelectItem>
+              <SelectItem value="low"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-blue-400 inline-block shrink-0" />Basse</span></SelectItem>
             </SelectContent>
           </Select>
 

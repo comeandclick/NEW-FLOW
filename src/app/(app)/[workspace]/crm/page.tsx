@@ -38,8 +38,8 @@ const DEAL_STAGES = [
   { key: 'qualification', label: 'Qualification', color: 'border-yellow-500' },
   { key: 'proposition', label: 'Proposition', color: 'border-purple-500' },
   { key: 'négociation', label: 'Négociation', color: 'border-orange-500' },
-  { key: 'gagné', label: 'Gagné ✓', color: 'border-green-500' },
-  { key: 'perdu', label: 'Perdu ✗', color: 'border-red-500' },
+  { key: 'gagné', label: 'Gagné', color: 'border-green-500' },
+  { key: 'perdu', label: 'Perdu', color: 'border-red-500' },
 ]
 
 export default function CrmPage({ params }: Props) {
@@ -187,10 +187,10 @@ export default function CrmPage({ params }: Props) {
   const pipelineValue = deals.filter(d => !['gagné', 'perdu'].includes(d.stage)).reduce((sum, d) => sum + d.value, 0)
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
-          <h1 className="text-lg font-semibold">CRM</h1>
+          <h1 className="text-base sm:text-lg font-semibold">CRM</h1>
           <p className="text-xs text-muted-foreground">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} · {deals.length} deal{deals.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
@@ -241,7 +241,7 @@ export default function CrmPage({ params }: Props) {
                       {stageDeals.map(deal => {
                         const contact = contacts.find(c => c.id === deal.contact_id)
                         return (
-                          <div key={deal.id} className="bg-background rounded-lg p-3 border border-border shadow-sm">
+                          <div key={deal.id} className="bg-background rounded-lg p-3 border border-border shadow-sm card-hover">
                             <div className="flex items-start justify-between gap-1">
                               <p className="text-sm font-medium leading-tight">{deal.title}</p>
                               <DropdownMenu>

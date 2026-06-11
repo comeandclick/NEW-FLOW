@@ -55,7 +55,7 @@ export default function AdminLoginPage() {
           onClick={handleDemoLogin}
           disabled={demoLoading}
         >
-          {demoLoading ? 'Connexion en cours…' : '⚡ Accès démo admin — connexion automatique'}
+          {demoLoading ? 'Connexion en cours…' : 'Accès démo admin — connexion automatique'}
         </Button>
 
         <div className="relative">

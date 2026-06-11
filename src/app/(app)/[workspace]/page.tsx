@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatDistanceToNow, format, isToday } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { CheckSquare, FileText, MessageSquare, Calendar, Plus, TrendingUp, Clock, Users, Zap, ArrowRight, FolderOpen, Star, Bell } from 'lucide-react'
+import { CheckSquare, FileText, MessageSquare, Calendar, Plus, TrendingUp, Clock, Users, Zap, ArrowRight, FolderOpen, Star, Bell, File, Image, Film } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -104,21 +104,20 @@ export default async function WorkspaceHomePage({ params }: Props) {
     'meeting.created': 'a créé une réunion',
   }
 
-  function getMimeIcon(mime: string | null) {
-    if (!mime) return '📄'
-    if (mime.startsWith('image/')) return '🖼️'
-    if (mime.includes('pdf')) return '📕'
-    if (mime.includes('video')) return '🎬'
-    if (mime.includes('spreadsheet') || mime.includes('excel')) return '📊'
-    return '📄'
+  function MimeIcon({ mime }: { mime: string | null }) {
+    if (!mime) return <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+    if (mime.startsWith('image/')) return <Image className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+    if (mime.startsWith('video/')) return <Film className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+    if (mime.includes('pdf')) return <FileText className="h-3.5 w-3.5 text-red-400 shrink-0" />
+    return <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-6 page-enter">
       {/* Hero greeting */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{greeting}, {firstName} 👋</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{greeting}, {firstName}</h1>
           <p className="text-muted-foreground text-sm mt-1 capitalize">
             {format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}
           </p>
@@ -192,7 +191,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
           { icon: Calendar, label: 'Calendrier', href: `/${slug}/calendar`, color: 'text-orange-400 bg-orange-500/10' },
         ].map(({ icon: Icon, label, href, color }) => (
           <Link key={label} href={href}>
-            <Card className="p-3 flex items-center gap-2.5 hover:bg-accent transition-all cursor-pointer group">
+            <Card className="p-3 flex items-center gap-2.5 hover:bg-accent cursor-pointer group card-hover">
               <div className={`p-1.5 rounded-md ${color}`}>
                 <Icon className="h-3.5 w-3.5" />
               </div>
@@ -237,7 +236,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche assignée 🎉</p>
+            <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche assignée</p>
           )}
         </Card>
 
@@ -273,7 +272,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-3">Aucune tâche active 🎉</p>
+              <p className="text-xs text-muted-foreground text-center py-3">Aucune tâche active</p>
             )}
           </Card>
 
@@ -291,7 +290,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
                     <li key={note.id}>
                       <Link href={`/${slug}/notes/${note.id}`}
                         className="flex items-center gap-2 hover:bg-muted/30 rounded p-1 transition-colors group">
-                        <span className="text-sm shrink-0">{note.icon ?? '📄'}</span>
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="text-xs flex-1 truncate group-hover:text-foreground">{note.title}</span>
                         <span className="text-[10px] text-muted-foreground shrink-0">
                           {formatDistanceToNow(new Date(note.updated_at), { locale: fr })}
@@ -316,7 +315,7 @@ export default async function WorkspaceHomePage({ params }: Props) {
                 <ul className="space-y-1">
                   {recentFiles.map((f) => (
                     <li key={f.id} className="flex items-center gap-2">
-                      <span className="text-sm shrink-0">{getMimeIcon(f.mime_type)}</span>
+                      <MimeIcon mime={f.mime_type} />
                       <span className="text-xs flex-1 truncate">{f.name}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">
                         {formatDistanceToNow(new Date(f.created_at), { locale: fr })}

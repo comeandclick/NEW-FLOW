@@ -23,6 +23,7 @@ interface MobileNavProps {
 const MORE_ITEMS = [
   { label: 'Notes', href: '/notes', icon: FileText },
   { label: 'Calendrier', href: '/calendar', icon: Calendar },
+  { label: 'Projets', href: '/projects', icon: FolderOpen },
   { label: 'Fichiers', href: '/files', icon: FolderOpen },
   { label: 'Réunions', href: '/meetings', icon: Video },
   { label: 'Paramètres', href: '/settings', icon: Settings },

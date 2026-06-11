@@ -112,7 +112,7 @@ export async function POST(request: Request) {
           const senderName = callerProfile.data?.full_name ?? 'L\'admin'
           const msg = welcomeMessage?.trim()
             ? welcomeMessage.trim()
-            : `👋 Bienvenue dans **${workspace.name}** ! Je t'ai ajouté(e) en tant que **${role}**. N'hésite pas si tu as des questions.`
+            : `Bienvenue dans **${workspace.name}** ! Je t'ai ajouté(e) en tant que **${role}**. N'hésite pas si tu as des questions.`
           await admin.from('messages').insert({
             conversation_id: dmId,
             user_id: user.id,
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
               subject: `${inviterName} vous a ajouté(e) à ${workspace.name}`,
               html: `
                 <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#09090b;color:#fafafa;border-radius:12px">
-                  <h2 style="margin:0 0 8px;font-size:20px">Bienvenue dans <strong>${workspace.name}</strong> 👋</h2>
+                  <h2 style="margin:0 0 8px;font-size:20px">Bienvenue dans <strong>${workspace.name}</strong></h2>
                   <p style="color:#a1a1aa;margin:0 0 24px">${inviterName} vous a ajouté(e) en tant que <strong>${role}</strong>.</p>
                   <a href="${appUrl}/${workspace.slug}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Accéder à l'espace →</a>
                   <p style="color:#52525b;font-size:12px;margin-top:32px">Flow · Votre espace de travail collaboratif</p>

@@ -95,10 +95,10 @@ export default function ActivityPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
-          <h1 className="text-lg font-semibold">Journal d&apos;activité</h1>
+          <h1 className="text-base sm:text-lg font-semibold">Journal d&apos;activité</h1>
           <p className="text-xs text-muted-foreground">Tout ce qui se passe dans votre espace</p>
         </div>
       </div>

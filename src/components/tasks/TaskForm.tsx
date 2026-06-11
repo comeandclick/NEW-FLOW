@@ -100,10 +100,10 @@ export function TaskForm({ workspaceId, userId, projectId, parentTaskId, onSucce
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="urgent">🔴 Urgent</SelectItem>
-              <SelectItem value="high">🟠 Élevée</SelectItem>
-              <SelectItem value="medium">🟡 Moyenne</SelectItem>
-              <SelectItem value="low">🔵 Faible</SelectItem>
+              <SelectItem value="urgent"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-500 inline-block shrink-0" />Urgent</span></SelectItem>
+              <SelectItem value="high"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-500 inline-block shrink-0" />Élevée</span></SelectItem>
+              <SelectItem value="medium"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-yellow-500 inline-block shrink-0" />Moyenne</span></SelectItem>
+              <SelectItem value="low"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-blue-400 inline-block shrink-0" />Faible</span></SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -96,8 +96,8 @@ export default function ProjectsPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
           <h1 className="text-lg font-semibold">Projets</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{projects.length} projet{projects.length !== 1 ? 's' : ''}</p>

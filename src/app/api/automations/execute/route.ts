@@ -150,7 +150,7 @@ export async function POST(request: Request) {
             await admin.from('messages').insert({
               conversation_id: convId,
               user_id: automation.created_by ?? user.id,
-              content: `🤖 ${content}`,
+              content: `[Auto] ${content}`,
             })
             await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', convId)
             results.push(`send_message: posted to conv ${convId}`)

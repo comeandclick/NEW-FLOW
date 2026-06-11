@@ -88,7 +88,7 @@ export default function NotesPage({ params }: Props) {
   const rest = filtered.filter(n => !n.is_pinned)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
         <div>
@@ -223,11 +223,13 @@ function NoteCard({ note, slug }: { note: Note; slug: string }) {
   return (
     <Link href={`/${slug}/notes/${note.id}`}>
       <div className={cn(
-        'p-4 rounded-xl border border-border hover:bg-accent/50 transition-colors cursor-pointer h-full space-y-2 group',
+        'p-4 rounded-xl border border-border hover:bg-accent/50 cursor-pointer h-full space-y-2 group card-hover',
         note.is_archived && 'opacity-60'
       )}>
         <div className="flex items-start gap-2">
-          <span className="text-xl shrink-0">{note.icon ?? '📄'}</span>
+          <div className="h-7 w-7 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
           <div className="min-w-0 flex-1">
             <p className="font-medium text-sm truncate leading-snug">{note.title || 'Sans titre'}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -269,7 +271,7 @@ function NoteRow({ note, slug }: { note: Note; slug: string }) {
         'flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors cursor-pointer group',
         note.is_archived && 'opacity-60'
       )}>
-        <span className="text-base shrink-0">{note.icon ?? '📄'}</span>
+        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <p className="text-sm font-medium truncate">{note.title || 'Sans titre'}</p>
           {note.is_pinned && <Pin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}

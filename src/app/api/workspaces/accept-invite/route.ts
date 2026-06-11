@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 
           // Welcome message from inviter
           const welcomeMsg = invitation.welcome_message
-            ?? `👋 Bienvenue dans **${workspace.name}** ! Heureux de t'avoir avec nous.`
+            ?? `Bienvenue dans **${workspace.name}** ! Heureux de t'avoir avec nous.`
           await admin.from('messages').insert({
             conversation_id: dm.id,
             user_id: invitation.invited_by,

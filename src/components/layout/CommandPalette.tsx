@@ -221,7 +221,7 @@ export function CommandPalette({ workspaceSlug }: { workspaceSlug: string }) {
                     <CommandGroup heading="Notes">
                       {searchResults.filter(r => r.type === 'note').map((r) => (
                         <CommandItem key={r.id} onSelect={() => navigate(`${base}/notes/${r.id}`)}>
-                          <span className="mr-2 text-base leading-none">{r.icon ?? '📄'}</span>
+                          <FileText className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           {r.title}
                         </CommandItem>
                       ))}

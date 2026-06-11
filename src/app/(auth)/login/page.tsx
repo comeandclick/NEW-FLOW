@@ -58,7 +58,7 @@ export default function LoginPage() {
           onClick={handleDemoLogin}
           disabled={demoLoading}
         >
-          {demoLoading ? 'Connexion en cours…' : '⚡ Accès démo — connexion automatique'}
+          {demoLoading ? 'Connexion en cours…' : 'Accès démo — connexion automatique'}
         </Button>
 
         <div className="relative">

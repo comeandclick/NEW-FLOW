@@ -124,10 +124,10 @@ export default function AutomationsPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
-          <h1 className="text-lg font-semibold">Automations</h1>
+          <h1 className="text-base sm:text-lg font-semibold">Automations</h1>
           <p className="text-xs text-muted-foreground">{automations.length} règle{automations.length !== 1 ? 's' : ''} · {automations.filter(a => a.is_active).length} active{automations.filter(a => a.is_active).length !== 1 ? 's' : ''}</p>
         </div>
         <Button size="sm" onClick={openCreate}><Plus className="mr-1.5 h-3.5 w-3.5" /> Nouvelle règle</Button>
@@ -213,7 +213,7 @@ export default function AutomationsPage({ params }: Props) {
             <div><Label>Description</Label><Input placeholder="Description courte…" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
 
             <div className="space-y-2">
-              <Label>🔷 Déclencheur — SI…</Label>
+              <Label>Déclencheur — SI…</Label>
               <Select value={form.trigger_type} onValueChange={v => setForm(f => ({ ...f, trigger_type: v ?? f.trigger_type }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -227,7 +227,7 @@ export default function AutomationsPage({ params }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label>🔶 Action — ALORS…</Label>
+              <Label>Action — ALORS…</Label>
               <Select value={form.action_type} onValueChange={v => setForm(f => ({ ...f, action_type: v ?? f.action_type }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>

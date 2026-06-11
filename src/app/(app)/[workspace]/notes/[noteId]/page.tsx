@@ -25,8 +25,6 @@ interface Props {
   params: Promise<{ workspace: string; noteId: string }>
 }
 
-const NOTE_ICONS = ['📄', '📝', '💡', '🔖', '📌', '🧠', '🎯', '⭐', '📊', '🔒', '🌿', '🚀', '💬', '🎨', '📚']
-
 export default function NoteDetailPage({ params }: Props) {
   const { workspace: slug, noteId } = use(params)
   const { user } = useAuth()
@@ -38,7 +36,6 @@ export default function NoteDetailPage({ params }: Props) {
   const [wordCount, setWordCount] = useState(0)
   const [showTagInput, setShowTagInput] = useState(false)
   const [tagInput, setTagInput] = useState('')
-  const [showIconPicker, setShowIconPicker] = useState(false)
   const tagInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -110,12 +107,6 @@ export default function NoteDetailPage({ params }: Props) {
     await saveNote({ tags: note.tags.filter(t => t !== tag) })
   }
 
-  async function setIcon(icon: string) {
-    if (!note) return
-    await saveNote({ icon })
-    setShowIconPicker(false)
-  }
-
   async function copyLink() {
     const url = `${window.location.origin}/${slug}/notes/${noteId}`
     await navigator.clipboard.writeText(url)
@@ -132,7 +123,7 @@ export default function NoteDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-4 space-y-4">
+    <div className="max-w-3xl mx-auto px-6 py-4 space-y-4 page-enter">
       {/* Toolbar */}
       <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur py-2 -mx-2 px-2 z-10">
         <Link href={`/${slug}/notes`}>
@@ -178,27 +169,11 @@ export default function NoteDetailPage({ params }: Props) {
         </DropdownMenu>
       </div>
 
-      {/* Icon + Title */}
+      {/* Title */}
       <div className="space-y-2">
         <div className="flex items-start gap-3">
-          {/* Icon picker */}
-          <div className="relative">
-            <button
-              className="text-4xl leading-none hover:scale-110 transition-transform"
-              onClick={() => setShowIconPicker(!showIconPicker)}
-              title="Changer l'icône"
-            >
-              {note.icon ?? '📄'}
-            </button>
-            {showIconPicker && (
-              <div className="absolute top-12 left-0 z-20 bg-popover border border-border rounded-xl shadow-lg p-2 grid grid-cols-5 gap-1">
-                {NOTE_ICONS.map(icon => (
-                  <button key={icon} onClick={() => setIcon(icon)}
-                    className="text-xl p-1.5 rounded hover:bg-accent transition-colors"
-                  >{icon}</button>
-                ))}
-              </div>
-            )}
+          <div className="mt-1.5 h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
             <input
@@ -215,7 +190,7 @@ export default function NoteDetailPage({ params }: Props) {
         </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap items-center gap-1.5 ml-14">
+        <div className="flex flex-wrap items-center gap-1.5 ml-11">
           {(note.tags ?? []).map(tag => (
             <div key={tag} className="flex items-center gap-0.5 group">
               <Badge variant="secondary" className="text-[10px] h-5 px-2 gap-1 cursor-default">

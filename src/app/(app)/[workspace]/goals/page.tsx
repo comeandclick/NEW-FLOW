@@ -155,10 +155,10 @@ export default function GoalsPage({ params }: Props) {
   const otherGoals = goals.filter(g => g.status !== 'active')
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
-          <h1 className="text-lg font-semibold">Goals & OKR</h1>
+          <h1 className="text-base sm:text-lg font-semibold">Goals & OKR</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{goals.length} objectif{goals.length !== 1 ? 's' : ''}</p>
         </div>
         <Button size="sm" className="gap-1.5" onClick={openCreate}>
@@ -313,7 +313,7 @@ function GoalCard({
         <input
           type="range" min={0} max={goal.target_value} value={goal.current_value}
           onChange={e => onUpdateProgress(goal.id, parseFloat(e.target.value))}
-          className="w-full accent-indigo-500 h-1 cursor-pointer"
+          className="w-full accent-foreground h-1 cursor-pointer"
         />
       </div>
 
@@ -340,7 +340,7 @@ function GoalCard({
                 <input
                   type="range" min={0} max={kr.target_value} value={kr.current_value}
                   onChange={e => onUpdateKR(kr.id, goal.id, parseFloat(e.target.value))}
-                  className="w-full accent-indigo-500 h-1 cursor-pointer"
+                  className="w-full accent-foreground h-1 cursor-pointer"
                 />
               </div>
             )

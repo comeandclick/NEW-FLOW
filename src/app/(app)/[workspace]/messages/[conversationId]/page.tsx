@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Send, ArrowLeft, Hash, MessageSquare, Smile, Pencil, Trash2,
+  Send, ArrowLeft, Hash, MessageSquare, Pencil, Trash2,
   Check, X, Users, Reply, CornerUpLeft,
 } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
@@ -25,8 +25,6 @@ interface Props {
 type UserProfile = { id: string; full_name?: string | null; avatar_url?: string | null; email: string }
 type MessageWithUser = Message & { user: UserProfile; reactions?: ReactionCount[]; replyTo?: MessageWithUser | null }
 type ReactionCount = { emoji: string; count: number; userReacted: boolean }
-
-const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '👀', '✅', '😮', '🙏', '💯']
 
 function formatMessageDate(date: Date) {
   if (isToday(date)) return format(date, 'HH:mm')
@@ -52,7 +50,6 @@ export default function ConversationPage({ params }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [hoverMsgId, setHoverMsgId] = useState<string | null>(null)
-  const [emojiPickerFor, setEmojiPickerFor] = useState<string | null>(null)
   const [members, setMembers] = useState<{ user_id: string; profile: UserProfile | null }[]>([])
   const [showMembers, setShowMembers] = useState(false)
   const [replyTo, setReplyTo] = useState<MessageWithUser | null>(null)
@@ -275,7 +272,6 @@ export default function ConversationPage({ params }: Props) {
           : [...(m.reactions ?? []), { emoji, count: 1, userReacted: true }]
       }))
     }
-    setEmojiPickerFor(null)
   }
 
   // ── Keyboard ──────────────────────────────────────────────────────────────
@@ -348,7 +344,7 @@ export default function ConversationPage({ params }: Props) {
                     className="relative group flex gap-2.5 hover:bg-muted/30 rounded-lg px-2 py-1 -mx-2 transition-colors"
                     style={{ marginTop: compact ? 1 : 12 }}
                     onMouseEnter={() => setHoverMsgId(msg.id)}
-                    onMouseLeave={() => { setHoverMsgId(null); setEmojiPickerFor(null) }}
+                    onMouseLeave={() => setHoverMsgId(null)}
                   >
                     {/* Avatar or spacer */}
                     {compact ? (
@@ -432,11 +428,6 @@ export default function ConversationPage({ params }: Props) {
                         <button onClick={() => setReplyTo(msg)} className="p-1 rounded hover:bg-muted" title="Répondre">
                           <Reply className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
-                        <button
-                          onClick={() => setEmojiPickerFor(emojiPickerFor === msg.id ? null : msg.id)}
-                          className="p-1 rounded hover:bg-muted" title="Réagir">
-                          <Smile className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
                         {isOwn && (
                           <>
                             <button
@@ -452,15 +443,6 @@ export default function ConversationPage({ params }: Props) {
                       </div>
                     )}
 
-                    {/* Emoji picker */}
-                    {emojiPickerFor === msg.id && (
-                      <div className="absolute right-2 top-10 z-20 bg-background border border-border rounded-xl shadow-lg p-2 flex gap-1 flex-wrap max-w-[280px]">
-                        {QUICK_EMOJIS.map(emoji => (
-                          <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)}
-                            className="text-lg hover:scale-125 transition-transform p-1 rounded">{emoji}</button>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               )

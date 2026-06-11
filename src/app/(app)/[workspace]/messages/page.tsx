@@ -182,7 +182,7 @@ export default function MessagesPage({ params }: Props) {
     : members
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <h1 className="text-base sm:text-lg font-semibold">Messages</h1>
         <div className="flex items-center gap-1.5 sm:gap-2">

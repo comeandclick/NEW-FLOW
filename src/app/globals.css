@@ -137,3 +137,29 @@
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* ── Page enter animation ── */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-in 0.18s ease-out;
+}
+
+/* ── Card lift on hover ── */
+.card-hover {
+  transition: box-shadow 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+.card-hover:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+  transform: translateY(-1px);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+
+/* ── Skeleton pulse ── */
+.skeleton {
+  @apply bg-muted animate-pulse rounded;
+}

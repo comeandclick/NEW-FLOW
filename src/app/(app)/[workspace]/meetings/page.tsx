@@ -26,6 +26,12 @@ const STATUS_BADGE: Record<Meeting['status'], string> = {
   ended: 'bg-muted text-muted-foreground',
 }
 
+const STATUS_LABEL: Record<Meeting['status'], string> = {
+  scheduled: 'Planifiée',
+  active: 'En cours',
+  ended: 'Terminée',
+}
+
 export default function MeetingsPage({ params }: Props) {
   const { workspace: slug } = use(params)
   const router = useRouter()
@@ -77,7 +83,7 @@ export default function MeetingsPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <h1 className="text-base sm:text-lg font-semibold">Réunions</h1>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
@@ -102,7 +108,7 @@ export default function MeetingsPage({ params }: Props) {
           meetings.map((meeting) => (
             <Card
               key={meeting.id}
-              className="p-4 hover:bg-accent transition-colors cursor-pointer"
+              className="p-4 hover:bg-accent cursor-pointer card-hover"
               onClick={() => router.push(`/${slug}/meetings/${meeting.id}`)}
             >
               <div className="flex items-start justify-between gap-3">
@@ -111,7 +117,7 @@ export default function MeetingsPage({ params }: Props) {
                     <Video className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium text-sm">{meeting.title}</span>
                     <Badge variant="outline" className={`text-[10px] h-4 px-1.5 ${STATUS_BADGE[meeting.status]}`}>
-                      {meeting.status}
+                      {STATUS_LABEL[meeting.status] ?? meeting.status}
                     </Badge>
                   </div>
                   {meeting.scheduled_at && (

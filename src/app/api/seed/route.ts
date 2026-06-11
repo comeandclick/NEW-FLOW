@@ -37,11 +37,11 @@ export async function POST(request: Request) {
 
   // ── 1. Demo notes ──────────────────────────────────────────────────────────
   const notesToCreate = [
-    { title: 'Réunion de lancement du projet', icon: '🚀', tags: ['projet', 'réunion'], content: JSON.stringify({ type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Objectifs' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'Définir la roadmap Q3, aligner les équipes, établir les KPIs.' }] }] }) },
-    { title: 'Idées product — brainstorm', icon: '💡', tags: ['product', 'ideas'], content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '- Améliorer l\'onboarding\n- Tableau de bord personnalisable\n- Notifications intelligentes' }] }] }) },
-    { title: 'Architecture technique v2', icon: '🏗️', tags: ['tech', 'architecture'], is_pinned: true, content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Migration vers microservices. Phase 1: API Gateway. Phase 2: Event bus.' }] }] }) },
-    { title: 'Feedback utilisateurs — Sprint 4', icon: '📊', tags: ['ux', 'feedback'], content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Retours positifs sur la vitesse. Points d\'amélioration: navigation mobile, recherche.' }] }] }) },
-    { title: 'Documentation API publique', icon: '📚', tags: ['doc', 'api'], content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Endpoints: GET /users, POST /workspaces, PUT /tasks/:id...' }] }] }) },
+    { title: 'Réunion de lancement du projet', icon: null, tags: ['projet', 'réunion'], content: JSON.stringify({ type: 'doc', content: [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Objectifs' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'Définir la roadmap Q3, aligner les équipes, établir les KPIs.' }] }] }) },
+    { title: 'Idées product — brainstorm', icon: null, tags: ['product', 'ideas'], content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '- Améliorer l\'onboarding\n- Tableau de bord personnalisable\n- Notifications intelligentes' }] }] }) },
+    { title: 'Architecture technique v2', icon: null, tags: ['tech', 'architecture'], is_pinned: true, content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Migration vers microservices. Phase 1: API Gateway. Phase 2: Event bus.' }] }] }) },
+    { title: 'Feedback utilisateurs — Sprint 4', icon: null, tags: ['ux', 'feedback'], content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Retours positifs sur la vitesse. Points d\'amélioration: navigation mobile, recherche.' }] }] }) },
+    { title: 'Documentation API publique', icon: null, tags: ['doc', 'api'], content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Endpoints: GET /users, POST /workspaces, PUT /tasks/:id...' }] }] }) },
   ]
 
   for (const n of notesToCreate) {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     { title: 'Sprint review', start: addDays(now, 1, 14, 0), end: addDays(now, 1, 15, 30), color: '#22c55e' },
     { title: 'Démo client', start: addDays(now, 2, 10, 0), end: addDays(now, 2, 11, 0), color: '#f97316' },
     { title: 'Formation équipe', start: addDays(now, 3, 9, 0), end: addDays(now, 3, 17, 0), color: '#8b5cf6', all_day: false },
-    { title: 'Lancement v2.0 🚀', start: addDays(now, 7, 0, 0), end: addDays(now, 7, 0, 0), all_day: true, color: '#ec4899' },
+    { title: 'Lancement v2.0', start: addDays(now, 7, 0, 0), end: addDays(now, 7, 0, 0), all_day: true, color: '#ec4899' },
     { title: 'Code review session', start: addDays(now, -1, 15, 0), end: addDays(now, -1, 16, 0), color: '#0ea5e9' },
     { title: 'Planning Sprint 12', start: addDays(now, 4, 10, 0), end: addDays(now, 4, 12, 0), color: '#6366f1' },
   ]
@@ -128,11 +128,11 @@ export async function POST(request: Request) {
       await admin.from('conversation_members').insert(memberIds.map(uid => ({ conversation_id: conv.id, user_id: uid })))
 
       const messages = [
-        'Bienvenue dans l\'espace Flow ! 👋',
+        'Bienvenue dans l\'espace Flow !',
         'N\'oubliez pas de mettre à jour vos tâches avant la réunion de demain.',
         'La démo client est confirmée pour jeudi à 10h.',
         '@tous — sprint review vendredi à 14h, préparez vos updates !',
-        'Le CI est enfin configuré 🎉 Les déploiements sont automatiques maintenant.',
+        'Le CI est enfin configuré. Les déploiements sont automatiques maintenant.',
       ]
       for (const msg of messages) {
         await admin.from('messages').insert({
@@ -157,10 +157,10 @@ export async function POST(request: Request) {
       await admin.from('conversation_members').insert(memberIds.map(uid => ({ conversation_id: conv.id, user_id: uid })))
 
       const messages = [
-        'PR #42 est prête pour review 👀',
+        'PR #42 est prête pour review.',
         'J\'ai trouvé un bug dans le module de notifications, je crée un ticket.',
         'La migration DB est planifiée pour samedi nuit.',
-        'npm audit → 0 vulnérabilités 🔒',
+        'npm audit — 0 vulnérabilités.',
       ]
       for (const msg of messages) {
         await admin.from('messages').insert({
