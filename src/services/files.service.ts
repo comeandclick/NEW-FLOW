@@ -48,11 +48,7 @@ export const filesService = {
   async getByWorkspace(workspaceId: string) {
     const { data, error } = await supabase()
       .from('files')
-      .select(`
-        *,
-        uploaded_by_profile:profiles!files_uploaded_by_fkey(id, full_name, avatar_url),
-        file_links(task_id, note_id, message_id, project_id)
-      `)
+      .select('*')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
     if (error) throw error

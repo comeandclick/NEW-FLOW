@@ -68,6 +68,55 @@ export default function AutomationsPage({ params }: Props) {
     setLoading(false)
   }
 
+  const PRESETS = [
+    {
+      name: 'Notifier quand tâche terminée',
+      description: 'Envoie une notification quand une tâche passe en "Terminé"',
+      trigger_type: 'task_status_changed',
+      action_type: 'send_notification',
+      trigger_config: '{"to_status":"done"}',
+      action_config: '{"message":"Une tâche vient d\'être terminée"}',
+    },
+    {
+      name: 'Message bienvenue nouveau membre',
+      description: 'Poste un message dans #général quand quelqu\'un rejoint',
+      trigger_type: 'member_joined',
+      action_type: 'send_message',
+      trigger_config: '{}',
+      action_config: '{"channel":"general","message":"Bienvenue dans l\'espace !"}',
+    },
+    {
+      name: 'Assigner tâche créée à moi',
+      description: 'Assigne automatiquement les nouvelles tâches à vous',
+      trigger_type: 'task_created',
+      action_type: 'assign_task',
+      trigger_config: '{}',
+      action_config: '{"assign_to":"creator"}',
+    },
+    {
+      name: 'Alerte deadline dépassée',
+      description: 'Notifie quand une tâche dépasse sa date limite',
+      trigger_type: 'task_due',
+      action_type: 'send_notification',
+      trigger_config: '{}',
+      action_config: '{"message":"Deadline dépassée pour une tâche"}',
+    },
+  ]
+
+  function applyPreset(preset: typeof PRESETS[0]) {
+    setEditTarget(null)
+    setForm({
+      name: preset.name,
+      description: preset.description,
+      trigger_type: preset.trigger_type,
+      action_type: preset.action_type,
+      is_active: true,
+      trigger_config: preset.trigger_config,
+      action_config: preset.action_config,
+    })
+    setOpen(true)
+  }
+
   function openCreate() {
     setEditTarget(null)
     setForm({ name: '', description: '', trigger_type: TRIGGERS[0].key, action_type: ACTIONS[0].key, is_active: true, trigger_config: '{}', action_config: '{}' })
@@ -139,13 +188,35 @@ export default function AutomationsPage({ params }: Props) {
             {[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}
           </div>
         ) : automations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Zap className="h-12 w-12 text-muted-foreground" />
-            <div className="text-center space-y-1">
-              <p className="text-sm font-medium">Aucune automation</p>
-              <p className="text-xs text-muted-foreground">Créez des règles pour automatiser votre workflow</p>
+          <div className="space-y-8">
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <Zap className="h-10 w-10 text-muted-foreground" />
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium">Aucune automation active</p>
+                <p className="text-xs text-muted-foreground">Partez d'un modèle ou créez la vôtre</p>
+              </div>
+              <Button size="sm" onClick={openCreate}><Plus className="mr-1.5 h-3.5 w-3.5" /> Depuis zéro</Button>
             </div>
-            <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Créer une automation</Button>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Modèles prêts à l'emploi</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.name}
+                    onClick={() => applyPreset(p)}
+                    className="text-left p-4 rounded-xl border border-border card-hover space-y-1.5"
+                  >
+                    <p className="text-sm font-medium">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.description}</p>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{TRIGGERS.find(t => t.key === p.trigger_type)?.label}</span>
+                      <span className="text-[10px] text-muted-foreground">→</span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{ACTIONS.find(a => a.key === p.action_type)?.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

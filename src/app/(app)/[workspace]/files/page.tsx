@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  Upload, Search, FileText, Image, Film, File, Trash2, Download, Eye, Link2
+  Upload, Search, FileText, Image, Film, File, Trash2, Download, Eye, Link2,
 } from 'lucide-react'
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -210,8 +213,9 @@ export default function FilesPage({ params }: Props) {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((file) => (
+                <ContextMenu key={file.id}>
+                <ContextMenuTrigger>
                 <tr
-                  key={file.id}
                   className="hover:bg-muted/30 transition-colors group cursor-pointer"
                   onClick={() => setPreviewFile(file)}
                 >
@@ -255,6 +259,25 @@ export default function FilesPage({ params }: Props) {
                     </div>
                   </td>
                 </tr>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-44">
+                  <ContextMenuItem onClick={() => setPreviewFile(file)}>
+                    <Eye className="mr-2 h-3.5 w-3.5" /> Aperçu
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleCopyLink(file)}>
+                    <Link2 className="mr-2 h-3.5 w-3.5" /> Copier le lien
+                  </ContextMenuItem>
+                  {file.url && (
+                    <ContextMenuItem onClick={() => { const a = document.createElement('a'); a.href = file.url!; a.download = file.name; a.click() }}>
+                      <Download className="mr-2 h-3.5 w-3.5" /> Télécharger
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuSeparator />
+                  <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(file)}>
+                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+                  </ContextMenuItem>
+                </ContextMenuContent>
+                </ContextMenu>
               ))}
             </tbody>
           </table>

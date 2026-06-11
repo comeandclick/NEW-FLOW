@@ -85,19 +85,22 @@ export default function WhiteboardPage({ params }: Props) {
   }
 
   async function persistItems(current: CanvasItem[]) {
-    if (!currentWorkspace?.id || saving) return
+    if (!currentWorkspace?.id) return
     setSaving(true)
-    if (current.length > 0) {
-      const payload = current.map(({ isEditing, ...item }) => ({
-        ...item,
-        workspace_id: currentWorkspace.id!,
-        board_id: 'main',
-        created_by: user?.id ?? null,
-      }))
-      await getSupabaseClient().from('whiteboard_items').upsert(payload, { onConflict: 'id' })
-        .then(r => { if (r.error) toast.error('Erreur de sauvegarde') })
+    try {
+      if (current.length > 0) {
+        const payload = current.map(({ isEditing, ...item }) => ({
+          ...item,
+          workspace_id: currentWorkspace.id!,
+          board_id: 'main',
+          created_by: user?.id ?? null,
+        }))
+        const { error } = await getSupabaseClient().from('whiteboard_items').upsert(payload, { onConflict: 'id' })
+        if (error) toast.error('Erreur de sauvegarde')
+      }
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   // ── Coordinate helpers ─────────────────────────────────────────────────────

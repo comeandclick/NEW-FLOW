@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users,
-  MessageSquare, X, Send, MonitorOff, Loader2,
+  MessageSquare, X, Send, MonitorOff, Loader2, Link2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -40,6 +40,9 @@ const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
 ]
 
 // ── Discord-style audio tones ──────────────────────────────────────────────────
@@ -206,7 +209,20 @@ export default function MeetingRoomPage({ params }: Props) {
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState
-      if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+      if (state === 'failed') {
+        // Try ICE restart
+        pc.restartIce()
+      }
+      if (state === 'disconnected') {
+        // Give 5s to recover before removing
+        setTimeout(() => {
+          if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+            setPeers((prev) => prev.filter((p) => p.userId !== remoteUserId))
+            peerConnections.current.delete(remoteUserId)
+          }
+        }, 5000)
+      }
+      if (state === 'closed') {
         setPeers((prev) => prev.filter((p) => p.userId !== remoteUserId))
         peerConnections.current.delete(remoteUserId)
       }
@@ -344,7 +360,22 @@ export default function MeetingRoomPage({ params }: Props) {
         const { to, from, sdp } = payload as { to: string; from: string; sdp: RTCSessionDescriptionInit }
         if (to !== user.id) return
 
-        const pc = createPeerConnection(from)
+        // Perfect negotiation: if both sides send offers simultaneously,
+        // the "polite" peer (smaller userId) rolls back and accepts the remote offer
+        const existingPc = peerConnections.current.get(from)
+        const isPolite = (user.id ?? '') < from
+
+        if (existingPc && existingPc.signalingState !== 'stable') {
+          if (isPolite) {
+            // Roll back our local description and accept theirs
+            await existingPc.setLocalDescription({ type: 'rollback' })
+          } else {
+            // We are "impolite" — ignore their offer, ours takes precedence
+            return
+          }
+        }
+
+        const pc = existingPc ?? createPeerConnection(from)
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(sdp))
           const answer = await pc.createAnswer()
@@ -355,6 +386,10 @@ export default function MeetingRoomPage({ params }: Props) {
           })
         } catch (err) {
           console.error('Failed to handle offer:', err)
+          // Retry: recreate peer connection and re-request offer
+          setTimeout(() => {
+            channel.send({ type: 'broadcast', event: 'request-offer', payload: { to: from, from: user.id } })
+          }, 1000)
         }
       })
 
@@ -364,11 +399,27 @@ export default function MeetingRoomPage({ params }: Props) {
         const pc = peerConnections.current.get(from)
         if (!pc) return
         try {
-          if (pc.signalingState !== 'stable') {
+          if (pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(sdp))
           }
         } catch (err) {
           console.error('Failed to set answer:', err)
+        }
+      })
+
+      .on('broadcast', { event: 'request-offer' }, async ({ payload }) => {
+        const { to, from } = payload as { to: string; from: string }
+        if (to !== user.id) return
+        const pc = createPeerConnection(from)
+        try {
+          const offer = await pc.createOffer()
+          await pc.setLocalDescription(offer)
+          channel.send({
+            type: 'broadcast', event: 'offer',
+            payload: { to: from, from: user.id, sdp: pc.localDescription },
+          })
+        } catch (err) {
+          console.error('Failed to re-create offer:', err)
         }
       })
 
@@ -576,6 +627,14 @@ export default function MeetingRoomPage({ params }: Props) {
             <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             <span>{allParticipants}</span>
           </div>
+          <button
+            onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Lien copié') }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-[10px]"
+            title="Copier le lien"
+          >
+            <Link2 className="h-3 w-3" />
+            <span className="hidden sm:inline">Inviter</span>
+          </button>
         </div>
       </div>
 

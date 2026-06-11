@@ -105,6 +105,14 @@ export default function MessagesPage({ params }: Props) {
       .finally(() => setMembersLoading(false))
   }, [dmOpen, currentWorkspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function reloadConversations() {
+    if (!currentWorkspace?.id || !user?.id) return
+    messagesService
+      .getConversations(currentWorkspace.id, user.id)
+      .then((data) => setConversations(data as unknown as ConversationWithMembers[]))
+      .catch(console.error)
+  }
+
   async function createChannel(e: React.FormEvent) {
     e.preventDefault()
     if (!currentWorkspace?.id || !channelName.trim()) return
@@ -125,6 +133,7 @@ export default function MessagesPage({ params }: Props) {
         if (res.status === 409 && data.existing) {
           toast.info('Canal déjà existant, redirection…')
           setCreateOpen(false)
+          reloadConversations()
           router.push(`/${slug}/messages/${data.existing.id}`)
           return
         }
@@ -134,6 +143,7 @@ export default function MessagesPage({ params }: Props) {
       setChannelName('')
       setChannelDesc('')
       toast.success(`Canal #${data.name} créé`)
+      reloadConversations()
       router.push(`/${slug}/messages/${data.id}`)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Impossible de créer le canal')
@@ -158,6 +168,7 @@ export default function MessagesPage({ params }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Erreur')
       setDmOpen(false)
+      reloadConversations()
       router.push(`/${slug}/messages/${data.id}`)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Impossible de démarrer la conversation')

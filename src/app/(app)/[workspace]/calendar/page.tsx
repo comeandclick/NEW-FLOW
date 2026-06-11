@@ -358,8 +358,20 @@ export default function CalendarPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Calendar content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Calendar content — swipe + wheel navigation */}
+      <div
+        className="flex-1 flex flex-col overflow-hidden"
+        onWheel={(e) => { if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) navigate(e.deltaX > 0 ? 1 : -1) }}
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          ;(e.currentTarget as HTMLDivElement).dataset.touchX = String(t.clientX)
+        }}
+        onTouchEnd={(e) => {
+          const startX = Number((e.currentTarget as HTMLDivElement).dataset.touchX ?? 0)
+          const dx = e.changedTouches[0].clientX - startX
+          if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1)
+        }}
+      >
         {view === 'month' && <MonthView />}
         {view === 'week' && <TimeGrid days={eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) })} />}
         {view === 'day' && <TimeGrid days={[startOfDay(currentDate)]} />}
