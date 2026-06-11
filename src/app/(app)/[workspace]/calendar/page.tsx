@@ -327,7 +327,7 @@ export default function CalendarPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 gap-2 flex-wrap">
         <div className="flex items-center gap-2">

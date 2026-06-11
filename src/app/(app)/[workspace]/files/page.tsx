@@ -44,6 +44,7 @@ export default function FilesPage({ params }: Props) {
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [previewFile, setPreviewFile] = useState<FlowFile | null>(null)
+  const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -55,20 +56,34 @@ export default function FilesPage({ params }: Props) {
       .finally(() => setLoading(false))
   }, [currentWorkspace?.id])
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files || !currentWorkspace?.id || !user?.id) return
-    const file = e.target.files[0]
+  async function uploadFiles(fileList: FileList | File[]) {
+    if (!currentWorkspace?.id || !user?.id) return
+    const arr = Array.from(fileList)
     setUploading(true)
-    try {
-      const uploaded = await filesService.upload(file, currentWorkspace.id, user.id)
-      setFiles((prev) => [uploaded, ...prev])
-      toast.success(`${file.name} importé`)
-    } catch {
-      toast.error('Échec de l\'import')
-    } finally {
-      setUploading(false)
-      if (inputRef.current) inputRef.current.value = ''
+    let successCount = 0
+    for (const file of arr) {
+      try {
+        const uploaded = await filesService.upload(file, currentWorkspace.id, user.id)
+        setFiles((prev) => [uploaded, ...prev])
+        successCount++
+      } catch {
+        toast.error(`Échec : ${file.name}`)
+      }
     }
+    if (successCount > 0) toast.success(`${successCount} fichier${successCount > 1 ? 's' : ''} importé${successCount > 1 ? 's' : ''}`)
+    setUploading(false)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files) return
+    await uploadFiles(e.target.files)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files)
   }
 
   async function handleCopyLink(file: FlowFile) {
@@ -112,13 +127,27 @@ export default function FilesPage({ params }: Props) {
   )
 
   return (
-    <div className="flex flex-col h-full page-enter">
+    <div
+      className={cn('flex flex-col h-full page-enter relative', dragOver && 'ring-2 ring-primary ring-inset')}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false) }}
+      onDrop={handleDrop}
+    >
+      {dragOver && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <Upload className="h-10 w-10" />
+            <p className="text-sm font-medium">Déposer pour importer</p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <h1 className="text-base sm:text-lg font-semibold">Fichiers</h1>
         <div className="flex items-center gap-2">
           <input
             ref={inputRef}
             type="file"
+            multiple
             className="hidden"
             onChange={handleUpload}
             accept="*/*"
@@ -149,7 +178,18 @@ export default function FilesPage({ params }: Props) {
 
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Chargement…</div>
+          <table className="w-full">
+            <tbody className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-6 py-2.5"><div className="flex items-center gap-2.5"><div className="skeleton h-5 w-5 rounded" /><div className="skeleton h-3.5 w-48" /></div></td>
+                  <td className="px-4 py-2.5"><div className="skeleton h-3 w-12" /></td>
+                  <td className="px-4 py-2.5"><div className="skeleton h-3 w-20" /></td>
+                  <td className="px-4 py-2.5" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 space-y-3">
             <File className="h-8 w-8 text-muted-foreground" />

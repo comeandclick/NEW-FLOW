@@ -28,7 +28,7 @@ export default function ProjectTasksPage({ params }: Props) {
   const project = projects.find((p) => p.id === projectId)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       <ProjectNav slug={slug} projectId={projectId} projectName={project?.name} active="tasks" />
       <div className="flex items-center justify-between px-6 py-3 border-b border-border">
         <Tabs value={view} onValueChange={(v) => setView(v as 'kanban' | 'list')}>
@@ -42,7 +42,7 @@ export default function ProjectTasksPage({ params }: Props) {
           </TabsList>
         </Tabs>
         <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> New task
+          <Plus className="h-3.5 w-3.5" /> Nouvelle tâche
         </Button>
       </div>
       <div className="flex-1 overflow-hidden">
@@ -54,7 +54,7 @@ export default function ProjectTasksPage({ params }: Props) {
       </div>
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>New task</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nouvelle tâche</DialogTitle></DialogHeader>
           <TaskForm
             workspaceId={currentWorkspace?.id ?? ''}
             userId={user?.id ?? ''}

@@ -139,7 +139,7 @@ export default function ProfilePage({ params }: Props) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-8">
+    <div className="max-w-2xl mx-auto p-6 space-y-8 page-enter">
       <div>
         <h1 className="text-lg font-semibold">Mon profil</h1>
         <p className="text-sm text-muted-foreground mt-0.5">

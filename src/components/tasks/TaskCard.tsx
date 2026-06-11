@@ -38,7 +38,7 @@ export function TaskCard({ task, workspaceId, isDragging }: TaskCardProps) {
     <Link href={`/${slug}/tasks/${task.id}`}>
       <div
         className={cn(
-          'bg-background border border-border rounded-md p-3 hover:border-primary/40 transition-colors cursor-pointer',
+          'bg-background border border-border rounded-md p-3 hover:border-primary/40 card-hover cursor-pointer',
           isDragging && 'shadow-lg rotate-1',
           task.status === 'done' && 'opacity-60'
         )}

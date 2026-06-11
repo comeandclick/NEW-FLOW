@@ -151,7 +151,7 @@ export default function WorkspaceSettingsPage({ params }: Props) {
   const isOwner = currentWorkspace?.owner_id === user?.id
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-10">
+    <div className="max-w-2xl mx-auto p-6 space-y-10 page-enter">
       <div>
         <h1 className="text-lg font-semibold">Paramètres de l&apos;espace</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Gérez votre espace de travail</p>

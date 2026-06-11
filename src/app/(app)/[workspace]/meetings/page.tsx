@@ -95,7 +95,18 @@ export default function MeetingsPage({ params }: Props) {
 
       <div className="flex-1 overflow-auto p-3 sm:p-6 space-y-2 sm:space-y-3">
         {loading ? (
-          <div className="text-sm text-muted-foreground">Chargement…</div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="p-4 rounded-xl border border-border space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="skeleton h-4 w-4 rounded" />
+                  <div className="skeleton h-4 w-48" />
+                  <div className="skeleton h-4 w-16 rounded-full ml-1" />
+                </div>
+                <div className="skeleton h-3 w-32" />
+              </div>
+            ))}
+          </div>
         ) : meetings.length === 0 ? (
           <div className="text-center py-12 space-y-3">
             <Video className="h-8 w-8 text-muted-foreground mx-auto" />

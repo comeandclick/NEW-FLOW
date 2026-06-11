@@ -116,8 +116,8 @@ export default function TrashPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
           <h1 className="text-lg font-semibold">Corbeille</h1>
           <p className="text-xs text-muted-foreground">{items.length} élément{items.length !== 1 ? 's' : ''}</p>
@@ -145,7 +145,7 @@ export default function TrashPage({ params }: Props) {
               const cfg = TYPE_CONFIG[item.entity_type] ?? { label: item.entity_type, icon: FileText, color: 'text-muted-foreground' }
               const Icon = cfg.icon
               return (
-                <div key={item.id} className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
+                <div key={item.id} className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card card-hover">
                   <Icon className={`h-5 w-5 shrink-0 ${cfg.color}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.entity_title}</p>

@@ -14,7 +14,7 @@ export default function ProjectNotesPage({ params }: Props) {
   const project = projects.find((p) => p.id === projectId)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full page-enter">
       <ProjectNav slug={slug} projectId={projectId} projectName={project?.name} active="notes" />
       <div className="flex items-center justify-center flex-1 text-sm text-muted-foreground">
         Project notes coming soon

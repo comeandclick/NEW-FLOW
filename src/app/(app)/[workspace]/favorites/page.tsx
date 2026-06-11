@@ -65,8 +65,8 @@ export default function FavoritesPage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="flex flex-col h-full page-enter">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
         <div>
           <h1 className="text-lg font-semibold">Favoris</h1>
           <p className="text-xs text-muted-foreground">{favorites.length} élément{favorites.length !== 1 ? 's' : ''} épinglé{favorites.length !== 1 ? 's' : ''}</p>
@@ -99,7 +99,7 @@ export default function FavoritesPage({ params }: Props) {
                   </h2>
                   <div className="space-y-1.5">
                     {items.map(fav => (
-                      <div key={fav.id} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors group">
+                      <div key={fav.id} className="flex items-center gap-3 p-3 rounded-lg border border-border card-hover group">
                         <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 shrink-0" />
                         <Link href={fav.entity_url} className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{fav.entity_title}</p>

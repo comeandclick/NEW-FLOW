@@ -16,8 +16,9 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { ArrowLeft, Send, Trash2, Plus, CheckSquare, Square, Link2, ExternalLink, X } from 'lucide-react'
+import { Send, Trash2, Plus, CheckSquare, Square, Link2, ExternalLink, X } from 'lucide-react'
 import Link from 'next/link'
+import { BackButton } from '@/components/layout/BackButton'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { Task } from '@/types/database'
 import { cn } from '@/lib/utils'
@@ -139,20 +140,22 @@ export default function TaskDetailPage({ params }: Props) {
 
   if (!task) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-        Chargement…
+      <div className="max-w-3xl mx-auto p-6 space-y-6 page-enter">
+        <div className="skeleton h-7 w-64" />
+        <div className="flex gap-3">
+          <div className="skeleton h-7 w-36" />
+          <div className="skeleton h-7 w-28" />
+        </div>
+        <div className="skeleton h-4 w-full" />
+        <div className="skeleton h-4 w-2/3" />
       </div>
     )
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-6 space-y-6 page-enter">
       <div className="flex items-center gap-3">
-        <Link href={`/${slug}/tasks`}>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+        <BackButton label="Tâches" href={`/${slug}/tasks`} />
         <h1 className={cn('text-xl font-semibold flex-1', task.status === 'done' && 'line-through text-muted-foreground')}>
           {task.title}
         </h1>
