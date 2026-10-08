@@ -1,5 +1,6 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { useMemo, useState } from 'react'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -57,6 +58,7 @@ export default function FinancePage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
+      <HubTabs hub="crm" />
       <PageHeader title={t('fin.title')} icon={<Wallet className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => openNew()}><Plus className="size-4" />{t('fin.new')}</Button>} />
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[[t('fin.revenue'), stats.revenue, 'text-success'], [t('fin.pending'), stats.pending, 'text-warning'], [t('fin.expenses'), stats.expenses, 'text-danger'], [t('fin.balance'), stats.revenue - stats.expenses, '']].map(([l, v, c]) => (
         <div key={l as string} className="rounded-xl border border-border bg-surface p-4"><div className="text-xs text-text-3">{l}</div><div className={`mt-1 text-xl font-semibold tabular-nums ${c}`}>{eur(v as number)}</div></div>))}</div>

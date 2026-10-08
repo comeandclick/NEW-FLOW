@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Menu as MenuIcon, Search, Settings, X } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, LayoutGrid, LogOut, Menu as MenuIcon, Search, Settings, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, Kbd } from '@/components/ui/misc'
 import { Menu, MenuItem, MenuSeparator, Sheet } from '@/components/ui/overlay'
@@ -14,7 +14,7 @@ import { useUnread } from '@/lib/hooks/use-unread'
 import { exitDemo } from '@/lib/demo/runtime'
 import { useT } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
-import { MOBILE_TABS, NAV } from './nav-items'
+import { MOBILE_TABS, NAV, NAV_FOOTER, type NavItem } from './nav-items'
 import { CommandPalette } from './command-palette'
 import { NotificationsMenu } from './notifications'
 import { WorkspaceSwitcher } from './workspace-switcher'
@@ -59,7 +59,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => { window.removeEventListener('keydown', on); clearTimeout(timer) }
   }, [router, base, toggleCollapsed])
 
-  const isActive = (href: string) => (href === '' ? pathname === base : pathname === base + href || pathname.startsWith(base + href + '/'))
+  const matches = (href: string) => (href === '' ? pathname === base : pathname === base + href || pathname.startsWith(base + href + '/'))
+  const isActive = (href: string) => {
+    const item = [...NAV.flatMap((g) => g.items), ...NAV_FOOTER].find((i) => i.href === href) as NavItem | undefined
+    return matches(href) || !!item?.also?.some(matches)
+  }
 
   const sidebar = (compact: boolean, onNavigate?: () => void) => (
     <div className="flex h-full flex-col">
@@ -96,6 +100,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ))}
       </nav>
+      <div className="space-y-0.5 border-t border-border p-2.5">
+        {NAV_FOOTER.map((it) => {
+          const active = isActive(it.href)
+          return (
+            <Link key={it.href} href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
+              className={cn('flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0', active ? 'bg-surface-3 font-medium text-text' : 'text-text-2 hover:bg-surface-2 hover:text-text')}>
+              <it.icon className={cn('size-4 shrink-0', active ? 'text-accent' : 'text-text-3')} />{!compact && <span className="truncate">{t(it.label)}</span>}
+            </Link>
+          )
+        })}
+      </div>
     </div>
   )
 
@@ -120,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-0.5">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setPalette(true)} aria-label={t('common.search')}><Search className="size-4" /></Button>
+            <Link href={`${base}/ai`} aria-label={t('nav.ai')} title={t('nav.ai')}><Button variant={pathname.startsWith(`${base}/ai`) ? 'secondary' : 'ghost'} size="icon" tabIndex={-1}><Sparkles className="size-4 text-accent" /></Button></Link>
             <LanguageToggle /><ThemeToggle /><NotificationsMenu />
             <Menu align="end" width={230} trigger={({ toggle }) => (
               <button onClick={toggle} className="ml-1 rounded-full ring-offset-2 ring-offset-bg transition hover:ring-2 hover:ring-border-strong" aria-label={t('shell.account')}><Avatar name={me?.full_name ?? me?.email} src={me?.avatar_url} size={28} status={me?.status} /></button>
@@ -137,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main id="main" className="min-h-0 flex-1 overflow-y-auto pb-[68px] md:pb-0">{children}</main>
+        <main id="main" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[68px] md:pb-0">{children}</main>
 
         <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-bg/90 backdrop-blur-xl safe-bottom md:hidden" aria-label="Mobile">
           {MOBILE_TABS.map((href) => {
@@ -151,7 +167,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             )
           })}
-          <button onClick={() => setMobileOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-text-3"><X className="hidden" /><LayoutGrid className="size-5" />{t('nav.more')}</button>
+          <button onClick={() => setMobileOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-text-3"><LayoutGrid className="size-5" />{t('nav.more')}</button>
         </nav>
       </div>
 

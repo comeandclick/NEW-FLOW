@@ -1,4 +1,5 @@
 'use client'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
@@ -130,7 +131,8 @@ function TasksPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-6 sm:px-6">
+      <div className="px-4 pt-4 sm:px-6">
+        <HubTabs hub="tasks" />
         <PageHeader title={t('tasks.title')} subtitle={t('tasks.subtitle', { n: filtered.length })} icon={<CheckSquare className="size-[18px]" />}
           actions={<Tabs value={view} onChange={(v) => { setView(v); try { localStorage.setItem('flow_tasks_view', v) } catch {} }}
             items={[{ value: 'list', label: t('tasks.view.list'), icon: <List className="size-3.5" /> }, { value: 'board', label: t('tasks.view.board'), icon: <Columns3 className="size-3.5" /> }]} />} />

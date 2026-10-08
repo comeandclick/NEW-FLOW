@@ -9,7 +9,7 @@ import { getDb } from '@/lib/supabase/client'
 import { useSession } from '@/lib/hooks/use-session'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { showSystemNotification } from '@/lib/push'
-import type { RingPayload } from '@/lib/calls'
+import { registerRingChannel, type RingPayload } from '@/lib/calls'
 import { useI18n } from '@/i18n/provider'
 
 /** Listens for incoming calls on the workspace channel and shows a ringing overlay. */
@@ -34,7 +34,8 @@ export function CallListener() {
         timer.current = setTimeout(() => setIncoming(null), 30_000)
       })
       .subscribe()
-    return () => { if (timer.current) clearTimeout(timer.current); void db.removeChannel(ch) }
+    registerRingChannel(ws.id, ch)
+    return () => { registerRingChannel(ws.id, null); if (timer.current) clearTimeout(timer.current); void db.removeChannel(ch) }
   }, [userId, ws.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Simple ringtone using WebAudio (no asset needed).

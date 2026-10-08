@@ -1,7 +1,5 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import type { Metadata } from 'next'
-import { Wordmark } from '@/components/ui/logo'
 import { getLocale } from '@/i18n/server'
 
 const DOCS = {
@@ -18,7 +16,7 @@ const DOCS = {
       ['How we use it', 'Your data is used solely to run Flow. It is never sold or used for advertising.'],
       ['Hosting and security', 'Data is stored in a PostgreSQL database hosted in Europe, with per-workspace access control (Row Level Security) and encryption in transit.'],
       ['Cookies', 'Only essential cookies are used: authentication session, language and theme. No advertising trackers.'],
-      ['Your rights', 'You can export all your data from Settings › Workspace, edit your profile or delete your workspace at any time. Contact us for any request.'],
+      ['Your rights', 'You can export all your data from Settings › Workspace, edit your profile or delete your workspace at any time. Write to us from the Contact page.'],
     ] },
   },
   terms: {
@@ -37,12 +35,12 @@ const DOCS = {
   },
   notice: {
     fr: { title: 'Mentions légales', body: [
-      ['Éditeur', 'Flow — projet édité par son équipe fondatrice. Coordonnées de contact : contact@flow.app.'],
+      ['Éditeur', 'Flow — projet édité par son équipe fondatrice. Pour nous joindre, utilisez la page Contact du site.'],
       ['Hébergement', 'Application hébergée sur Vercel Inc. ; données stockées sur Supabase (région Europe).'],
       ['Propriété intellectuelle', 'Le logo, le design et le code de Flow sont protégés. Le contenu de vos espaces reste votre propriété.'],
     ] },
     en: { title: 'Legal notice', body: [
-      ['Publisher', 'Flow — published by its founding team. Contact: contact@flow.app.'],
+      ['Publisher', 'Flow — published by its founding team. To reach us, use the Contact page.'],
       ['Hosting', 'Application hosted on Vercel Inc.; data stored on Supabase (Europe region).'],
       ['Intellectual property', 'The Flow logo, design and code are protected. The content of your workspaces remains your property.'],
     ] },
@@ -63,8 +61,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
   const d = DOCS[doc as Doc][locale]
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <Link href="/" aria-label="Flow"><Wordmark /></Link>
-      <h1 className="mt-10 text-3xl font-semibold tracking-tight">{d.title}</h1>
+      <h1 className="mt-4 text-3xl font-semibold tracking-tight">{d.title}</h1>
       <div className="mt-8 space-y-7">{d.body.map(([h, p]) => <section key={h}><h2 className="text-base font-semibold">{h}</h2><p className="mt-2 leading-relaxed text-text-2">{p}</p></section>)}</div>
       <p className="mt-12 text-xs text-text-3">{locale === 'fr' ? 'Dernière mise à jour' : 'Last updated'} : 2026-10-08</p>
     </div>

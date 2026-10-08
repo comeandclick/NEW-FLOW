@@ -12,9 +12,10 @@ import { misc } from './misc'
 import { settings } from './settings'
 import { growth } from './growth'
 import { personal } from './personal'
+import { site } from './site'
 import type { Locale } from '../config'
 
-const parts = [common, landing, auth, app, tasks, notes, calendar, messages, meetings, files, misc, settings, growth, personal] as const
+const parts = [common, landing, auth, app, tasks, notes, calendar, messages, meetings, files, misc, settings, growth, personal, site] as const
 
 type Merge<T extends readonly { fr: object }[]> = T extends readonly [infer H extends { fr: object }, ...infer R extends readonly { fr: object }[]]
   ? H['fr'] & Merge<R>

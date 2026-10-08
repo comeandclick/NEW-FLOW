@@ -1,23 +1,17 @@
-import {
-  Bot, CalendarDays, CheckSquare, Clock, FileText, FolderKanban, FolderOpen, Gauge, Home, Lightbulb, MessageSquare, Repeat, Target, Trash2,
-  Users, Video, Wallet, Workflow, Activity, ClipboardList, PenTool, type LucideIcon,
-} from 'lucide-react'
+import { CalendarDays, CheckSquare, Clock, FileText, FolderOpen, Home, MessageSquare, Settings, Target, Users, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
-export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages' }
+export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages'; /** other routes that keep this item highlighted */ also?: string[] }
 export type NavGroup = { label?: Key; items: NavItem[] }
 
 export const NAV: NavGroup[] = [
   {
     items: [
       { href: '', label: 'nav.home', icon: Home },
-      { href: '/tasks', label: 'nav.tasks', icon: CheckSquare },
-      { href: '/projects', label: 'nav.projects', icon: FolderKanban },
-      { href: '/notes', label: 'nav.notes', icon: FileText },
-      { href: '/docs', label: 'nav.docs', icon: Lightbulb },
+      { href: '/tasks', label: 'nav.tasks', icon: CheckSquare, also: ['/projects'] },
+      { href: '/notes', label: 'nav.notes', icon: FileText, also: ['/whiteboard'] },
       { href: '/calendar', label: 'nav.calendar', icon: CalendarDays },
-      { href: '/messages', label: 'nav.messages', icon: MessageSquare, badge: 'messages' },
-      { href: '/meetings', label: 'nav.meetings', icon: Video },
+      { href: '/messages', label: 'nav.messages', icon: MessageSquare, badge: 'messages', also: ['/meetings'] },
       { href: '/files', label: 'nav.files', icon: FolderOpen },
     ],
   },
@@ -25,30 +19,28 @@ export const NAV: NavGroup[] = [
     label: 'nav.group.grow',
     items: [
       { href: '/goals', label: 'nav.goals', icon: Target },
-      { href: '/crm', label: 'nav.crm', icon: Users },
-      { href: '/finance', label: 'nav.finance', icon: Wallet },
-      { href: '/automations', label: 'nav.automations', icon: Workflow },
-      { href: '/forms', label: 'nav.forms', icon: ClipboardList },
-      { href: '/whiteboard', label: 'nav.whiteboard', icon: PenTool },
+      { href: '/crm', label: 'nav.crm', icon: Users, also: ['/finance', '/forms'] },
     ],
   },
   {
     label: 'nav.group.personal',
-    items: [
-      { href: '/focus', label: 'nav.focus', icon: Clock },
-      { href: '/habits', label: 'nav.habits', icon: Repeat },
-      { href: '/ai', label: 'nav.ai', icon: Bot },
-    ],
-  },
-  {
-    label: 'nav.group.workspace',
-    items: [
-      { href: '/activity', label: 'nav.activity', icon: Activity },
-      { href: '/trash', label: 'nav.trash', icon: Trash2 },
-      { href: '/settings', label: 'nav.settings', icon: Gauge },
-    ],
+    items: [{ href: '/focus', label: 'nav.focus', icon: Clock, also: ['/habits'] }],
   },
 ]
 
-/** The five items shown in the mobile bottom bar. */
+export const NAV_FOOTER: NavItem[] = [
+  { href: '/settings', label: 'nav.settings', icon: Settings, also: ['/automations', '/activity', '/trash'] },
+]
+
+/** Sub-pages grouped under a parent entry; rendered as tabs at the top of each page. */
+export const HUBS: Record<string, { href: string; label: Key }[]> = {
+  tasks: [{ href: '/tasks', label: 'nav.tasks' }, { href: '/projects', label: 'nav.projects' }],
+  notes: [{ href: '/notes', label: 'nav.notes' }, { href: '/whiteboard', label: 'nav.whiteboard' }],
+  messages: [{ href: '/messages', label: 'nav.messages' }, { href: '/meetings', label: 'nav.meetings' }],
+  crm: [{ href: '/crm', label: 'nav.crm' }, { href: '/finance', label: 'nav.finance' }, { href: '/forms', label: 'nav.forms' }],
+  focus: [{ href: '/focus', label: 'nav.focus' }, { href: '/habits', label: 'nav.habits' }],
+  settings: [{ href: '/settings', label: 'nav.settings' }, { href: '/automations', label: 'nav.automations' }, { href: '/activity', label: 'nav.activity' }, { href: '/trash', label: 'nav.trash' }],
+}
+
+/** The items shown in the mobile bottom bar (the rest lives under "More"). */
 export const MOBILE_TABS = ['', '/tasks', '/messages', '/calendar'] as const

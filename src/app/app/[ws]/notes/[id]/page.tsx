@@ -109,7 +109,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6">
       <div className="mb-6 flex items-center justify-between gap-2">
-        <Link href={`/app/${ws.slug}/${note.kind === 'note' ? 'notes' : 'docs'}`} className="inline-flex items-center gap-1.5 text-[13px] text-text-3 hover:text-text"><ArrowLeft className="size-3.5" />{t('common.back')}</Link>
+        <Link href={`/app/${ws.slug}/notes`} className="inline-flex items-center gap-1.5 text-[13px] text-text-3 hover:text-text"><ArrowLeft className="size-3.5" />{t('common.back')}</Link>
         <div className="flex items-center gap-1">
           <span className="mr-2 flex items-center gap-1 text-xs text-text-3" aria-live="polite">{status === 'saving' ? t('notes.saving') : status === 'saved' ? <><Check className="size-3 text-success" />{t('common.saved')}</> : t('notes.words', { n: words })}</span>
           <Button variant="ghost" size="icon" onClick={toggleFav} aria-label={favs.data[0] ? t('notes.unfavorite') : t('notes.favorite')}><Star className={`size-4 ${favs.data[0] ? 'fill-warning text-warning' : ''}`} /></Button>

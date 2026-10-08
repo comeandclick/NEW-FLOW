@@ -71,6 +71,7 @@ export const app = {
     'home.overdue': 'En retard',
     'home.unread': 'messages non lus',
     'home.quick': 'Accès rapide',
+    'home.askAi': 'Demandez à l’assistant : « Que dois-je faire aujourd’hui ? »',
   },
   en: {
     'nav.home': 'Home',
@@ -144,5 +145,6 @@ export const app = {
     'home.overdue': 'Overdue',
     'home.unread': 'unread messages',
     'home.quick': 'Quick access',
+    'home.askAi': 'Ask the assistant: “What should I do today?”',
   },
 } as const

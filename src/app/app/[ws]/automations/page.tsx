@@ -1,5 +1,6 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { useState } from 'react'
 import { Plus, Trash2, Workflow, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,6 +35,7 @@ export default function AutomationsPage() {
   }
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+      <HubTabs hub="settings" />
       <PageHeader title={t('auto.title')} icon={<Workflow className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setD({ name: '', trigger_type: 'task_done', action_type: 'notify', message: '' })}><Plus className="size-4" />{t('auto.new')}</Button>} />
       {list.data.length === 0 && !list.loading ? <EmptyState icon={<Workflow className="size-5" />} title={t('auto.empty')} hint={t('auto.emptyHint')}
         action={canWrite ? <div className="flex flex-wrap justify-center gap-2">{presets.map((p) => <Button key={p.name} size="sm" onClick={() => setD(p)}><Zap className="size-3.5" />{p.name}</Button>)}</div> : undefined} />

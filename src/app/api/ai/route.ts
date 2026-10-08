@@ -1,13 +1,27 @@
 import { NextResponse } from 'next/server'
+import { getServerDb } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5-5'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
+const hits = new Map<string, number[]>()
+/** Best-effort per-instance limiter (20 requests / minute / user). */
+function limited(id: string) {
+  const now = Date.now()
+  const list = (hits.get(id) ?? []).filter((t) => now - t < 60_000)
+  list.push(now); hits.set(id, list)
+  return list.length > 20
+}
+
 export async function POST(req: Request) {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 501 })
+  const db = await getServerDb()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  if (limited(user.id)) return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
   let body: { messages?: Msg[]; context?: unknown; locale?: string }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'bad_request' }, { status: 400 }) }
   const messages = (body.messages ?? []).slice(-12).filter((m) => typeof m.content === 'string' && m.content.length < 4000)

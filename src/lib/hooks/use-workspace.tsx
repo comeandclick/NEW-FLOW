@@ -45,7 +45,7 @@ export function WorkspaceProvider({ slug, children, fallback, notFound }: { slug
 }
 
 function Inner({ ws, me, userId, children }: { ws: Workspace; me: Profile | null; userId: string; children: ReactNode }) {
-  const membersQ = useLive<any>('workspace_members', { select: '*, profile:profiles(*)', eq: { workspace_id: ws.id }, order: ['joined_at', true] })
+  const membersQ = useLive<any>('workspace_members', { select: '*, profile:profiles!workspace_members_user_id_fkey(*)', eq: { workspace_id: ws.id }, order: ['joined_at', true] })
   const projectsQ = useLive<Project>('projects', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', true] })
 
   const members = membersQ.data as (Member & { profile: Profile | null })[]

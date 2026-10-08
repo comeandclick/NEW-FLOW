@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { dictionaries, type Key } from './dict'
 import { LOCALE_COOKIE, type Locale } from './config'
@@ -15,12 +16,14 @@ const I18nContext = createContext<Ctx | null>(null)
 
 export function I18nProvider({ initial, children }: { initial: Locale; children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(initial)
+  const router = useRouter()
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l)
     document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000; samesite=lax`
     document.documentElement.lang = l
-  }, [])
+    router.refresh() // re-render server components (marketing pages) with the new cookie
+  }, [router])
 
   const t = useCallback(
     (key: Key, vars?: Vars) => {

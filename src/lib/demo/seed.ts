@@ -133,7 +133,7 @@ export function createSeed(): DemoDB {
     { title: 'Revue de code', s: at(-1, 15, 0), e: at(-1, 16, 0), color: '#0ea5e9' },
   ].map((e: any, i) => ({
     id: uid('event', i + 1), workspace_id: WS, title: e.title, description: null, start_at: e.s, end_at: e.e, all_day: Boolean(e.all), color: e.color,
-    location: e.loc ?? null, attendees: [ME, LEA], task_id: null, created_by: ME, created_at: created, updated_at: created, deleted_at: null,
+    location: e.loc ?? null, attendees: [ME, LEA], task_id: null, meeting_id: null, created_by: ME, created_at: created, updated_at: created, deleted_at: null,
   }))
 
   const C_GEN = uid('conv', 1), C_PROD = uid('conv', 2), C_DESIGN = uid('conv', 3), C_DM = uid('conv', 4)

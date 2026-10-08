@@ -88,6 +88,7 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (blob: Blob, durat
 
   useEffect(() => {
     let dead = false
+    cancelled.current = false
     ;(async () => {
       try {
         const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })

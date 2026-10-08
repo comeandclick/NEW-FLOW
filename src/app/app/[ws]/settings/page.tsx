@@ -1,5 +1,6 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, Check, Copy, Download, Settings, Trash2 } from 'lucide-react'
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('profile')
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+      <HubTabs hub="settings" />
       <PageHeader title={t('set.title')} icon={<Settings className="size-[18px]" />} />
       <Tabs className="mb-6 max-w-full overflow-x-auto" value={tab} onChange={setTab} items={[
         { value: 'profile', label: t('set.tab.profile') }, { value: 'workspace', label: t('set.tab.workspace') }, { value: 'members', label: t('set.tab.members') }, { value: 'preferences', label: t('set.tab.preferences') }]} />

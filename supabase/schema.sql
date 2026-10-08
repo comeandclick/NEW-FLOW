@@ -658,3 +658,69 @@ create policy "ws_files_insert" on storage.objects for insert with check (
 drop policy if exists "ws_files_delete" on storage.objects;
 create policy "ws_files_delete" on storage.objects for delete using (
   bucket_id in ('files','voice') and can_write(((storage.foldername(name))[1])::uuid));
+
+-- Visio liée à un événement du calendrier
+alter table public.events add column if not exists meeting_id uuid references public.meetings(id) on delete set null;
+
+-- Formulaire de contact du site (insertion publique, lecture réservée au service)
+create table if not exists public.contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, email text not null, message text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.contact_messages enable row level security;
+drop policy if exists contact_insert on public.contact_messages;
+create policy contact_insert on public.contact_messages for insert with check (length(message) between 1 and 4000 and length(email) between 3 and 320 and length(name) between 1 and 200);
+
+-- ───────────────────────── Durcissement sécurité (audit) ─────────────────────────
+-- 1) Rejoindre une conversation : jamais soi-même dans une conversation privée.
+create or replace function public.conv_creator(conv uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from conversations where id = conv and created_by = auth.uid())
+$$;
+drop policy if exists cm_write on public.conversation_members;
+drop policy if exists cm_insert on public.conversation_members;
+drop policy if exists cm_update on public.conversation_members;
+drop policy if exists cm_delete on public.conversation_members;
+create policy cm_insert on public.conversation_members for insert with check (
+  in_conversation(conversation_id)
+  or conv_creator(conversation_id)
+  or (user_id = auth.uid() and is_member(conversation_workspace(conversation_id))
+      and exists (select 1 from conversations c where c.id = conversation_id and not c.is_private)));
+create policy cm_update on public.conversation_members for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy cm_delete on public.conversation_members for delete using (user_id = auth.uid() or conv_creator(conversation_id) or is_admin_of(conversation_workspace(conversation_id)));
+
+-- 2) Notifications : uniquement vers un membre du même espace.
+drop policy if exists notif_insert on public.notifications;
+create policy notif_insert on public.notifications for insert with check (
+  workspace_id is not null and is_member(workspace_id)
+  and exists (select 1 from workspace_members m where m.workspace_id = notifications.workspace_id and m.user_id = notifications.user_id));
+
+-- 3) Le rôle « owner » ne peut ni être attribué ni retiré par un administrateur.
+create or replace function public.guard_member_change() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'UPDATE' then
+    if new.role = 'owner' and old.role <> 'owner' then raise exception 'cannot grant owner'; end if;
+    if old.role = 'owner' and new.role <> 'owner' then raise exception 'cannot demote owner'; end if;
+  elsif tg_op = 'DELETE' then
+    if old.role = 'owner' and exists (select 1 from workspaces w where w.id = old.workspace_id) then raise exception 'cannot remove owner'; end if;
+  end if;
+  return coalesce(new, old);
+end $$;
+drop trigger if exists guard_member_change on public.workspace_members;
+create trigger guard_member_change before update or delete on public.workspace_members for each row execute function public.guard_member_change();
+
+-- 4) owner_id d'un espace immuable.
+create or replace function public.guard_workspace_owner() returns trigger
+language plpgsql as $$
+begin
+  if new.owner_id is distinct from old.owner_id then raise exception 'owner_id is immutable'; end if;
+  return new;
+end $$;
+drop trigger if exists guard_workspace_owner on public.workspaces;
+create trigger guard_workspace_owner before update on public.workspaces for each row execute function public.guard_workspace_owner();
+
+-- 5) Un utilisateur ne peut pas écrire dans le journal sous le nom d'un autre.
+drop policy if exists activity_logs_write on public.activity_logs;
+create policy activity_logs_write on public.activity_logs for insert with check (can_write(workspace_id) and (user_id is null or user_id = auth.uid()));

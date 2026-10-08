@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { format, formatDistanceToNow, isPast, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { CalendarDays, CheckSquare, FileText, MessageSquare, Users, Video, Activity as ActivityIcon, ArrowRight } from 'lucide-react'
+import { CalendarDays, CheckSquare, FileText, MessageSquare, Users, Video, Activity as ActivityIcon, ArrowRight, Sparkles } from 'lucide-react'
 import { Avatar, Card, EmptyState, Skeleton } from '@/components/ui/misc'
 import { PriorityIcon, StatusIcon } from '@/components/common/task-ui'
 import { useLive } from '@/lib/hooks/use-live'
@@ -65,6 +65,12 @@ export default function HomePage() {
         <p className="mt-1 text-sm capitalize text-text-3">{format(new Date(), 'EEEE d MMMM yyyy', { locale: dfl })}</p>
       </motion.div>
 
+      <motion.div {...fade(0.5)} className="mb-4">
+        <Link href={`/app/${ws.slug}/ai`} className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 transition-all hover:border-accent/50 hover:shadow-md">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><Sparkles className="size-4" /></span>
+          <span className="min-w-0 flex-1 truncate text-sm text-text-2 group-hover:text-text">{t('home.askAi')}</span><ArrowRight className="size-4 text-text-3 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </motion.div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((c, i) => (
           <motion.div key={c.label} {...fade(i + 1)}>
@@ -79,7 +85,7 @@ export default function HomePage() {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <motion.div {...fade(5)} className="lg:col-span-2">
+        <motion.div {...fade(5)} className="min-w-0 lg:col-span-2">
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">{t('home.myTasks')}</h2>
               <Link href={`/app/${ws.slug}/tasks`} className="inline-flex items-center gap-1 text-xs text-text-3 hover:text-text">{t('common.all')}<ArrowRight className="size-3" /></Link></div>
@@ -100,7 +106,7 @@ export default function HomePage() {
           </Card>
         </motion.div>
 
-        <motion.div {...fade(6)}>
+        <motion.div {...fade(6)} className="min-w-0">
           <Card className="overflow-hidden">
             <div className="border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">{t('home.upcoming')}</h2></div>
             {upcoming.length === 0 ? <EmptyState icon={<CalendarDays className="size-5" />} title={t('home.noEvents')} className="py-10" /> : (
@@ -115,7 +121,7 @@ export default function HomePage() {
           </Card>
         </motion.div>
 
-        <motion.div {...fade(7)}>
+        <motion.div {...fade(7)} className="min-w-0">
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">{t('home.recentNotes')}</h2></div>
             <ul className="p-2">{notesQ.data.map((n) => (
@@ -127,7 +133,7 @@ export default function HomePage() {
           </Card>
         </motion.div>
 
-        <motion.div {...fade(8)} className="lg:col-span-2">
+        <motion.div {...fade(8)} className="min-w-0 lg:col-span-2">
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">{t('home.activity')}</h2>
               <Link href={`/app/${ws.slug}/activity`} className="inline-flex items-center gap-1 text-xs text-text-3 hover:text-text">{t('common.all')}<ArrowRight className="size-3" /></Link></div>

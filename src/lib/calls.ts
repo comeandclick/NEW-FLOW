@@ -4,8 +4,14 @@ import { getDb } from '@/lib/supabase/client'
 
 export type RingPayload = { meetingId: string; room: string; from: string; fromName: string; video: boolean; to: string[]; title: string; slug: string }
 
+// supabase-js returns the SAME channel object for a given topic, so the sender must reuse the
+// channel the CallListener already subscribed to (creating/removing a second one would break it).
+let shared: { wsId: string; ch: any } | null = null
+export function registerRingChannel(wsId: string, ch: any) { shared = ch ? { wsId, ch } : null }
+
 /** Broadcast a ring to the workspace channel. Listeners filter on `to`. */
 export function ring(wsId: string, payload: RingPayload) {
+  if (shared?.wsId === wsId) { void shared.ch.send({ type: 'broadcast', event: 'ring', payload }); return }
   const db = getDb()
   const ch = db.channel(`ring:${wsId}`)
   ch.subscribe((status: string) => {

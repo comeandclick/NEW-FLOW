@@ -7,6 +7,7 @@ import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
 import { FileText, Lightbulb, Pin, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge, EmptyState, PageHeader, Skeleton, Tabs } from '@/components/ui/misc'
@@ -68,11 +69,12 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <HubTabs hub="notes" />
       <PageHeader title={t(title)} subtitle={`${filtered.length}`} icon={icon === 'doc' ? <Lightbulb className="size-[18px]" /> : <FileText className="size-[18px]" />}
         actions={canWrite && <Button variant="primary" onClick={create}><Plus className="size-4" />{t(newLabel)}</Button>} />
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <div className="relative min-w-44 flex-1 sm:max-w-xs"><Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-text-3" /><Input className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('notes.search')} /></div>
-        {kinds.length > 1 && <Tabs value={kind} onChange={setKind} items={[{ value: 'all', label: t('common.all') }, ...kinds.map((k) => ({ value: k, label: t(`notes.kind.${k}`) }))]} />}
+        
         {tags.map((x) => <button key={x} onClick={() => setTag(tag === x ? null : x)} className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${tag === x ? 'border-accent bg-accent-soft text-accent' : 'border-border text-text-2 hover:border-border-strong'}`}>{x}</button>)}
       </div>
       {loading ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-40" />)}</div>

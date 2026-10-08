@@ -1,5 +1,6 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { useMemo, useState } from 'react'
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { Building2, Mail, Phone, Plus, Search, Trash2, Users } from 'lucide-react'
@@ -82,6 +83,7 @@ export default function CrmPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <HubTabs hub="crm" />
       <PageHeader title={t('crm.title')} icon={<Users className="size-[18px]" />} actions={<>
         <Tabs value={tab} onChange={setTab} items={[{ value: 'pipeline', label: t('crm.pipeline') }, { value: 'contacts', label: t('crm.contacts') }]} />
         {canWrite && (tab === 'pipeline' ? <Button variant="primary" onClick={() => setDDraft({ title: '', stage: 'prospection', value: 0 })}><Plus className="size-4" />{t('crm.newDeal')}</Button>

@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  devIndicators: false,
   images: { remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }] },
   async headers() {
     return [

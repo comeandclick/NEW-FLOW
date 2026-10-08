@@ -11,7 +11,7 @@ import { useTheme } from '@/components/providers/theme'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
-import { NAV } from './nav-items'
+import { HUBS, NAV, NAV_FOOTER } from './nav-items'
 import { Kbd } from '@/components/ui/misc'
 
 export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
@@ -82,8 +82,8 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                 </Command.Group>
 
                 <Command.Group heading={t('shell.goTo')}>
-                  {NAV.flatMap((g) => g.items).map((n) => (
-                    <Command.Item key={n.href} className={item} value={`go ${t(n.label)} ${n.href}`} onSelect={() => go(n.href)}><n.icon className="size-4" />{t(n.label)}</Command.Item>
+                  {[...new Map([...NAV.flatMap((g) => g.items), ...NAV_FOOTER, ...Object.values(HUBS).flat(), { href: '/ai', label: 'nav.ai' as const }].map((n) => [n.href, n])).values()].map((n) => (
+                    <Command.Item key={n.href} className={item} value={`go ${t(n.label)} ${n.href}`} onSelect={() => go(n.href)}><Search className="size-4" />{t(n.label)}</Command.Item>
                   ))}
                 </Command.Group>
               </Command.List>

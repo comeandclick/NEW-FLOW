@@ -1,4 +1,5 @@
 'use client'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -98,6 +99,7 @@ export default function FocusPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+      <HubTabs hub="focus" />
       <PageHeader title={t('focus.title')} icon={<Clock className="size-[18px]" />} />
       <div className="grid gap-5 md:grid-cols-2">
         <section className="rounded-2xl border border-border bg-surface p-6 text-center">

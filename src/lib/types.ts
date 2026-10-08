@@ -20,7 +20,7 @@ export type Note = {
 }
 export type CalEvent = {
   id: string; workspace_id: string; title: string; description: string | null; start_at: string; end_at: string; all_day: boolean
-  color: string | null; location: string | null; attendees: string[]; task_id: string | null; created_by: string | null; deleted_at: string | null
+  color: string | null; location: string | null; attendees: string[]; task_id: string | null; meeting_id: string | null; created_by: string | null; deleted_at: string | null
 }
 export type Conversation = { id: string; workspace_id: string; type: 'channel' | 'dm' | 'group'; name: string | null; description: string | null; is_private: boolean; created_by: string | null; created_at: string; updated_at: string }
 export type ConvMember = { id: string; conversation_id: string; user_id: string; last_read_at: string; muted: boolean }

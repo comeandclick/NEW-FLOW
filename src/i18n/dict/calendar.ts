@@ -18,6 +18,7 @@ export const calendar = {
     'cal.deleted': 'Événement placé dans la corbeille',
     'cal.invalidRange': 'La fin doit être après le début',
     'cal.more': '+{n} de plus',
+    'cal.visio': 'Ajouter une visio',
   },
   en: {
     'cal.title': 'Calendar',
@@ -38,5 +39,6 @@ export const calendar = {
     'cal.deleted': 'Event moved to trash',
     'cal.invalidRange': 'End must be after start',
     'cal.more': '+{n} more',
+    'cal.visio': 'Add a video call',
   },
 } as const

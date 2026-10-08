@@ -1,4 +1,5 @@
 'use client'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import Link from 'next/link'
 import { useState } from 'react'
 import { FolderKanban, Plus } from 'lucide-react'
@@ -38,6 +39,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
+      <HubTabs hub="tasks" />
       <PageHeader title={t('proj.title')} subtitle={`${projects.length}`} icon={<FolderKanban className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setOpen(true)}><Plus className="size-4" />{t('proj.new')}</Button>} />
       {projects.length === 0 ? <EmptyState icon={<FolderKanban className="size-5" />} title={t('proj.empty')} hint={t('proj.emptyHint')} />
         : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{projects.map((p, i) => {

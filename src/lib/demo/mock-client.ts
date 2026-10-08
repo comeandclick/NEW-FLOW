@@ -27,7 +27,7 @@ const COLUMN_DEFAULTS: Record<string, Row> = {
   task_comments: {},
   notes: { project_id: nul, parent_id: nul, kind: 'note', title: '', icon: nul, content: {}, tags: [], is_pinned: false, created_by: nul, deleted_at: nul },
   note_versions: { title: nul, saved_by: nul },
-  events: { description: nul, all_day: false, color: nul, location: nul, attendees: [], task_id: nul, created_by: nul, deleted_at: nul },
+  events: { description: nul, all_day: false, color: nul, location: nul, attendees: [], task_id: nul, meeting_id: nul, created_by: nul, deleted_at: nul },
   conversations: { name: nul, description: nul, is_private: false, created_by: nul },
   conversation_members: { role: 'member', muted: false },
   messages: { content: nul, parent_id: nul, kind: 'text', attachments: [], mentions: [], is_pinned: false, is_edited: false, deleted_at: nul },

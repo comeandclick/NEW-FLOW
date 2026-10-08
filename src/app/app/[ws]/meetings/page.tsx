@@ -1,4 +1,5 @@
 'use client'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -59,6 +60,7 @@ export default function MeetingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+      <HubTabs hub="messages" />
       <PageHeader title={t('meet.title')} icon={<Video className="size-[18px]" />}
         actions={canWrite && <><Button onClick={() => setOpen(true)}><CalendarClock className="size-4" />{t('meet.new')}</Button><Button variant="primary" onClick={() => create(true)}><Zap className="size-4" />{t('meet.instant')}</Button></>} />
       {loading ? <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>

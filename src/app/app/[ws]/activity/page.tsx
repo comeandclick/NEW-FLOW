@@ -1,4 +1,5 @@
 'use client'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -19,6 +20,7 @@ export default function ActivityPage() {
   const { data, loading } = useLive<Activity>('activity_logs', { eq: { workspace_id: ws.id }, order: ['created_at', false], limit })
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+      <HubTabs hub="settings" />
       <PageHeader title={t('activity.title')} subtitle={t('activity.subtitle')} icon={<ActivityIcon className="size-[18px]" />} />
       {loading ? <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>
         : data.length === 0 ? <EmptyState icon={<ActivityIcon className="size-5" />} title={t('activity.empty')} />

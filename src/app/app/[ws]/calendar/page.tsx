@@ -6,7 +6,7 @@ import {
 } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
@@ -27,7 +27,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const local = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm")
 const localDate = (d: Date) => format(d, 'yyyy-MM-dd')
 
-type Draft = { id?: string; title: string; description: string; all_day: boolean; start: string; end: string; color: string; location: string; attendees: string[] }
+type Draft = { id?: string; title: string; description: string; all_day: boolean; start: string; end: string; color: string; location: string; attendees: string[]; meeting_id: string | null; visio: boolean }
 
 function CalendarPage() {
   const { t, locale } = useI18n()
@@ -47,12 +47,12 @@ function CalendarPage() {
     if (!canWrite) return
     const s = new Date(d); if (!allDay) s.setHours(hour, 0, 0, 0)
     const e = new Date(s); e.setHours(s.getHours() + 1)
-    setDraft({ title: '', description: '', all_day: allDay, start: allDay ? localDate(s) : local(s), end: allDay ? localDate(s) : local(e), color: COLORS[0], location: '', attendees: userId ? [userId] : [] })
+    setDraft({ title: '', description: '', all_day: allDay, start: allDay ? localDate(s) : local(s), end: allDay ? localDate(s) : local(e), color: COLORS[0], location: '', attendees: userId ? [userId] : [], meeting_id: null, visio: false })
   }
   useEffect(() => { if (params.get('new') === '1') { openNew(); router.replace(`/app/${ws.slug}/calendar`) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const openEdit = (e: CalEvent) => setDraft({
-    id: e.id, title: e.title, description: e.description ?? '', all_day: e.all_day, color: e.color ?? COLORS[0], location: e.location ?? '', attendees: e.attendees ?? [],
+    id: e.id, title: e.title, description: e.description ?? '', all_day: e.all_day, color: e.color ?? COLORS[0], location: e.location ?? '', attendees: e.attendees ?? [], meeting_id: e.meeting_id ?? null, visio: !!e.meeting_id,
     start: e.all_day ? localDate(new Date(e.start_at)) : local(new Date(e.start_at)), end: e.all_day ? localDate(new Date(e.end_at)) : local(new Date(e.end_at)),
   })
 
@@ -61,7 +61,12 @@ function CalendarPage() {
     const s = draft.all_day ? new Date(`${draft.start}T00:00:00`) : new Date(draft.start)
     const e = draft.all_day ? new Date(`${draft.end || draft.start}T23:59:00`) : new Date(draft.end)
     if (e < s) { toast.error(t('cal.invalidRange')); return }
-    const row = { title: draft.title.trim(), description: draft.description || null, all_day: draft.all_day, start_at: s.toISOString(), end_at: e.toISOString(), color: draft.color, location: draft.location || null, attendees: draft.attendees }
+    let meetingId = draft.meeting_id
+    if (draft.visio && !meetingId) {
+      const { data: m } = await getDb().from('meetings').insert({ workspace_id: ws.id, title: draft.title.trim(), host_id: userId, status: 'scheduled', scheduled_at: s.toISOString() }).select().single()
+      meetingId = (m as { id: string } | null)?.id ?? null
+    } else if (!draft.visio && meetingId) meetingId = null
+    const row = { title: draft.title.trim(), description: draft.description || null, all_day: draft.all_day, start_at: s.toISOString(), end_at: e.toISOString(), color: draft.color, location: draft.location || null, attendees: draft.attendees, meeting_id: meetingId }
     if (draft.id) await getDb().from('events').update(row).eq('id', draft.id)
     else {
       const { data } = await getDb().from('events').insert({ ...row, workspace_id: ws.id, created_by: userId }).select().single()
@@ -96,7 +101,7 @@ function CalendarPage() {
   const Chip = ({ e }: { e: CalEvent }) => (
     <button onClick={(ev) => { ev.stopPropagation(); openEdit(e) }} className="flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium transition-opacity hover:opacity-80"
       style={{ background: `color-mix(in srgb, ${e.color ?? COLORS[0]} 20%, transparent)`, color: e.color ?? COLORS[0] }}>
-      {!e.all_day && <span className="hidden tabular-nums opacity-70 sm:inline">{format(new Date(e.start_at), 'HH:mm')}</span>}<span className="truncate">{e.title}</span>
+      {e.meeting_id && <Video className="size-3 shrink-0" />}{!e.all_day && <span className="hidden tabular-nums opacity-70 sm:inline">{format(new Date(e.start_at), 'HH:mm')}</span>}<span className="truncate">{e.title}</span>
     </button>
   )
 
@@ -178,6 +183,9 @@ function CalendarPage() {
               <Field label={t('cal.start')}><Input type={draft.all_day ? 'date' : 'datetime-local'} value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value, end: draft.end < e.target.value ? e.target.value : draft.end })} /></Field>
               <Field label={t('cal.end')}><Input type={draft.all_day ? 'date' : 'datetime-local'} value={draft.end} min={draft.start} onChange={(e) => setDraft({ ...draft, end: e.target.value })} /></Field>
             </div>
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2"><span className="flex items-center gap-2 text-sm"><Video className="size-4 text-text-3" />{t('cal.visio')}</span>
+              <div className="flex items-center gap-2">{draft.meeting_id && <Button size="xs" variant="primary" onClick={() => router.push(`/app/${ws.slug}/meetings/${draft.meeting_id}`)}>{t('meet.join')}</Button>}
+                <Switch checked={draft.visio} onChange={(v) => setDraft({ ...draft, visio: v })} label={t('cal.visio')} /></div></div>
             <Field label={t('cal.location')}><Input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} /></Field>
             <Field label={t('common.description')}><Textarea rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></Field>
             <div><span className="mb-1.5 block text-[13px] font-medium text-text-2">{t('cal.color')}</span>

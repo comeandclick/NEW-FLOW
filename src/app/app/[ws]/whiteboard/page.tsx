@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Circle, PenTool, Square, StickyNote, Trash2, Type } from 'lucide-react'
+import { HubTabs } from '@/components/shell/hub-tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -71,6 +72,7 @@ export default function WhiteboardPage() {
   const tools: [WhiteboardItem['type'], typeof Square, string][] = [['sticky', StickyNote, t('wb.sticky')], ['text', Type, t('wb.text')], ['rect', Square, t('wb.rect')], ['ellipse', Circle, t('wb.ellipse')]]
   return (
     <div className="flex h-full flex-col">
+      <HubTabs hub="notes" className="mb-0 px-4" />
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
         <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-accent"><PenTool className="size-4" /></span>
         <h1 className="mr-2 text-[15px] font-semibold">{board?.name ?? t('wb.title')}</h1>
