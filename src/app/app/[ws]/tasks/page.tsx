@@ -146,7 +146,7 @@ function TasksPage() {
           <form onSubmit={(e) => { e.preventDefault(); void add() }} className="mb-4 flex gap-2">
             <Input id="quick-add" value={quick} onChange={(e) => setQuick(e.target.value)} placeholder={t('tasks.quickAdd')} />
             <Select className="hidden w-36 sm:block" value={quickStatus} onChange={(e) => setQuickStatus(e.target.value as TaskStatus)} aria-label={t('common.status')}>{STATUSES.slice(0, 4).map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}</Select>
-            <Button type="submit" variant="primary" disabled={!quick.trim()}><Plus className="size-4" /><span className="hidden sm:inline">{t('common.add')}</span></Button>
+            <Button type="submit" variant="primary" disabled={!quick.trim()} aria-label={t('common.add')}><Plus className="size-4" /><span className="hidden sm:inline">{t('common.add')}</span></Button>
           </form>
         )}
       </div>

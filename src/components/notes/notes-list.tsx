@@ -20,7 +20,7 @@ import type { Note } from '@/lib/types'
 
 function plain(note: Note): string {
   const out: string[] = []
-  const walk = (n: any) => { if (!n) return; if (n.text) out.push(n.text); (n.content ?? []).forEach(walk) } // eslint-disable-line @typescript-eslint/no-explicit-any
+  const walk = (n: any) => { if (!n) return; if (n.text) out.push(n.text); (n.content ?? []).forEach(walk) }  
   walk(note.content)
   return out.join(' ')
 }

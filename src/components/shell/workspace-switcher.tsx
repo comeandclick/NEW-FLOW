@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import Link from 'next/link'
 import { Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { Menu, MenuItem, MenuSeparator, MenuLabel } from '@/components/ui/overlay'

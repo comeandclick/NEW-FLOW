@@ -17,6 +17,26 @@ import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import type { Meeting } from '@/lib/types'
+import type { Key } from '@/i18n/dict'
+import type { Locale as DfLocale } from 'date-fns'
+
+function MeetingRow({ m, slug, dfl, nameOf, t }: { m: Meeting; slug: string; dfl: DfLocale; nameOf: (id?: string | null) => string; t: (k: Key) => string }) {
+  return (
+    <li><Link href={`/app/${slug}/meetings/${m.id}`} className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-0 hover:bg-surface-2">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><Video className="size-4" /></span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] font-medium">{m.title}</span>
+        <span className="block truncate text-xs text-text-3">{m.scheduled_at ? format(new Date(m.scheduled_at), 'PPp', { locale: dfl }) : format(new Date(m.created_at), 'PPp', { locale: dfl })} · {nameOf(m.host_id)}</span></span>
+      {m.status === 'live' ? <Badge color="var(--success)">{t('meet.live')}</Badge> : m.status === 'scheduled' ? <Button size="xs" variant="outline" tabIndex={-1}>{t('meet.join')}</Button> : null}
+    </Link></li>
+  )
+}
+
+function MeetingSection({ title, items, ...rest }: { title: string; items: Meeting[]; slug: string; dfl: DfLocale; nameOf: (id?: string | null) => string; t: (k: Key) => string }) {
+  if (!items.length) return null
+  return (
+    <section><h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-3">{title}</h2><ul className="overflow-hidden rounded-xl border border-border bg-surface">{items.map((m) => <MeetingRow key={m.id} m={m} {...rest} />)}</ul></section>
+  )
+}
 
 export default function MeetingsPage() {
   const { t, locale } = useI18n()
@@ -46,17 +66,6 @@ export default function MeetingsPage() {
   const upcoming = data.filter((m) => m.status === 'scheduled').sort((a, b) => (a.scheduled_at ?? '9').localeCompare(b.scheduled_at ?? '9'))
   const past = data.filter((m) => m.status === 'ended')
 
-  const Row = ({ m }: { m: Meeting }) => (
-    <li><Link href={`/app/${ws.slug}/meetings/${m.id}`} className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-0 hover:bg-surface-2">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><Video className="size-4" /></span>
-      <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] font-medium">{m.title}</span>
-        <span className="block truncate text-xs text-text-3">{m.scheduled_at ? format(new Date(m.scheduled_at), 'PPp', { locale: dfl }) : format(new Date(m.created_at), 'PPp', { locale: dfl })} · {nameOf(m.host_id)}</span></span>
-      {m.status === 'live' ? <Badge color="var(--success)">{t('meet.live')}</Badge> : m.status === 'scheduled' ? <Button size="xs" variant="outline" tabIndex={-1}>{t('meet.join')}</Button> : null}
-    </Link></li>
-  )
-  const Section = ({ title: ti, items }: { title: string; items: Meeting[] }) => items.length ? (
-    <section><h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-3">{ti}</h2><ul className="overflow-hidden rounded-xl border border-border bg-surface">{items.map((m) => <Row key={m.id} m={m} />)}</ul></section>
-  ) : null
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
@@ -65,7 +74,7 @@ export default function MeetingsPage() {
         actions={canWrite && <><Button onClick={() => setOpen(true)}><CalendarClock className="size-4" />{t('meet.new')}</Button><Button variant="primary" onClick={() => create(true)}><Zap className="size-4" />{t('meet.instant')}</Button></>} />
       {loading ? <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
         : data.length === 0 ? <EmptyState icon={<Video className="size-5" />} title={t('meet.empty')} hint={t('meet.emptyHint')} />
-        : <div className="space-y-6"><Section title={t('meet.live')} items={live} /><Section title={t('meet.upcoming')} items={upcoming} /><Section title={t('meet.past')} items={past} /></div>}
+        : <div className="space-y-6"><MeetingSection title={t('meet.live')} items={live} slug={ws.slug} dfl={dfl} nameOf={nameOf} t={t} /><MeetingSection title={t('meet.upcoming')} items={upcoming} slug={ws.slug} dfl={dfl} nameOf={nameOf} t={t} /><MeetingSection title={t('meet.past')} items={past} slug={ws.slug} dfl={dfl} nameOf={nameOf} t={t} /></div>}
       <Dialog open={open} onClose={() => setOpen(false)} title={t('meet.new')} size="sm"
         footer={<><Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button><Button variant="primary" disabled={!title.trim()} onClick={() => create(false)}><Plus className="size-4" />{t('common.create')}</Button></>}>
         <div className="space-y-4"><Field label={t('meet.meetingTitle')}><Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} /></Field>

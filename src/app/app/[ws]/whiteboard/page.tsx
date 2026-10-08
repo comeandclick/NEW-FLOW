@@ -24,6 +24,7 @@ export default function WhiteboardPage() {
   const drag = useRef<{ id: string; dx: number; dy: number; mode: 'move' | 'resize' } | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stage = useRef<HTMLDivElement>(null)
+  const [scroll, setScroll] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
     getDb().from('whiteboards').select('*').eq('workspace_id', ws.id).is('deleted_at', null).order('created_at', { ascending: true }).limit(1).then(async ({ data }) => {
@@ -44,8 +45,7 @@ export default function WhiteboardPage() {
   const update = (next: WhiteboardItem[]) => { setItems(next); persist(next) }
 
   const add = (type: WhiteboardItem['type']) => {
-    const el = stage.current
-    const n: WhiteboardItem = { id: uid().slice(0, 8), type, x: (el?.scrollLeft ?? 0) + 80 + Math.random() * 120, y: (el?.scrollTop ?? 0) + 80 + Math.random() * 100, w: type === 'text' ? 200 : type === 'sticky' ? 190 : 160, h: type === 'text' ? 48 : type === 'sticky' ? 130 : 110, text: type === 'sticky' ? '' : type === 'text' ? t('wb.text') : '', color: type === 'text' ? 'transparent' : COLORS[Math.floor(Math.random() * 4)] }
+    const n: WhiteboardItem = { id: uid().slice(0, 8), type, x: scroll.x + 80 + Math.random() * 120, y: scroll.y + 80 + Math.random() * 100, w: type === 'text' ? 200 : type === 'sticky' ? 190 : 160, h: type === 'text' ? 48 : type === 'sticky' ? 130 : 110, text: type === 'sticky' ? '' : type === 'text' ? t('wb.text') : '', color: type === 'text' ? 'transparent' : COLORS[Math.floor(Math.random() * 4)] }
     update([...items, n]); setSel(n.id); if (type === 'sticky' || type === 'text') setEditing(n.id)
   }
   const down = (e: React.PointerEvent, it: WhiteboardItem, mode: 'move' | 'resize') => {
@@ -76,6 +76,8 @@ export default function WhiteboardPage() {
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
         <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-accent-ink"><PenTool className="size-4" /></span>
         <h1 className="mr-2 text-[15px] font-semibold">{board?.name ?? t('wb.title')}</h1>
+        {/* `add` only touches refs inside the click handler (debounced save timer), never during render. */}
+        {/* eslint-disable-next-line react-hooks/refs */}
         {canWrite && tools.map(([type, Icon, label]) => <Button key={type} size="sm" onClick={() => add(type)} aria-label={label}><Icon className="size-4" /><span className="hidden sm:inline">{label}</span></Button>)}
         {sel && canWrite && <>
           <span className="mx-1 h-5 w-px bg-border" />
@@ -83,8 +85,8 @@ export default function WhiteboardPage() {
           <Button size="icon" variant="ghost" onClick={() => { update(items.filter((i) => i.id !== sel)); setSel(null) }} aria-label={t('wb.delete')}><Trash2 className="size-4" /></Button></>}
         <span className="ml-auto hidden text-xs text-text-3 md:block">{t('wb.hint')}</span>
       </div>
-      <div ref={stage} className="relative min-h-0 flex-1 touch-pan-x touch-pan-y overflow-auto bg-bg-subtle [background-image:radial-gradient(var(--border-strong)_1px,transparent_1px)] [background-size:24px_24px]"
-        onPointerMove={move} onPointerUp={up} onPointerLeave={up} onPointerDown={() => { setSel(null); setEditing(null) }}>
+      <div ref={stage} tabIndex={0} role="region" aria-label={t('wb.title')} className="relative min-h-0 flex-1 touch-pan-x touch-pan-y overflow-auto bg-bg-subtle [background-image:radial-gradient(var(--border-strong)_1px,transparent_1px)] [background-size:24px_24px]"
+        onScroll={(e) => setScroll({ x: e.currentTarget.scrollLeft, y: e.currentTarget.scrollTop })} onPointerMove={move} onPointerUp={up} onPointerLeave={up} onPointerDown={() => { setSel(null); setEditing(null) }}>
         <div className="relative" style={{ width: 2400, height: 1600 }}>
           {items.length === 0 && <p className="absolute left-1/2 top-40 -translate-x-1/2 text-sm text-text-3">{t('wb.empty')}</p>}
           {items.map((it) => (

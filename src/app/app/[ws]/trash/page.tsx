@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { HubTabs } from '@/components/shell/hub-tabs'
 import { useCallback, useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'

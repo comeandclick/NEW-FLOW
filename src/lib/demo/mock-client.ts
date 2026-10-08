@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 /**
  * Minimal in-memory stand-in for the Supabase client, used by the demo mode
  * (no backend required). Implements the subset of the query builder, auth,

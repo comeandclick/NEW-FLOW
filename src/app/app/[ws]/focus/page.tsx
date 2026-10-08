@@ -122,7 +122,7 @@ export default function FocusPage() {
             <h2 className="mb-3 text-sm font-semibold">{t('focus.manual')}</h2>
             {tracking ? <div className="flex items-center gap-3"><span className="size-2 animate-pulse rounded-full bg-danger-bg" /><span className="flex-1 truncate text-sm">{tracking.note || '—'}</span><span className="font-mono text-lg tabular-nums">{formatDuration((Date.now() - tracking.start) / 1000)}</span>
               <Button variant="danger" size="icon" onClick={stopTracking} aria-label={t('focus.trackStop')}><Square className="size-4" /></Button></div>
-              : <div className="flex gap-2"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('focus.note')} onKeyDown={(e) => e.key === 'Enter' && setTracking({ start: Date.now(), note })} /><Button variant="primary" onClick={() => setTracking({ start: Date.now(), note })}><Play className="size-4" /><span className="hidden sm:inline">{t('focus.trackStart')}</span></Button></div>}
+              : <div className="flex gap-2"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('focus.note')} onKeyDown={(e) => e.key === 'Enter' && setTracking({ start: Date.now(), note })} /><Button variant="primary" onClick={() => setTracking({ start: Date.now(), note })} aria-label={t('focus.trackStart')}><Play className="size-4" /><span className="hidden sm:inline">{t('focus.trackStart')}</span></Button></div>}
           </section>
           <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="mb-2 flex items-baseline justify-between"><h2 className="text-sm font-semibold">{t('focus.week')}</h2><span className="text-xs text-text-3">{t('focus.today')}: {today} min</span></div>

@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { format, isPast, isToday } from 'date-fns'
 import { getDb } from '@/lib/supabase/client'
 import type { Locale } from '@/i18n/config'

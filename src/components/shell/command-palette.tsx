@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Command } from 'cmdk'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'

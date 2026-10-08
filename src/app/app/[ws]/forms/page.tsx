@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { HubTabs } from '@/components/shell/hub-tabs'
 import { useState } from 'react'
 import { format } from 'date-fns'

@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getDb } from '@/lib/supabase/client'
 import { isDemoBrowser } from '@/lib/demo/runtime'

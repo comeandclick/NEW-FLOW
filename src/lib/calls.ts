@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { getDb } from '@/lib/supabase/client'
 
 export type RingPayload = { meetingId: string; room: string; from: string; fromName: string; video: boolean; to: string[]; title: string; slug: string }

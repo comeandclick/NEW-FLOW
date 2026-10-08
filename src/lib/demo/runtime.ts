@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { DEMO_COOKIE, DEMO_STORAGE_KEY, DEMO_USER_ID } from './constants'
 import { createMockClient, type DemoDB, type MockClient } from './mock-client'
 import { createSeed } from './seed'

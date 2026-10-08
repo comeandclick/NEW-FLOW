@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { DEMO_USER_ID } from './constants'
 import type { DemoDB, Row } from './mock-client'
 import { channels, eventDay, events, files, goals, messages, mdToDoc, notes, projects, tasks, KALIMAT_NAME, KALIMAT_SLUG } from './kalimat-data'

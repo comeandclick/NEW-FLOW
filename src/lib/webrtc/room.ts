@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { getDb } from '@/lib/supabase/client'
 
 /** Free public STUN + the Open Relay free TURN servers (helps users behind strict NATs). */

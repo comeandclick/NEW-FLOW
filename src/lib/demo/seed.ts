@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { DEMO_EMAIL, DEMO_USER_ID, DEMO_WORKSPACE_SLUG } from './constants'
 import type { DemoDB, Row } from './mock-client'
 import { addKalimat } from './kalimat'

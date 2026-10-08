@@ -12,6 +12,15 @@ import { useT } from '@/i18n/provider'
 
 type Props = { content: Record<string, unknown>; editable: boolean; onChange: (json: Record<string, unknown>, text: string) => void; resetKey?: string }
 
+function ToolbarBtn({ on, active, label, icon: Icon, disabled }: { on: () => void; active?: boolean; label: string; icon: typeof Bold; disabled?: boolean }) {
+  return (
+    <button type="button" onClick={on} disabled={disabled} title={label} aria-label={label} aria-pressed={active}
+      className={cn('flex size-8 shrink-0 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-surface-3 hover:text-text disabled:opacity-40', active && 'bg-accent-soft text-accent-ink')}>
+      <Icon className="size-4" />
+    </button>
+  )
+}
+
 export function RichEditor({ content, editable, onChange, resetKey }: Props) {
   const t = useT()
   const editor = useEditor({
@@ -37,12 +46,6 @@ export function RichEditor({ content, editable, onChange, resetKey }: Props) {
   }, [resetKey, editor])
 
   if (!editor) return null
-  const Btn = ({ on, active, label, icon: Icon, disabled }: { on: () => void; active?: boolean; label: string; icon: typeof Bold; disabled?: boolean }) => (
-    <button type="button" onClick={on} disabled={disabled} title={label} aria-label={label} aria-pressed={active}
-      className={cn('flex size-8 shrink-0 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-surface-3 hover:text-text disabled:opacity-40', active && 'bg-accent-soft text-accent-ink')}>
-      <Icon className="size-4" />
-    </button>
-  )
   const setLink = () => {
     const prev = editor.getAttributes('link').href as string | undefined
     const url = window.prompt('URL', prev ?? 'https://')
@@ -54,24 +57,24 @@ export function RichEditor({ content, editable, onChange, resetKey }: Props) {
     <div>
       {editable && (
         <div className="sticky top-0 z-10 -mx-1 mb-3 flex gap-0.5 overflow-x-auto rounded-xl border border-border bg-surface/90 p-1 backdrop-blur [scrollbar-width:none]">
-          <Btn on={() => editor.chain().focus().undo().run()} label={t('ed.undo')} icon={Undo2} disabled={!editor.can().undo()} />
-          <Btn on={() => editor.chain().focus().redo().run()} label={t('ed.redo')} icon={Redo2} disabled={!editor.can().redo()} />
+          <ToolbarBtn on={() => editor.chain().focus().undo().run()} label={t('ed.undo')} icon={Undo2} disabled={!editor.can().undo()} />
+          <ToolbarBtn on={() => editor.chain().focus().redo().run()} label={t('ed.redo')} icon={Redo2} disabled={!editor.can().redo()} />
           <span className="mx-1 my-1.5 w-px shrink-0 bg-border" />
-          <Btn on={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} label={t('ed.h1')} icon={Heading1} />
-          <Btn on={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} label={t('ed.h2')} icon={Heading2} />
-          <Btn on={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} label={t('ed.h3')} icon={Heading3} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} label={t('ed.h1')} icon={Heading1} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} label={t('ed.h2')} icon={Heading2} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} label={t('ed.h3')} icon={Heading3} />
           <span className="mx-1 my-1.5 w-px shrink-0 bg-border" />
-          <Btn on={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} label={t('ed.bold')} icon={Bold} />
-          <Btn on={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} label={t('ed.italic')} icon={Italic} />
-          <Btn on={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} label={t('ed.strike')} icon={Strikethrough} />
-          <Btn on={() => editor.chain().focus().toggleCode().run()} active={editor.isActive('code')} label={t('ed.code')} icon={Code} />
-          <Btn on={setLink} active={editor.isActive('link')} label={t('ed.link')} icon={LinkIcon} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} label={t('ed.bold')} icon={Bold} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} label={t('ed.italic')} icon={Italic} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} label={t('ed.strike')} icon={Strikethrough} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleCode().run()} active={editor.isActive('code')} label={t('ed.code')} icon={Code} />
+          <ToolbarBtn on={setLink} active={editor.isActive('link')} label={t('ed.link')} icon={LinkIcon} />
           <span className="mx-1 my-1.5 w-px shrink-0 bg-border" />
-          <Btn on={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} label={t('ed.bullets')} icon={List} />
-          <Btn on={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} label={t('ed.numbers')} icon={ListOrdered} />
-          <Btn on={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} label={t('ed.todos')} icon={ListChecks} />
-          <Btn on={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} label={t('ed.quote')} icon={Quote} />
-          <Btn on={() => editor.chain().focus().setHorizontalRule().run()} label={t('ed.divider')} icon={Minus} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} label={t('ed.bullets')} icon={List} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} label={t('ed.numbers')} icon={ListOrdered} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} label={t('ed.todos')} icon={ListChecks} />
+          <ToolbarBtn on={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} label={t('ed.quote')} icon={Quote} />
+          <ToolbarBtn on={() => editor.chain().focus().setHorizontalRule().run()} label={t('ed.divider')} icon={Minus} />
         </div>
       )}
       <EditorContent editor={editor} />

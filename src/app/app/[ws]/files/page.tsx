@@ -101,7 +101,7 @@ export default function FilesPage() {
       onDragEnter={(e) => { if (e.dataTransfer.types.includes('Files')) setDrag(true) }} onDragOver={(e) => e.preventDefault()}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false) }} onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files.length) void upload(e.dataTransfer.files) }}>
       <PageHeader title={t('files.title')} subtitle={t('files.storage', { used: formatBytes(total) })} icon={<Folder className="size-[18px]" />}
-        actions={canWrite && <><Button onClick={() => { setText(''); setDlg({ kind: 'folder' }) }}><FolderPlus className="size-4" /><span className="hidden sm:inline">{t('files.newFolder')}</span></Button>
+        actions={canWrite && <><Button onClick={() => { setText(''); setDlg({ kind: 'folder' }) }} aria-label={t('files.newFolder')}><FolderPlus className="size-4" /><span className="hidden sm:inline">{t('files.newFolder')}</span></Button>
           <input ref={input} type="file" multiple hidden onChange={(e) => e.target.files && upload(e.target.files)} />
           <Button variant="primary" loading={busy > 0} onClick={() => input.current?.click()}><Upload className="size-4" />{t('files.upload')}</Button></>} />
 
@@ -145,7 +145,7 @@ export default function FilesPage() {
       </div>
 
       <Dialog open={!!preview} onClose={() => setPreview(null)} title={preview?.file.name} size="lg" footer={preview && <Button onClick={() => download(preview.file)}><Download className="size-4" />{t('common.download')}</Button>}>
-        {preview && (preview.file.mime_type?.startsWith('image/') ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={preview.url} alt={preview.file.name} className="mx-auto max-h-[60dvh] rounded-lg" />
+        {preview && (preview.file.mime_type?.startsWith('image/') ?   <img src={preview.url} alt={preview.file.name} className="mx-auto max-h-[60dvh] rounded-lg" />
           : preview.file.mime_type?.startsWith('video/') ? <video src={preview.url} controls className="mx-auto max-h-[60dvh] w-full rounded-lg" />
           : preview.file.mime_type?.startsWith('audio/') ? <audio src={preview.url} controls className="w-full" />
           : preview.file.mime_type === 'application/pdf' ? <iframe src={preview.url} title={preview.file.name} className="h-[60dvh] w-full rounded-lg border border-border" />

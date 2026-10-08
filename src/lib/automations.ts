@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { getDb } from '@/lib/supabase/client'
 
 export type Trigger = 'task_created' | 'task_done' | 'member_joined'

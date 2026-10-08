@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Suspense, use, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Hand, Link2, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Send, Users, Video as VideoIcon, VideoOff, X } from 'lucide-react'
@@ -15,6 +15,13 @@ import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import { cn, formatDuration } from '@/lib/utils'
 import type { Meeting } from '@/lib/types'
+
+function Ctl({ on, onClick, label, children, danger }: { on?: boolean; onClick: () => void; label: string; children: React.ReactNode; danger?: boolean }) {
+  return (
+    <button onClick={onClick} aria-label={label} aria-pressed={on} title={label}
+      className={cn('flex size-11 items-center justify-center rounded-full transition-all active:scale-90', danger ? 'bg-danger-bg text-white hover:opacity-90' : on ? 'bg-accent text-white' : 'bg-surface-3 text-text hover:bg-border-strong')}>{children}</button>
+  )
+}
 
 function RoomPage({ id }: { id: string }) {
   const { t } = useI18n()
@@ -40,7 +47,7 @@ function RoomPage({ id }: { id: string }) {
   const room = useRef<Room | null>(null)
   const previewRef = useRef<HTMLVideoElement>(null)
   const panelRef = useRef<typeof panel>(null)
-  panelRef.current = panel
+  useEffect(() => { panelRef.current = panel }, [panel])
 
   useEffect(() => { getDb().from('meetings').select('*').eq('id', id).maybeSingle().then(({ data }) => (data ? setMeeting(data as Meeting) : setMissing(true))) }, [id])
 
@@ -127,11 +134,6 @@ function RoomPage({ id }: { id: string }) {
   const sharer = parts.find((p) => p.sharing)
   const others = sharer ? parts.filter((p) => p.id !== sharer.id) : []
   const cols = parts.length <= 1 ? 'grid-cols-1' : parts.length <= 2 ? 'grid-cols-1 md:grid-cols-2' : parts.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'
-  const Ctl = ({ on, onClick, label, children, danger }: { on?: boolean; onClick: () => void; label: string; children: React.ReactNode; danger?: boolean }) => (
-    <button onClick={onClick} aria-label={label} aria-pressed={on} title={label}
-      className={cn('flex size-11 items-center justify-center rounded-full transition-all active:scale-90', danger ? 'bg-danger-bg text-white hover:opacity-90' : on ? 'bg-accent text-white' : 'bg-surface-3 text-text hover:bg-border-strong')}>{children}</button>
-  )
-
   return (
     <div className="flex h-full flex-col bg-bg">
       <div className="flex items-center justify-between px-4 py-2.5 text-xs text-text-2"><span className="truncate font-medium text-text">{meeting.title}</span><span className="tabular-nums">{formatDuration(secs)}</span></div>

@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getDb } from '@/lib/supabase/client'
 
@@ -32,7 +32,7 @@ export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
 
   const key = useMemo(() => JSON.stringify({ table, select, eq, is, inn, order, limit, enabled }), [table, select, eq, is, order, limit, enabled])
   const transformRef = useRef(transform)
-  transformRef.current = transform
+  useEffect(() => { transformRef.current = transform })
 
   const fetchNow = useCallback(async () => {
     if (!enabled) { setData([]); setLoading(false); return }

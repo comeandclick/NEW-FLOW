@@ -115,7 +115,7 @@ function CalendarPage() {
             <Button variant="outline" size="sm" onClick={() => setCursor(new Date())}>{t('cal.today')}</Button>
             <Button variant="ghost" size="icon" onClick={() => step(1)} aria-label="→"><ChevronRight className="size-4" /></Button></div>
           <Tabs value={view} onChange={(v) => { setView(v); try { localStorage.setItem('flow_cal_view', v) } catch {} }} items={[{ value: 'month', label: t('cal.month') }, { value: 'week', label: t('cal.week') }, { value: 'day', label: t('cal.day') }]} />
-          {canWrite && <Button variant="primary" onClick={() => openNew(cursor)}><Plus className="size-4" /><span className="hidden sm:inline">{t('cal.newEvent')}</span></Button>}
+          {canWrite && <Button variant="primary" onClick={() => openNew(cursor)} aria-label={t('cal.newEvent')}><Plus className="size-4" /><span className="hidden sm:inline">{t('cal.newEvent')}</span></Button>}
         </div>
       </div>
 

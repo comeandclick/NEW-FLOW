@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { getDb } from '@/lib/supabase/client'
 import { channels, eventDay, events, goals, mdToDoc, messages, notes, projects, tasks, KALIMAT_NAME } from '@/lib/demo/kalimat-data'
 import { uploadToBucket } from '@/lib/storage'

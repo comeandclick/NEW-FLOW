@@ -31,7 +31,7 @@ export function Avatar({ name, src, size = 28, className, status }: { name?: str
     <span className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white', className)}
       style={{ width: size, height: size, background: src ? 'transparent' : bg, fontSize: Math.max(10, size * 0.38) }}
       title={name ?? undefined}>
-      {src ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={src} alt="" className="size-full rounded-full object-cover" /> : initials(name)}
+      {src ?   <img src={src} alt="" className="size-full rounded-full object-cover" /> : initials(name)}
       {status && (
         <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-surface"
           style={{ background: status === 'online' ? 'var(--success)' : status === 'dnd' ? 'var(--danger)' : status === 'away' ? 'var(--warning)' : 'var(--text-3)' }} />
