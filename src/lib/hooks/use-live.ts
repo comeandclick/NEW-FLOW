@@ -7,6 +7,7 @@ type Opts<T> = {
   select?: string
   eq?: Record<string, string | number | boolean | null | undefined>
   is?: Record<string, null | boolean>
+  in?: Record<string, string[]>
   order?: [string, boolean?] | [string, boolean?][]
   limit?: number
   enabled?: boolean
@@ -22,14 +23,14 @@ type Opts<T> = {
  * `data` can be patched optimistically via `setData`; a refetch reconciles with the server.
  */
 export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
-  const { select = '*', eq, is, order, limit, enabled = true, live = true, channelFilter, transform } = opts
+  const { select = '*', eq, is, in: inn, order, limit, enabled = true, live = true, channelFilter, transform } = opts
   const [data, setData] = useState<T[]>([])
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
   const seq = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const key = useMemo(() => JSON.stringify({ table, select, eq, is, order, limit, enabled }), [table, select, eq, is, order, limit, enabled])
+  const key = useMemo(() => JSON.stringify({ table, select, eq, is, inn, order, limit, enabled }), [table, select, eq, is, order, limit, enabled])
   const transformRef = useRef(transform)
   transformRef.current = transform
 
@@ -39,6 +40,7 @@ export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
     let q: any = getDb().from(table).select(select)
     if (eq) for (const [k, v] of Object.entries(eq)) if (v !== undefined) q = v === null ? q.is(k, null) : q.eq(k, v)
     if (is) for (const [k, v] of Object.entries(is)) q = q.is(k, v)
+    if (inn) for (const [k, v] of Object.entries(inn)) q = q.in(k, v)
     if (order) {
       const list = (Array.isArray(order[0]) ? order : [order]) as [string, boolean?][]
       for (const [col, asc] of list) q = q.order(col, { ascending: asc !== false })

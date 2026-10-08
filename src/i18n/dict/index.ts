@@ -2,9 +2,13 @@ import { common } from './common'
 import { landing } from './landing'
 import { auth } from './auth'
 import { app } from './app'
+import { tasks } from './tasks'
+import { notes } from './notes'
+import { calendar } from './calendar'
+import { messages } from './messages'
 import type { Locale } from '../config'
 
-const parts = [common, landing, auth, app] as const
+const parts = [common, landing, auth, app, tasks, notes, calendar, messages] as const
 
 type Merge<T extends readonly { fr: object }[]> = T extends readonly [infer H extends { fr: object }, ...infer R extends readonly { fr: object }[]]
   ? H['fr'] & Merge<R>
