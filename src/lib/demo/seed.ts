@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DEMO_EMAIL, DEMO_USER_ID, DEMO_WORKSPACE_SLUG } from './constants'
 import type { DemoDB, Row } from './mock-client'
+import { addKalimat } from './kalimat'
 
 const uid = (prefix: string, n: number) => {
   const hex = prefix.split('').map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').padEnd(8, '0').slice(0, 8)
@@ -277,9 +278,11 @@ export function createSeed(): DemoDB {
     { id: uid('fav', 1), user_id: ME, workspace_id: WS, entity_type: 'note', entity_id: uid('note', 1), title: 'Réunion de lancement du projet', url: `/app/${DEMO_WORKSPACE_SLUG}/notes/${uid('note', 1)}`, created_at: created },
   ]
 
-  return {
+  const db: DemoDB = {
     profiles, workspaces, workspace_members, invitations: [], projects, tasks, task_comments, notes, note_versions, events, conversations, conversation_members, messages, reactions,
     files, meetings, goals, key_results, crm_contacts, crm_deals, automations, whiteboards, habits, habit_logs, time_entries, invoices, forms, form_responses, notifications,
     push_subscriptions: [], activity_logs, favorites, meeting_participants: [],
   }
+  addKalimat(db, now)
+  return db
 }

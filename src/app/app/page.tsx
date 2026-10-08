@@ -12,6 +12,7 @@ import { getDb } from '@/lib/supabase/client'
 import { useSession } from '@/lib/hooks/use-session'
 import { useT } from '@/i18n/provider'
 import { slugify } from '@/lib/utils'
+import { importKalimat } from '@/lib/import-kalimat'
 
 function Router() {
   const t = useT()
@@ -32,6 +33,12 @@ function Router() {
       if (ws.length === 1 && !forceNew) router.replace(`/app/${ws[0].slug}`)
     })
   }, [loading, userId, router, forceNew])
+
+  async function loadKalimat() {
+    if (!userId) return
+    setBusy(true)
+    try { router.replace(`/app/${await importKalimat(userId)}`) } catch { toast.error(t('common.error')); setBusy(false) }
+  }
 
   async function create(e: FormEvent) {
     e.preventDefault()
@@ -56,6 +63,7 @@ function Router() {
             <div><h1 className="text-xl font-semibold tracking-tight">{t('onb.title')}</h1><p className="mt-1 text-sm text-text-2">{t('onb.sub')}</p></div>
             <Field label={t('onb.name')}><Input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder={t('onb.placeholder')} /></Field>
             <Button type="submit" variant="primary" className="w-full" loading={busy}>{t('onb.create')}</Button>
+            <Button type="button" variant="ghost" className="w-full" disabled={busy} onClick={loadKalimat}>{t('onb.kalimat')}</Button>
             {list.length > 0 && <Link href="/app" className="block text-center text-xs text-text-3 hover:text-text">{t('common.back')}</Link>}
           </form>
         ) : (

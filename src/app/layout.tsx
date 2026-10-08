@@ -35,7 +35,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
   return (
-    <html lang={locale} data-theme="dark" suppressHydrationWarning className={`${inter.variable} ${mono.variable} ${serif.variable}`}>
+    <html lang={locale} data-theme="dark" data-scroll-behavior="smooth" suppressHydrationWarning className={`${inter.variable} ${mono.variable} ${serif.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

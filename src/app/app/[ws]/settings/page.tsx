@@ -15,6 +15,7 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { uploadToBucket } from '@/lib/storage'
+import { importKalimat } from '@/lib/import-kalimat'
 import { enablePush, pushPermission } from '@/lib/push'
 import { useI18n } from '@/i18n/provider'
 import type { Role } from '@/lib/types'
@@ -85,6 +86,7 @@ function WorkspaceTab() {
   const [name, setName] = useState(ws.name)
   const [confirm, setConfirm] = useState(false)
   const [typed, setTyped] = useState('')
+  const [importing, setImporting] = useState(false)
   async function save() { await getDb().from('workspaces').update({ name: name.trim() }).eq('id', ws.id); toast.success(t('common.saved')); window.location.reload() }
   async function exportAll() {
     const out: Record<string, unknown> = { exported_at: new Date().toISOString(), workspace: ws }
@@ -100,6 +102,9 @@ function WorkspaceTab() {
         <Field label={t('set.ws.name')}><Input value={name} disabled={!isAdmin} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label={t('set.ws.slug')}><Input value={`/app/${ws.slug}`} readOnly disabled /></Field>
         {isAdmin && <div className="flex justify-end"><Button variant="primary" onClick={save} disabled={!name.trim() || name === ws.name}>{t('common.save')}</Button></div>}
+      </Section>
+      <Section title={t('set.import.title')} hint={t('set.import.hint')}>
+        <Button loading={importing} onClick={async () => { if (!userId) return; setImporting(true); try { router.push(`/app/${await importKalimat(userId)}`) } catch { toast.error(t('common.error')); setImporting(false) } }}>{t('set.import.cta')}</Button>
       </Section>
       <Section title={t('set.ws.export')} hint={t('set.ws.exportHint')}><Button onClick={exportAll}><Download className="size-4" />{t('set.ws.export')}</Button></Section>
       <Section title={t('set.ws.danger')}>

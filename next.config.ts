@@ -12,8 +12,7 @@ const csp = [
   `img-src 'self' data: blob: ${supabase}`,
   `media-src 'self' data: blob: ${supabase}`,
   "font-src 'self' data:",
-  // Chrome applies connect-src to WebRTC ICE servers: allow the STUN/TURN hosts used by calls.
-  `connect-src 'self' ${supabase} ${supabaseWs} data: blob: stun:stun.l.google.com:19302 stun:stun1.l.google.com:19302 stun:openrelay.metered.ca:80 turn:openrelay.metered.ca:80 turn:openrelay.metered.ca:443`,
+  `connect-src 'self' ${supabase} ${supabaseWs} data: blob:`,
   `frame-src 'self' blob: ${supabase}`,
   "worker-src 'self'",
   "manifest-src 'self'",

@@ -26,7 +26,7 @@ function GoogleIcon() {
 function DemoButton() {
   const t = useT()
   return (
-    <Button variant="outline" className="w-full" onClick={() => { startDemo(); window.location.href = '/app' }}>
+    <Button variant="outline" className="w-full" onClick={() => { startDemo(); window.location.href = '/app/demo' }}>
       <Play className="size-3.5" />{t('auth.demo')}
     </Button>
   )

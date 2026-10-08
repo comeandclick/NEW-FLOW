@@ -22,6 +22,7 @@ let ctxA: BrowserContext, ctxB: BrowserContext
 let pa: Page, pb: Page
 let slug = ''
 let inviteLink = ''
+const rtcLogs: string[] = []
 
 async function register(page: Page, u: typeof A) {
   await page.goto('/register')
@@ -36,6 +37,7 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   const opts = { permissions: ['microphone', 'camera'] as ('microphone' | 'camera')[], locale: 'fr-FR' }
   ctxA = await browser.newContext(opts); ctxB = await browser.newContext(opts)
   pa = await ctxA.newPage(); pb = await ctxB.newPage()
+  for (const [tag, pg] of [['A', pa], ['B', pb]] as const) { await pg.addInitScript(() => { (window as unknown as { __rtcDebug: boolean }).__rtcDebug = true }); pg.on('console', (m) => { if (m.text().startsWith('[rtc]')) rtcLogs.push(`${tag} ${m.text()}`) }) }
 })
 
 test.afterAll(async () => {
@@ -122,9 +124,9 @@ test('real WebRTC video call between A and B', async () => {
   await pa.getByRole('button', { name: /rejoindre maintenant/i }).click()
   await pb.getByRole('button', { name: /rejoindre maintenant/i }).click()
   // Each side must receive a live remote video track.
-  for (const page of [pa, pb]) {
+  try { for (const page of [pa, pb]) {
     await expect.poll(async () => page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => (v.srcObject as MediaStream | null)?.getVideoTracks().some((t) => t.readyState === 'live')).length), { timeout: 40_000 }).toBeGreaterThanOrEqual(2)
-  }
+  } } catch (e) { console.log(rtcLogs.join('\n')); throw e }
   await pa.getByRole('button', { name: /quitter/i }).click()
   await pb.getByRole('button', { name: /quitter/i }).click()
 })

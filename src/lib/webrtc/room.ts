@@ -9,11 +9,13 @@ export const ICE_SERVERS: RTCIceServer[] = [
   { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
 ]
 
+const dbg = (...a: unknown[]) => { if (typeof window !== 'undefined' && (window as unknown as { __rtcDebug?: boolean }).__rtcDebug) console.log('[rtc]', ...a) }
+
 export type Participant = { id: string; name: string; stream: MediaStream | null; audio: boolean; video: boolean; sharing: boolean; hand: boolean; local?: boolean }
 export type ChatMsg = { id: string; from: string; name: string; text: string; at: number }
 
 type Signal = { from: string; to: string; kind: 'offer' | 'answer' | 'ice'; data: any }
-type PeerState = { pc: RTCPeerConnection; makingOffer: boolean; ignoreOffer: boolean; polite: boolean; stream: MediaStream; videoSender?: RTCRtpSender; pendingIce: RTCIceCandidateInit[] }
+type PeerState = { pc: RTCPeerConnection; initiator: boolean; makingOffer: boolean; ignoreOffer: boolean; polite: boolean; stream: MediaStream; videoSender?: RTCRtpSender; pendingIce: RTCIceCandidateInit[] }
 
 /**
  * Mesh WebRTC room. Signaling and presence run over Supabase Realtime (broadcast + presence).
@@ -74,8 +76,9 @@ export class Room {
   }
 
   private createPeer(id: string) {
+    dbg('createPeer', id.slice(0, 4), 'polite=', this.me.id > id)
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
-    const st: PeerState = { pc, makingOffer: false, ignoreOffer: false, polite: this.me.id > id, stream: new MediaStream(), pendingIce: [] }
+    const st: PeerState = { pc, initiator: this.me.id < id, makingOffer: false, ignoreOffer: false, polite: this.me.id > id, stream: new MediaStream(), pendingIce: [] }
     this.peers.set(id, st)
 
     for (const track of this.local.getAudioTracks()) pc.addTrack(track, this.local)
@@ -85,23 +88,42 @@ export class Room {
     st.videoSender = tr.sender
 
     pc.ontrack = ({ track }) => {
+      dbg('ontrack', track.kind, id.slice(0, 4))
       st.stream.addTrack(track)
       track.onunmute = () => this.emit()
       this.emit()
     }
     pc.onicecandidate = ({ candidate }) => { if (candidate) this.send({ from: this.me.id, to: id, kind: 'ice', data: candidate.toJSON() }) }
+    // Deterministic roles: only the "initiator" (lower id) creates the first offer, so the two sides
+    // never offer at the same time (glare). The perfect-negotiation handlers below stay as a safety net.
     pc.onnegotiationneeded = async () => {
+      if (!st.initiator && !pc.remoteDescription) return
       try {
         st.makingOffer = true
         await pc.setLocalDescription()
+        dbg('send offer', id.slice(0, 4))
         this.send({ from: this.me.id, to: id, kind: 'offer', data: pc.localDescription })
-      } catch { /* retried on next negotiationneeded */ } finally { st.makingOffer = false }
+        this.watchOffer(id, st)
+      } catch (e) { dbg('negotiation error', String(e)) /* retried on next negotiationneeded */ } finally { st.makingOffer = false }
     }
     pc.onconnectionstatechange = () => {
+      dbg('conn', id.slice(0, 4), pc.connectionState, pc.iceConnectionState)
       this.hooks.onStatus?.(pc.connectionState)
       if (pc.connectionState === 'failed') pc.restartIce()
     }
     return st
+  }
+
+  /** If the answer never comes (signal sent before the other side subscribed), resend the offer a few times. */
+  private watchOffer(id: string, st: PeerState, attempt = 0) {
+    setTimeout(() => {
+      if (this.closed || this.peers.get(id) !== st) return
+      if (st.pc.signalingState === 'have-local-offer' && st.pc.localDescription && attempt < 4) {
+        dbg('resend offer', id.slice(0, 4), attempt + 1)
+        this.send({ from: this.me.id, to: id, kind: 'offer', data: st.pc.localDescription })
+        this.watchOffer(id, st, attempt + 1)
+      }
+    }, 3000)
   }
 
   private dropPeer(id: string) {
@@ -115,6 +137,7 @@ export class Room {
   private send(s: Signal) { void this.channel.send({ type: 'broadcast', event: 'signal', payload: s }) }
 
   private async onSignal(s: Signal) {
+    dbg('signal', s.kind, 'from', s.from.slice(0, 4))
     const st = this.peers.get(s.from) ?? this.createPeer(s.from)
     const { pc } = st
     try {
@@ -131,7 +154,7 @@ export class Room {
         await pc.setLocalDescription()
         this.send({ from: this.me.id, to: s.from, kind: 'answer', data: pc.localDescription })
       }
-    } catch { /* ignore malformed / out-of-order signals */ }
+    } catch (e) { dbg('signal error', s.kind, String(e)) }
   }
 
   private emit() {
