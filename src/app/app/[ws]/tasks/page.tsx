@@ -16,6 +16,7 @@ import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
+import { fireAutomations } from '@/lib/automations'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import type { Task, TaskStatus } from '@/lib/types'
@@ -106,6 +107,7 @@ function TasksPage() {
       (id, ttl) => void notifyUser(id, { type: 'task', title: t('tasks.assignedTitle'), body: ttl, url: `/app/${ws.slug}/tasks` }))
     if (error) { toast.error(t('common.error')); return }
     log('task.created', 'task', row!.id, { title: row!.title })
+    void fireAutomations(ws.id, ws.slug, 'task_created', userId, row!.title)
     setQuick(''); refresh()
   }
 
@@ -118,7 +120,8 @@ function TasksPage() {
     setData((d) => d.map((x) => (x.id === task.id ? { ...x, ...patch } : x)))
     const { error } = await getDb().from('tasks').update(patch).eq('id', task.id)
     if (error) { toast.error(t('common.error')); refresh(); return }
-    log('task.updated', 'task', task.id, { title: task.title })
+    log(target === 'done' ? 'task.completed' : 'task.updated', 'task', task.id, { title: task.title })
+    if (target === 'done' && userId) void fireAutomations(ws.id, ws.slug, 'task_done', userId, task.title)
     toast.success(t('tasks.moved'))
   }
 

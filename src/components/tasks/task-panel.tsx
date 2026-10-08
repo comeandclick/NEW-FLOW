@@ -15,6 +15,7 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
+import { fireAutomations } from '@/lib/automations'
 import type { Priority, Task, TaskStatus } from '@/lib/types'
 
 export type TaskDraft = Partial<Task> & { title: string }
@@ -71,7 +72,8 @@ export function TaskPanel({ taskId, open, onClose, onChanged }: { taskId: string
     if (p.assignee_id && p.assignee_id !== task.assignee_id) {
       void notifyUser(p.assignee_id, { type: 'task', title: t('tasks.assignedTitle'), body: task.title, url: `/app/${ws.slug}/tasks?open=${task.id}` })
     }
-    log(p.status ? 'task.updated' : 'task.updated', 'task', task.id, { title: task.title })
+    log(p.status === 'done' ? 'task.completed' : 'task.updated', 'task', task.id, { title: task.title })
+    if (p.status === 'done' && task.status !== 'done' && userId) void fireAutomations(ws.id, ws.slug, 'task_done', userId, task.title)
     if (!silent) toast.success(t('common.saved'))
     onChanged()
   }

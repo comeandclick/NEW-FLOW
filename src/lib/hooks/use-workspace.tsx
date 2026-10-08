@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getDb } from '@/lib/supabase/client'
+import { isDemoBrowser } from '@/lib/demo/runtime'
 import { useSession } from './use-session'
 import { useLive } from './use-live'
 import type { Member, Profile, Project, Role, Workspace } from '@/lib/types'
@@ -61,6 +62,8 @@ function Inner({ ws, me, userId, children }: { ws: Workspace; me: Profile | null
   const notifyUser = useCallback(async (target: string, n: { type: string; title: string; body?: string; url?: string }) => {
     if (target === userId) return
     await getDb().from('notifications').insert({ user_id: target, workspace_id: ws.id, type: n.type, title: n.title, body: n.body ?? null, url: n.url ?? null })
+    // Offline devices get a Web Push (no-op in demo mode / when VAPID isn't configured).
+    if (!isDemoBrowser()) void fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId: target, workspaceId: ws.id, title: n.title, body: n.body, url: n.url }) }).catch(() => {})
   }, [ws.id, userId])
 
   const value = useMemo<WsCtx>(() => ({
