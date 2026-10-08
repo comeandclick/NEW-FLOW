@@ -9,7 +9,7 @@ export default async function Changelog() {
   const items = ['s.change.v3.1', 's.change.v3.2', 's.change.v3.3', 's.change.v3.4', 's.change.v3.5'] as const
   return (
     <>
-      <PageIntro title={t('s.change.title')} sub={t('s.change.sub')} />
+      <PageIntro kicker={t('s.nav.changelog')} title={t('s.change.title')} sub={t('s.change.sub')} />
       <Container className="pb-24">
         <article className="grid gap-4 border-t border-border pt-8 md:grid-cols-[200px_1fr]">
           <div><h2 className="text-lg font-semibold">{t('s.change.v3')}</h2><time className="text-[13px] text-text-3" dateTime="2026-10-08">2026-10-08</time></div>

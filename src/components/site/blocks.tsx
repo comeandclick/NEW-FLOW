@@ -25,7 +25,7 @@ export function Showcase({ kicker, title, text, bullets, flip, children }: { kic
     <Container className="py-16 sm:py-24">
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <Reveal className={cn(flip && 'lg:order-2')}>
-          <div className="text-[13px] font-medium text-accent">{kicker}</div>
+          <div className="text-[13px] font-medium text-accent-ink">{kicker}</div>
           <h2 className="mt-3 text-[clamp(1.75rem,3.4vw,2.5rem)] font-semibold leading-[1.1] tracking-[-0.03em]">{title}</h2>
           <p className="mt-4 max-w-md leading-relaxed text-text-2">{text}</p>
           <ul className="mt-6 space-y-2.5">{bullets.map((b) => <li key={b} className="flex gap-3 text-[14px] text-text-2"><span className="mt-[9px] h-px w-3 shrink-0 bg-text-3" />{b}</li>)}</ul>
@@ -56,13 +56,14 @@ export function Faq({ keys }: { keys: [Key, Key][] }) {
 }
 
 export function TextLink({ href, children }: { href: string; children: ReactNode }) {
-  return <Link href={href} className="group inline-flex items-center gap-1.5 text-[14px] font-medium text-text hover:text-accent">{children}<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" /></Link>
+  return <Link href={href} className="group inline-flex items-center gap-1.5 text-[14px] font-medium text-text hover:text-accent-ink">{children}<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" /></Link>
 }
 
-export function PageIntro({ title, sub }: { title: string; sub?: string }) {
+export function PageIntro({ title, sub, kicker }: { title: string; sub?: string; kicker?: string }) {
   return (
-    <Container className="pb-10 pt-16 sm:pt-24">
-      <h1 className="max-w-3xl text-[clamp(2.2rem,5vw,3.75rem)] font-semibold leading-[1.05] tracking-[-0.04em]">{title}</h1>
+    <Container className="pb-10 pt-12 sm:pt-20">
+      {kicker && <div className="mb-4 text-[12px] font-semibold tracking-[0.16em] text-accent-ink">{kicker.toUpperCase()}</div>}
+      <h1 className="mk-grad max-w-3xl text-[clamp(2.4rem,5.4vw,4.2rem)] font-semibold leading-[1.04] tracking-[-0.04em]">{title}</h1>
       {sub && <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">{sub}</p>}
     </Container>
   )

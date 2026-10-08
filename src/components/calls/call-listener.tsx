@@ -75,8 +75,8 @@ export function CallListener() {
               <div className="truncate text-xs text-text-2">{incoming.video ? t('msg.videoCall') : t('msg.audioCall')} · {incoming.title}</div></div>
           </div>
           <div className="mt-4 flex gap-2">
-            <Button className="flex-1 bg-danger text-white hover:opacity-90" onClick={() => setIncoming(null)}><PhoneOff className="size-4" /></Button>
-            <Button variant="primary" className="flex-[2] bg-success hover:opacity-90" onClick={accept}>{incoming.video ? <Video className="size-4" /> : <Phone className="size-4" />}{t('msg.joinCall')}</Button>
+            <Button className="flex-1 bg-[#c4262f] text-white hover:bg-[#b01f27]" onClick={() => setIncoming(null)}><PhoneOff className="size-4" /></Button>
+            <Button variant="primary" className="flex-[2] bg-[#15803d] hover:bg-[#126c33]" onClick={accept}>{incoming.video ? <Video className="size-4" /> : <Phone className="size-4" />}{t('msg.joinCall')}</Button>
           </div>
         </motion.div>
       )}

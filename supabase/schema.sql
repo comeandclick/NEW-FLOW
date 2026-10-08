@@ -724,3 +724,13 @@ create trigger guard_workspace_owner before update on public.workspaces for each
 -- 5) Un utilisateur ne peut pas écrire dans le journal sous le nom d'un autre.
 drop policy if exists activity_logs_write on public.activity_logs;
 create policy activity_logs_write on public.activity_logs for insert with check (can_write(workspace_id) and (user_id is null or user_id = auth.uid()));
+
+-- Inscriptions aux nouveautés (insertion publique)
+create table if not exists public.subscribers (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  created_at timestamptz not null default now()
+);
+alter table public.subscribers enable row level security;
+drop policy if exists subscribers_insert on public.subscribers;
+create policy subscribers_insert on public.subscribers for insert with check (length(email) between 3 and 320 and position('@' in email) > 1);

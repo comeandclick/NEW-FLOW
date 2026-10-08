@@ -9,7 +9,7 @@ export default async function Contact() {
   const { t } = await getT()
   return (
     <>
-      <PageIntro title={t('s.contact.title')} sub={t('s.contact.sub')} />
+      <PageIntro kicker={t('s.nav.contact')} title={t('s.contact.title')} sub={t('s.contact.sub')} />
       <Container className="pb-24"><ContactForm /></Container>
     </>
   )

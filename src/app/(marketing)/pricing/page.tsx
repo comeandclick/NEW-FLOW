@@ -12,7 +12,7 @@ export default async function Pricing() {
   const items = ['s.pricing.i1', 's.pricing.i2', 's.pricing.i3', 's.pricing.i4', 's.pricing.i5'] as const
   return (
     <>
-      <PageIntro title={t('s.pricing.title')} sub={t('s.pricing.sub')} />
+      <PageIntro kicker={t('s.nav.pricing')} title={t('s.pricing.title')} sub={t('s.pricing.sub')} />
       <Container className="pb-16">
         <div className="max-w-xl rounded-2xl border border-border-strong bg-surface p-8">
           <div className="text-[13px] font-medium text-text-3">{t('s.pricing.plan')}</div>

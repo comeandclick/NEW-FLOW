@@ -10,7 +10,7 @@ export function Badge({ className, color, children }: { className?: string; colo
   return (
     <span
       className={cn('inline-flex items-center gap-1 rounded-md bg-surface-3 px-1.5 py-0.5 text-[11px] font-medium text-text-2', className)}
-      style={color ? { background: `color-mix(in srgb, ${color} 16%, transparent)`, color } : undefined}
+      style={color ? { background: `color-mix(in srgb, ${color} 16%, transparent)`, color: `color-mix(in srgb, ${color} 55%, var(--text))` } : undefined}
     >
       {children}
     </span>
@@ -70,7 +70,7 @@ export function PageHeader({ title, subtitle, actions, icon }: { title: string; 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pb-5">
       <div className="flex min-w-0 items-center gap-3">
-        {icon && <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">{icon}</span>}
+        {icon && <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">{icon}</span>}
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <p className="truncate text-[13px] text-text-3">{subtitle}</p>}

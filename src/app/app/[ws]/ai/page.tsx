@@ -53,7 +53,7 @@ export default function AiPage() {
       <PageHeader title={t('ai.title')} icon={<Sparkles className="size-[18px]" />} actions={msgs.length > 0 && <Button size="sm" variant="ghost" onClick={() => setMsgs([])}><RotateCcw className="size-3.5" />{t('ai.clear')}</Button>} />
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">
         {msgs.length === 0 && (
-          <div className="py-8 text-center"><span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent"><Bot className="size-7" /></span>
+          <div className="py-8 text-center"><span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent-ink"><Bot className="size-7" /></span>
             <p className="mx-auto mt-4 max-w-md text-sm text-text-2">{t('ai.welcome')}</p>
             <div className="mx-auto mt-6 grid max-w-xl gap-2 sm:grid-cols-2">{suggestions.map((s) => <button key={s} onClick={() => ask(s)} className="rounded-xl border border-border bg-surface px-4 py-3 text-left text-[13px] text-text-2 transition-all hover:-translate-y-0.5 hover:border-accent/50 hover:text-text">{s}</button>)}</div>
             {!remote && <p className="mt-6 text-xs text-text-3">{t('ai.simulated')}</p>}</div>)}

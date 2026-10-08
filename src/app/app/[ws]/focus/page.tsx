@@ -3,7 +3,7 @@ import { HubTabs } from '@/components/shell/hub-tabs'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
+import dynamic from 'next/dynamic'
 import { Clock, Pause, Play, RotateCcw, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,8 @@ import { showSystemNotification } from '@/lib/push'
 import { useI18n } from '@/i18n/provider'
 import { cn, formatDuration } from '@/lib/utils'
 import type { Task, TimeEntry } from '@/lib/types'
+
+const BarChartView = dynamic(() => import('@/components/common/bar-chart'), { ssr: false, loading: () => <div className="skeleton size-full" /> })
 
 type Mode = 'focus' | 'short' | 'long'
 const MINUTES: Record<Mode, number> = { focus: 25, short: 5, long: 15 }
@@ -118,13 +120,13 @@ export default function FocusPage() {
         <div className="space-y-5">
           <section className="rounded-2xl border border-border bg-surface p-5">
             <h2 className="mb-3 text-sm font-semibold">{t('focus.manual')}</h2>
-            {tracking ? <div className="flex items-center gap-3"><span className="size-2 animate-pulse rounded-full bg-danger" /><span className="flex-1 truncate text-sm">{tracking.note || '—'}</span><span className="font-mono text-lg tabular-nums">{formatDuration((Date.now() - tracking.start) / 1000)}</span>
+            {tracking ? <div className="flex items-center gap-3"><span className="size-2 animate-pulse rounded-full bg-danger-bg" /><span className="flex-1 truncate text-sm">{tracking.note || '—'}</span><span className="font-mono text-lg tabular-nums">{formatDuration((Date.now() - tracking.start) / 1000)}</span>
               <Button variant="danger" size="icon" onClick={stopTracking} aria-label={t('focus.trackStop')}><Square className="size-4" /></Button></div>
               : <div className="flex gap-2"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('focus.note')} onKeyDown={(e) => e.key === 'Enter' && setTracking({ start: Date.now(), note })} /><Button variant="primary" onClick={() => setTracking({ start: Date.now(), note })}><Play className="size-4" /><span className="hidden sm:inline">{t('focus.trackStart')}</span></Button></div>}
           </section>
           <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="mb-2 flex items-baseline justify-between"><h2 className="text-sm font-semibold">{t('focus.week')}</h2><span className="text-xs text-text-3">{t('focus.today')}: {today} min</span></div>
-            <div className="h-36"><ResponsiveContainer width="100%" height="100%"><BarChart data={days}><XAxis dataKey="name" stroke="var(--text-3)" fontSize={11} tickLine={false} axisLine={false} /><Tooltip cursor={{ fill: 'var(--surface-2)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 10, fontSize: 12 }} formatter={(v) => [`${v} min`, '']} /><Bar dataKey="min" fill="var(--accent)" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>
+            <div className="h-36"><BarChartView data={days} series={[{ key: 'min', color: 'var(--accent)' }]} unit="min" /></div>
           </section>
           <section className="rounded-2xl border border-border bg-surface p-5">
             <h2 className="mb-3 text-sm font-semibold">{t('focus.entries')}</h2>

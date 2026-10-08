@@ -28,7 +28,8 @@ export function initials(name?: string | null, fallback = '?') {
   return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || fallback
 }
 
-const PALETTE = ['#6366f1', '#22c55e', '#f97316', '#ec4899', '#0ea5e9', '#a855f7', '#eab308', '#14b8a6']
+// Dark enough for white text (WCAG AA).
+const PALETTE = ['#4f46e5', '#15803d', '#c2410c', '#be185d', '#0369a1', '#7e22ce', '#a16207', '#0f766e']
 export function colorFor(seed: string) {
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0

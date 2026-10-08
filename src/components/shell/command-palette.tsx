@@ -44,7 +44,7 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
   }, [q, ws.id])
 
   const go = (path: string) => { setOpen(false); router.push(`/app/${ws.slug}${path}`) }
-  const item = 'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-text-2 aria-selected:bg-accent-soft aria-selected:text-accent'
+  const item = 'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-text-2 aria-selected:bg-accent-soft aria-selected:text-accent-ink'
   const heading = '[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-text-3'
 
   if (!mounted) return null

@@ -62,7 +62,7 @@ export function LoginForm() {
 
   return (
     <AuthShell title={t('auth.login.title')} subtitle={t('auth.login.sub')}
-      footer={<>{t('auth.noAccount')} <Link href="/register" className="font-medium text-accent hover:underline">{t('auth.signUp')}</Link></>}>
+      footer={<>{t('auth.noAccount')} <Link href="/register" className="font-medium text-accent-ink hover:underline">{t('auth.signUp')}</Link></>}>
       <form onSubmit={submit} className="space-y-4">
         <Field label={t('auth.email')}><Input type="email" required autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" /></Field>
         <Field label={t('auth.password')} error={err}>
@@ -104,7 +104,7 @@ export function RegisterForm() {
 
   return (
     <AuthShell title={t('auth.register.title')} subtitle={t('auth.register.sub')}
-      footer={<>{t('auth.hasAccount')} <Link href="/login" className="font-medium text-accent hover:underline">{t('auth.signIn')}</Link></>}>
+      footer={<>{t('auth.hasAccount')} <Link href="/login" className="font-medium text-accent-ink hover:underline">{t('auth.signIn')}</Link></>}>
       <form onSubmit={submit} className="space-y-4">
         <Field label={t('auth.fullName')}><Input required autoComplete="name" autoFocus value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label={t('auth.email')}><Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" /></Field>
@@ -135,7 +135,7 @@ export function ResetForm() {
     setBusy(false); setSent(true)
   }
   return (
-    <AuthShell title={t('auth.reset.title')} subtitle={t('auth.reset.sub')} footer={<Link href="/login" className="font-medium text-accent hover:underline">{t('auth.signIn')}</Link>}>
+    <AuthShell title={t('auth.reset.title')} subtitle={t('auth.reset.sub')} footer={<Link href="/login" className="font-medium text-accent-ink hover:underline">{t('auth.signIn')}</Link>}>
       {sent ? <p className="text-sm text-text-2" role="status">{t('auth.linkSent')}</p> : (
         <form onSubmit={submit} className="space-y-4">
           <Field label={t('auth.email')}><Input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} /></Field>

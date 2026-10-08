@@ -26,7 +26,7 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed?: boolean }) {
           <MenuLabel>{t('shell.switchWorkspace')}</MenuLabel>
           {data.map((m: any) => m.workspace && (
             <Link key={m.workspace.id} href={`/app/${m.workspace.slug}`} onClick={close}>
-              <MenuItem><span className="flex items-center justify-between">{m.workspace.name}{m.workspace.id === ws.id && <Check className="size-3.5 text-accent" />}</span></MenuItem>
+              <MenuItem><span className="flex items-center justify-between">{m.workspace.name}{m.workspace.id === ws.id && <Check className="size-3.5 text-accent-ink" />}</span></MenuItem>
             </Link>
           ))}
           <MenuSeparator />

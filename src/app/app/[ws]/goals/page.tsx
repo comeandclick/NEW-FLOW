@@ -71,7 +71,7 @@ export default function GoalsPage() {
                   <div key={k.id} className="flex items-center gap-3 text-[13px]"><span className="min-w-0 flex-1 truncate">{k.title}</span>
                     <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-3"><div className="h-full rounded-full bg-accent" style={{ width: `${pct(k.current, k.target)}%` }} /></div>
                     {canWrite ? <input type="number" value={k.current} min={0} max={k.target} onChange={async (e) => { await getDb().from('key_results').update({ current: Number(e.target.value) }).eq('id', k.id); krs.refresh() }} className={cn('h-7 w-16 rounded-md border border-border bg-surface-2 px-1.5 text-right text-xs tabular-nums')} aria-label={k.title} /> : <span className="tabular-nums">{k.current}</span>}</div>))}
-                {canWrite && <div className="flex gap-2 pt-1"><Input className="h-8" value={krTitle[g.id] ?? ''} onChange={(e) => setKrTitle((s) => ({ ...s, [g.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && addKr(g)} placeholder={t('goals.addKr')} /><Button size="sm" onClick={() => addKr(g)}><Plus className="size-3.5" /></Button></div>}</div>
+                {canWrite && <div className="flex gap-2 pt-1"><Input className="h-8" value={krTitle[g.id] ?? ''} onChange={(e) => setKrTitle((s) => ({ ...s, [g.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && addKr(g)} placeholder={t('goals.addKr')} /><Button size="sm" onClick={() => addKr(g)} aria-label={t('goals.addKr')}><Plus className="size-3.5" /></Button></div>}</div>
             </motion.article>)
         })}</div>}
       <Dialog open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? t('goals.edit') : t('goals.new')}

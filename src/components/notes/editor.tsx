@@ -39,7 +39,7 @@ export function RichEditor({ content, editable, onChange, resetKey }: Props) {
   if (!editor) return null
   const Btn = ({ on, active, label, icon: Icon, disabled }: { on: () => void; active?: boolean; label: string; icon: typeof Bold; disabled?: boolean }) => (
     <button type="button" onClick={on} disabled={disabled} title={label} aria-label={label} aria-pressed={active}
-      className={cn('flex size-8 shrink-0 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-surface-3 hover:text-text disabled:opacity-40', active && 'bg-accent-soft text-accent')}>
+      className={cn('flex size-8 shrink-0 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-surface-3 hover:text-text disabled:opacity-40', active && 'bg-accent-soft text-accent-ink')}>
       <Icon className="size-4" />
     </button>
   )

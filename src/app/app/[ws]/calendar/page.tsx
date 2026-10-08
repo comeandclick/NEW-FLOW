@@ -100,15 +100,15 @@ function CalendarPage() {
 
   const Chip = ({ e }: { e: CalEvent }) => (
     <button onClick={(ev) => { ev.stopPropagation(); openEdit(e) }} className="flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium transition-opacity hover:opacity-80"
-      style={{ background: `color-mix(in srgb, ${e.color ?? COLORS[0]} 20%, transparent)`, color: e.color ?? COLORS[0] }}>
-      {e.meeting_id && <Video className="size-3 shrink-0" />}{!e.all_day && <span className="hidden tabular-nums opacity-70 sm:inline">{format(new Date(e.start_at), 'HH:mm')}</span>}<span className="truncate">{e.title}</span>
+      style={{ background: `color-mix(in srgb, ${e.color ?? COLORS[0]} 20%, transparent)`, color: `color-mix(in srgb, ${e.color ?? COLORS[0]} 45%, var(--text))` }}>
+      {e.meeting_id && <Video className="size-3 shrink-0" />}{!e.all_day && <span className="hidden tabular-nums opacity-90 sm:inline">{format(new Date(e.start_at), 'HH:mm')}</span>}<span className="truncate">{e.title}</span>
     </button>
   )
 
   return (
     <div className="flex h-full flex-col px-3 py-4 sm:px-6 sm:py-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent"><CalendarDays className="size-[18px]" /></span>
+        <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><CalendarDays className="size-[18px]" /></span>
           <h1 className="text-xl font-semibold capitalize tracking-tight">{title}</h1></div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-0.5"><Button variant="ghost" size="icon" onClick={() => step(-1)} aria-label="←"><ChevronLeft className="size-4" /></Button>
@@ -164,7 +164,7 @@ function CalendarPage() {
                     </button>
                   )
                 })}
-                {isToday(d) && <div className="pointer-events-none absolute inset-x-0 z-[5] h-px bg-danger" style={{ top: (new Date().getHours() + new Date().getMinutes() / 60) * 56 }}><span className="absolute -left-1 -top-[3px] size-2 rounded-full bg-danger" /></div>}
+                {isToday(d) && <div className="pointer-events-none absolute inset-x-0 z-[5] h-px bg-danger-bg" style={{ top: (new Date().getHours() + new Date().getMinutes() / 60) * 56 }}><span className="absolute -left-1 -top-[3px] size-2 rounded-full bg-danger-bg" /></div>}
               </div>
             ))}
           </div>
@@ -194,7 +194,7 @@ function CalendarPage() {
               <div className="flex flex-wrap gap-1.5">{members.map((m) => {
                 const on = draft.attendees.includes(m.user_id)
                 return <button key={m.id} onClick={() => setDraft({ ...draft, attendees: on ? draft.attendees.filter((x) => x !== m.user_id) : [...draft.attendees, m.user_id] })}
-                  className={cn('rounded-full border px-2.5 py-1 text-xs transition-colors', on ? 'border-accent bg-accent-soft text-accent' : 'border-border text-text-2 hover:border-border-strong')}>{m.profile?.full_name ?? m.profile?.email}</button>
+                  className={cn('rounded-full border px-2.5 py-1 text-xs transition-colors', on ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-text-2 hover:border-border-strong')}>{m.profile?.full_name ?? m.profile?.email}</button>
               })}</div></div>
           </div>
         )}

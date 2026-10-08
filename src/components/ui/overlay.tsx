@@ -156,7 +156,7 @@ export function MenuItem({ icon, children, onClick, danger, active, shortcut, cl
   return (
     <button role="menuitem" onClick={onClick}
       className={cn('flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors hover:bg-surface-2',
-        danger ? 'text-danger' : 'text-text', active && 'bg-accent-soft text-accent', className)}>
+        danger ? 'text-danger' : 'text-text', active && 'bg-accent-soft text-accent-ink', className)}>
       {icon && <span className="flex size-4 shrink-0 items-center justify-center text-text-3">{icon}</span>}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut && <span className="font-mono text-[10px] text-text-3">{shortcut}</span>}

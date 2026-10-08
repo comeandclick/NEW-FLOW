@@ -43,11 +43,11 @@ export default function FormsPage() {
       <PageHeader title={t('forms.title')} icon={<ClipboardList className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => { setTab('editor'); setD({ title: '', fields: [{ id: uid().slice(0, 6), type: 'text', label: '', required: true }], is_public: false }) }}><Plus className="size-4" />{t('forms.new')}</Button>} />
       {forms.data.length === 0 && !forms.loading ? <EmptyState icon={<ClipboardList className="size-5" />} title={t('forms.empty')} />
         : <ul className="space-y-2">{forms.data.map((f) => (
-          <li key={f.id}><button onClick={() => { setTab('editor'); setD(f) }} className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent"><ClipboardList className="size-4" /></span>
+          <li key={f.id} className="flex items-center gap-2 rounded-xl border border-border bg-surface pr-3 transition-colors hover:border-border-strong"><button onClick={() => { setTab('editor'); setD(f) }} className="flex min-w-0 flex-1 items-center gap-3 p-4 text-left">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><ClipboardList className="size-4" /></span>
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{f.title}</span><span className="text-xs text-text-3">{f.fields.length} · {f.is_public ? t('forms.public') : t('forms.private')}</span></span>
-            {f.is_public && <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); void navigator.clipboard.writeText(link(f.slug)); toast.success(t('common.copied')) }} className="rounded-md p-2 text-text-3 hover:bg-surface-2 hover:text-text" aria-label={t('forms.copyLink')}><Copy className="size-4" /></span>}
-            <Badge color={f.is_public ? 'var(--success)' : undefined}>{f.is_public ? t('forms.public') : t('forms.private')}</Badge></button></li>))}</ul>}
+            <Badge color={f.is_public ? 'var(--success)' : undefined}>{f.is_public ? t('forms.public') : t('forms.private')}</Badge></button>
+            {f.is_public && <button onClick={() => { void navigator.clipboard.writeText(link(f.slug)); toast.success(t('common.copied')) }} className="rounded-md p-2 text-text-3 hover:bg-surface-2 hover:text-text" aria-label={t('forms.copyLink')}><Copy className="size-4" /></button>}</li>))}</ul>}
 
       <Dialog open={!!d} onClose={() => setD(null)} title={d?.title || t('forms.new')} size="lg"
         footer={d && <>{d.id && canWrite && <Button variant="ghost" className="mr-auto text-danger" onClick={async () => { await getDb().from('forms').update({ deleted_at: new Date().toISOString() }).eq('id', d.id); setD(null); forms.refresh() }}><Trash2 className="size-4" />{t('common.delete')}</Button>}

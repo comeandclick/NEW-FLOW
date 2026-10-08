@@ -1,8 +1,8 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { HubTabs } from '@/components/shell/hub-tabs'
-import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, Check, Copy, Download, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar, Badge, PageHeader, Tabs } from '@/components/ui/misc'
@@ -22,9 +22,10 @@ import type { Role } from '@/lib/types'
 type Tab = 'profile' | 'workspace' | 'members' | 'preferences'
 const EXPORT_TABLES = ['projects', 'tasks', 'notes', 'events', 'goals', 'crm_contacts', 'crm_deals', 'invoices', 'forms', 'habits', 'automations', 'files']
 
-export default function SettingsPage() {
+function SettingsInner() {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('profile')
+  const q = useSearchParams().get('tab')
+  const [tab, setTab] = useState<Tab>(q === 'members' || q === 'workspace' || q === 'preferences' ? q : 'profile')
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
       <HubTabs hub="settings" />
@@ -35,6 +36,8 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+export default function SettingsPage() { return <Suspense><SettingsInner /></Suspense> }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return <section className="mb-6 rounded-2xl border border-border bg-surface p-5"><h2 className="text-sm font-semibold">{title}</h2>{hint && <p className="mt-0.5 text-[13px] text-text-3">{hint}</p>}<div className="mt-4 space-y-4">{children}</div></section>

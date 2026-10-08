@@ -4,7 +4,7 @@ import { HubTabs } from '@/components/shell/hub-tabs'
 import { useMemo, useState } from 'react'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import dynamic from 'next/dynamic'
 import { Plus, Printer, Trash2, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -16,6 +16,8 @@ import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import type { Contact, Invoice } from '@/lib/types'
+
+const BarChartView = dynamic(() => import('@/components/common/bar-chart'), { ssr: false, loading: () => <div className="skeleton size-full" /> })
 
 type Draft = { id?: string; kind: Invoice['kind']; number: string; contact_id: string; status: string; issued_at: string; due_at: string; items: Invoice['items'] }
 const eur = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
@@ -63,9 +65,7 @@ export default function FinancePage() {
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[[t('fin.revenue'), stats.revenue, 'text-success'], [t('fin.pending'), stats.pending, 'text-warning'], [t('fin.expenses'), stats.expenses, 'text-danger'], [t('fin.balance'), stats.revenue - stats.expenses, '']].map(([l, v, c]) => (
         <div key={l as string} className="rounded-xl border border-border bg-surface p-4"><div className="text-xs text-text-3">{l}</div><div className={`mt-1 text-xl font-semibold tabular-nums ${c}`}>{eur(v as number)}</div></div>))}</div>
       <div className="mb-5 h-56 rounded-xl border border-border bg-surface p-4">
-        <ResponsiveContainer width="100%" height="100%"><BarChart data={chart}><CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-3)" fontSize={11} tickLine={false} axisLine={false} /><YAxis stroke="var(--text-3)" fontSize={11} tickLine={false} axisLine={false} width={44} />
-          <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 10, fontSize: 12 }} cursor={{ fill: 'var(--surface-2)' }} />
-          <Bar dataKey={t('fin.revenue')} fill="var(--accent)" radius={[6, 6, 0, 0]} /><Bar dataKey={t('fin.expenses')} fill="var(--danger)" radius={[6, 6, 0, 0]} opacity={0.7} /></BarChart></ResponsiveContainer></div>
+        <BarChartView grid yAxis data={chart} series={[{ key: t('fin.revenue'), color: 'var(--accent)' }, { key: t('fin.expenses'), color: 'var(--danger)', opacity: 0.7 }]} /></div>
       <Tabs className="mb-4" value={tab} onChange={setTab} items={[{ value: 'all', label: t('common.all') }, { value: 'invoice', label: t('fin.kind.invoice') }, { value: 'quote', label: t('fin.kind.quote') }, { value: 'expense', label: t('fin.kind.expense') }]} />
       {list.length === 0 ? <EmptyState icon={<Wallet className="size-5" />} title={t('fin.empty')} />
         : <ul className="overflow-hidden rounded-xl border border-border bg-surface">{list.map((i) => (

@@ -48,7 +48,7 @@ export default function MeetingsPage() {
 
   const Row = ({ m }: { m: Meeting }) => (
     <li><Link href={`/app/${ws.slug}/meetings/${m.id}`} className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-0 hover:bg-surface-2">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent"><Video className="size-4" /></span>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><Video className="size-4" /></span>
       <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] font-medium">{m.title}</span>
         <span className="block truncate text-xs text-text-3">{m.scheduled_at ? format(new Date(m.scheduled_at), 'PPp', { locale: dfl }) : format(new Date(m.created_at), 'PPp', { locale: dfl })} · {nameOf(m.host_id)}</span></span>
       {m.status === 'live' ? <Badge color="var(--success)">{t('meet.live')}</Badge> : m.status === 'scheduled' ? <Button size="xs" variant="outline" tabIndex={-1}>{t('meet.join')}</Button> : null}

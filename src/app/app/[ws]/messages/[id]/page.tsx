@@ -213,14 +213,14 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                         <form onSubmit={send} className="flex gap-2"><Input autoFocus value={editing.text} onChange={(e) => setEditing({ id: m.id, text: e.target.value })} onKeyDown={(e) => e.key === 'Escape' && setEditing(null)} /><Button type="submit" variant="primary" size="sm">{t('common.save')}</Button></form>
                       ) : (
                         <>
-                          {m.content && m.kind !== 'call' && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.content.split(/(@[\p{L}][\p{L} ]+?)(?=\s|$|[.,!?])/u).map((part, k) => part.startsWith('@') && members.some((x) => `@${x.profile?.full_name}` === part) ? <span key={k} className="rounded bg-accent-soft px-1 font-medium text-accent">{part}</span> : <span key={k}>{part}</span>)}{m.is_edited && <span className="ml-1.5 text-[11px] text-text-3">({t('msg.edited')})</span>}</p>}
+                          {m.content && m.kind !== 'call' && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.content.split(/(@[\p{L}][\p{L} ]+?)(?=\s|$|[.,!?])/u).map((part, k) => part.startsWith('@') && members.some((x) => `@${x.profile?.full_name}` === part) ? <span key={k} className="rounded bg-accent-soft px-1 font-medium text-accent-ink">{part}</span> : <span key={k}>{part}</span>)}{m.is_edited && <span className="ml-1.5 text-[11px] text-text-3">({t('msg.edited')})</span>}</p>}
                           {m.kind === 'call' && <CallCard video={m.content === 'video'} name={author?.full_name ?? ''} onJoin={() => router.push(`/app/${ws.slug}/meetings/${m.attachments[0]?.path}?audio=${m.content === 'video' ? 0 : 1}`)} />}
                           {m.kind !== 'call' && m.attachments.length > 0 && <div className="mt-1 flex flex-col items-start gap-1.5">{m.attachments.map((a, k) => <AttachmentView key={k} att={a} mine={false} />)}</div>}
                         </>
                       )}
                     {groupedReacts.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{groupedReacts.map((e) => {
                       const list = mr.filter((r) => r.emoji === e); const iMine = list.some((r) => r.user_id === userId)
-                      return <button key={e} onClick={() => react(m, e)} className={cn('flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors', iMine ? 'border-accent bg-accent-soft text-accent' : 'border-border hover:border-border-strong')}>{e}<span className="tabular-nums">{list.length}</span></button>
+                      return <button key={e} onClick={() => react(m, e)} className={cn('flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors', iMine ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border hover:border-border-strong')}>{e}<span className="tabular-nums">{list.length}</span></button>
                     })}</div>}
                   </div>
                   {!m.deleted_at && canWrite && (
@@ -229,7 +229,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                         {(close) => <div className="flex justify-between p-1">{QUICK.map((e) => <button key={e} onClick={() => { void react(m, e); close() }} className="rounded-lg p-1.5 text-lg hover:bg-surface-2">{e}</button>)}</div>}
                       </Menu>
                       <button onClick={() => setReplyTo(m)} className="rounded-md p-1.5 text-text-3 hover:bg-surface-2 hover:text-text" aria-label={t('msg.reply')}><Reply className="size-3.5" /></button>
-                      <button onClick={() => togglePin(m)} className={cn('rounded-md p-1.5 hover:bg-surface-2', m.is_pinned ? 'text-accent' : 'text-text-3 hover:text-text')} aria-label={m.is_pinned ? t('msg.unpin') : t('msg.pin')}><Pin className="size-3.5" /></button>
+                      <button onClick={() => togglePin(m)} className={cn('rounded-md p-1.5 hover:bg-surface-2', m.is_pinned ? 'text-accent-ink' : 'text-text-3 hover:text-text')} aria-label={m.is_pinned ? t('msg.unpin') : t('msg.pin')}><Pin className="size-3.5" /></button>
                       {mine && m.kind === 'text' && <button onClick={() => setEditing({ id: m.id, text: m.content ?? '' })} className="rounded-md p-1.5 text-text-3 hover:bg-surface-2 hover:text-text" aria-label={t('msg.edit')}><Pencil className="size-3.5" /></button>}
                       {mine && <button onClick={() => removeMsg(m)} className="rounded-md p-1.5 text-text-3 hover:bg-surface-2 hover:text-danger" aria-label={t('common.delete')}><Trash2 className="size-3.5" /></button>}
                     </div>

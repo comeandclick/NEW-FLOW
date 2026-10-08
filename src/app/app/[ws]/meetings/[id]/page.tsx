@@ -129,7 +129,7 @@ function RoomPage({ id }: { id: string }) {
   const cols = parts.length <= 1 ? 'grid-cols-1' : parts.length <= 2 ? 'grid-cols-1 md:grid-cols-2' : parts.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'
   const Ctl = ({ on, onClick, label, children, danger }: { on?: boolean; onClick: () => void; label: string; children: React.ReactNode; danger?: boolean }) => (
     <button onClick={onClick} aria-label={label} aria-pressed={on} title={label}
-      className={cn('flex size-11 items-center justify-center rounded-full transition-all active:scale-90', danger ? 'bg-danger text-white hover:opacity-90' : on ? 'bg-accent text-white' : 'bg-surface-3 text-text hover:bg-border-strong')}>{children}</button>
+      className={cn('flex size-11 items-center justify-center rounded-full transition-all active:scale-90', danger ? 'bg-danger-bg text-white hover:opacity-90' : on ? 'bg-accent text-white' : 'bg-surface-3 text-text hover:bg-border-strong')}>{children}</button>
   )
 
   return (
@@ -165,7 +165,7 @@ function RoomPage({ id }: { id: string }) {
         <span className="hidden sm:block"><Ctl on={sharing} onClick={toggleShare} label={sharing ? t('meet.stopShare') : t('meet.share')}><MonitorUp className="size-5" /></Ctl></span>
         <Ctl on={hand} onClick={() => setHand(room.current?.toggleHand() ?? false)} label={t('meet.hand')}><Hand className="size-5" /></Ctl>
         <span className="relative"><Ctl on={panel === 'chat'} onClick={() => { setPanel(panel === 'chat' ? null : 'chat'); setUnreadChat(0) }} label={t('meet.chat')}><MessageSquare className="size-5" /></Ctl>
-          {unreadChat > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-danger px-1.5 text-[10px] font-semibold text-white">{unreadChat}</span>}</span>
+          {unreadChat > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-danger-bg px-1.5 text-[10px] font-semibold text-white">{unreadChat}</span>}</span>
         <Ctl on={panel === 'people'} onClick={() => setPanel(panel === 'people' ? null : 'people')} label={t('meet.people')}><Users className="size-5" /></Ctl>
         <Ctl danger onClick={() => leave(false)} label={t('meet.leave')}><PhoneOff className="size-5" /></Ctl>
         {meeting.host_id === userId && <Button variant="ghost" size="sm" className="hidden text-danger sm:inline-flex" onClick={() => leave(true)}>{t('meet.end')}</Button>}

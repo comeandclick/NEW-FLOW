@@ -89,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className={cn('group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0',
                         active ? 'bg-surface-3 font-medium text-text' : 'text-text-2 hover:bg-surface-2 hover:text-text')}>
                       {active && <motion.span layoutId={compact ? 'nav-pill-c' : 'nav-pill'} className="absolute left-0 h-4 w-0.5 rounded-full bg-accent" />}
-                      <it.icon className={cn('size-4 shrink-0', active ? 'text-accent' : 'text-text-3 group-hover:text-text-2')} />
+                      <it.icon className={cn('size-4 shrink-0', active ? 'text-accent-ink' : 'text-text-3 group-hover:text-text-2')} />
                       {!compact && <span className="flex-1 truncate">{t(it.label)}</span>}
                       {badge > 0 && <span className={cn('rounded-full bg-accent px-1.5 text-[10px] font-semibold leading-4 text-white', compact && 'absolute right-1 top-0.5 px-1')}>{badge > 99 ? '99+' : badge}</span>}
                     </Link>
@@ -106,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           return (
             <Link key={it.href} href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
               className={cn('flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0', active ? 'bg-surface-3 font-medium text-text' : 'text-text-2 hover:bg-surface-2 hover:text-text')}>
-              <it.icon className={cn('size-4 shrink-0', active ? 'text-accent' : 'text-text-3')} />{!compact && <span className="truncate">{t(it.label)}</span>}
+              <it.icon className={cn('size-4 shrink-0', active ? 'text-accent-ink' : 'text-text-3')} />{!compact && <span className="truncate">{t(it.label)}</span>}
             </Link>
           )
         })}
@@ -121,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {isDemo && (
-          <div className="flex items-center justify-center gap-3 border-b border-border bg-accent-soft px-3 py-1.5 text-center text-xs text-accent safe-top">
+          <div className="flex items-center justify-center gap-3 border-b border-border bg-accent-soft px-3 py-1.5 text-center text-xs text-accent-ink safe-top">
             <span className="truncate">{t('common.demoBanner')}</span>
             <button className="shrink-0 font-semibold underline underline-offset-2" onClick={() => { exitDemo(true); window.location.href = '/register' }}>{t('nav.start')}</button>
           </div>
@@ -135,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-0.5">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setPalette(true)} aria-label={t('common.search')}><Search className="size-4" /></Button>
-            <Link href={`${base}/ai`} aria-label={t('nav.ai')} title={t('nav.ai')}><Button variant={pathname.startsWith(`${base}/ai`) ? 'secondary' : 'ghost'} size="icon" tabIndex={-1}><Sparkles className="size-4 text-accent" /></Button></Link>
+            <Link href={`${base}/ai`} aria-label={t('nav.ai')} title={t('nav.ai')} className={cn('flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-surface-2', pathname.startsWith(`${base}/ai`) && 'bg-surface-3')}><Sparkles className="size-4 text-accent-ink" /></Link>
             <LanguageToggle /><ThemeToggle /><NotificationsMenu />
             <Menu align="end" width={230} trigger={({ toggle }) => (
               <button onClick={toggle} className="ml-1 rounded-full ring-offset-2 ring-offset-bg transition hover:ring-2 hover:ring-border-strong" aria-label={t('shell.account')}><Avatar name={me?.full_name ?? me?.email} src={me?.avatar_url} size={28} status={me?.status} /></button>
@@ -161,7 +161,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             const active = isActive(href)
             const badge = item.badge === 'messages' ? unread.count : 0
             return (
-              <Link key={href} href={base + href} className={cn('relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium', active ? 'text-accent' : 'text-text-3')}>
+              <Link key={href} href={base + href} className={cn('relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium', active ? 'text-accent-ink' : 'text-text-3')}>
                 <item.icon className="size-5" />{t(item.label)}
                 {badge > 0 && <span className="absolute right-[26%] top-1 rounded-full bg-accent px-1 text-[9px] font-semibold leading-4 text-white">{badge}</span>}
               </Link>

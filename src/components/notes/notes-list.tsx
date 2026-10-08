@@ -57,7 +57,7 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
   const Card = ({ n, i }: { n: Note; i: number }) => (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.03 }}>
       <Link href={`${base}/${n.id}`} className="group flex h-full flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
-        <div className="flex items-center gap-2"><span className="text-lg">{n.icon ?? (n.kind === 'note' ? '📄' : '📘')}</span>{n.is_pinned && <Pin className="size-3 text-accent" />}<span className="flex-1" />
+        <div className="flex items-center gap-2"><span className="text-lg">{n.icon ?? (n.kind === 'note' ? '📄' : '📘')}</span>{n.is_pinned && <Pin className="size-3 text-accent-ink" />}<span className="flex-1" />
           {n.kind !== 'note' && <Badge>{t(`notes.kind.${n.kind}`)}</Badge>}</div>
         <h3 className="line-clamp-2 text-[14px] font-semibold leading-snug">{n.title || t('notes.untitled')}</h3>
         <p className="line-clamp-3 flex-1 text-[13px] leading-relaxed text-text-2">{plain(n) || '—'}</p>
@@ -75,7 +75,7 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <div className="relative min-w-44 flex-1 sm:max-w-xs"><Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-text-3" /><Input className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('notes.search')} /></div>
         
-        {tags.map((x) => <button key={x} onClick={() => setTag(tag === x ? null : x)} className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${tag === x ? 'border-accent bg-accent-soft text-accent' : 'border-border text-text-2 hover:border-border-strong'}`}>{x}</button>)}
+        {tags.map((x) => <button key={x} onClick={() => setTag(tag === x ? null : x)} className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${tag === x ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-text-2 hover:border-border-strong'}`}>{x}</button>)}
       </div>
       {loading ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         : filtered.length === 0 ? <EmptyState icon={<FileText className="size-5" />} title={t('notes.empty')} hint={t('notes.emptyHint')} action={canWrite ? <Button variant="primary" onClick={create}><Plus className="size-4" />{t(newLabel)}</Button> : undefined} />

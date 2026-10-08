@@ -74,7 +74,7 @@ export default function WhiteboardPage() {
     <div className="flex h-full flex-col">
       <HubTabs hub="notes" className="mb-0 px-4" />
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-accent"><PenTool className="size-4" /></span>
+        <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-accent-ink"><PenTool className="size-4" /></span>
         <h1 className="mr-2 text-[15px] font-semibold">{board?.name ?? t('wb.title')}</h1>
         {canWrite && tools.map(([type, Icon, label]) => <Button key={type} size="sm" onClick={() => add(type)} aria-label={label}><Icon className="size-4" /><span className="hidden sm:inline">{label}</span></Button>)}
         {sel && canWrite && <>

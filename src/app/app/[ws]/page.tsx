@@ -49,7 +49,7 @@ export default function HomePage() {
     { label: t('home.stats.open'), value: stats.open, icon: CheckSquare, href: '/tasks', tint: 'var(--accent)' },
     { label: t('home.stats.inProgress'), value: stats.progress, icon: ActivityIcon, href: '/tasks', tint: 'var(--warning)' },
     { label: t('home.stats.done'), value: stats.done, icon: CheckSquare, href: '/tasks', tint: 'var(--success)' },
-    { label: t('home.stats.members'), value: members.length, icon: Users, href: '/settings/members', tint: 'var(--info)' },
+    { label: t('home.stats.members'), value: members.length, icon: Users, href: '/settings?tab=members', tint: 'var(--info)' },
   ]
   const quick = [
     { href: '/messages', icon: MessageSquare, label: t('nav.messages'), extra: unread.count ? `${unread.count} ${t('home.unread')}` : undefined },
@@ -67,7 +67,7 @@ export default function HomePage() {
 
       <motion.div {...fade(0.5)} className="mb-4">
         <Link href={`/app/${ws.slug}/ai`} className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 transition-all hover:border-accent/50 hover:shadow-md">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><Sparkles className="size-4" /></span>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink"><Sparkles className="size-4" /></span>
           <span className="min-w-0 flex-1 truncate text-sm text-text-2 group-hover:text-text">{t('home.askAi')}</span><ArrowRight className="size-4 text-text-3 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </motion.div>
@@ -154,8 +154,8 @@ export default function HomePage() {
           {quick.map((q) => (
             <Link key={q.href} href={`/app/${ws.slug}${q.href}`}>
               <Card className="flex items-center gap-3 p-4 transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
-                <span className="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent"><q.icon className="size-4" /></span>
-                <span className="min-w-0"><span className="block truncate text-[13px] font-medium">{q.label}</span>{q.extra && <span className="block truncate text-xs text-accent">{q.extra}</span>}</span>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><q.icon className="size-4" /></span>
+                <span className="min-w-0"><span className="block truncate text-[13px] font-medium">{q.label}</span>{q.extra && <span className="block truncate text-xs text-accent-ink">{q.extra}</span>}</span>
               </Card>
             </Link>
           ))}

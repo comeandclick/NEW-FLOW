@@ -54,14 +54,14 @@ export function NotificationsMenu() {
     <Menu align="end" width={360} className="p-0" trigger={({ toggle }) => (
       <Button variant="ghost" size="icon" onClick={toggle} aria-label={t('shell.notifications')} className="relative">
         {unread ? <BellRing className="size-4" /> : <Bell className="size-4" />}
-        {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-4 text-white">{unread > 9 ? '9+' : unread}</span>}
+        {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger-bg px-1 text-[10px] font-semibold leading-4 text-white">{unread > 9 ? '9+' : unread}</span>}
       </Button>
     )}>
       {(close) => (
         <div>
           <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
             <span className="text-sm font-semibold">{t('shell.notifications')}</span>
-            {unread > 0 && <button onClick={markAll} className="flex items-center gap-1 text-xs text-accent hover:underline"><Check className="size-3" />{t('shell.markAllRead')}</button>}
+            {unread > 0 && <button onClick={markAll} className="flex items-center gap-1 text-xs text-accent-ink hover:underline"><Check className="size-3" />{t('shell.markAllRead')}</button>}
           </div>
           <div className="max-h-[50dvh] overflow-y-auto">
             {data.length === 0 && <p className="px-4 py-10 text-center text-sm text-text-3">{t('shell.noNotifications')}</p>}

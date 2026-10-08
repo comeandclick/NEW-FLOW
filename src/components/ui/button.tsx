@@ -3,7 +3,7 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 import { Spinner } from './spinner'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'pill' | 'glass'
 type Size = 'xs' | 'sm' | 'md' | 'lg' | 'icon'
 
 const variants: Record<Variant, string> = {
@@ -11,7 +11,9 @@ const variants: Record<Variant, string> = {
   secondary: 'bg-surface-3 text-text hover:bg-border-strong/60',
   outline: 'border border-border-strong bg-transparent text-text hover:bg-surface-2',
   ghost: 'text-text-2 hover:bg-surface-2 hover:text-text',
-  danger: 'bg-danger text-white hover:opacity-90',
+  danger: 'bg-[#c4262f] text-white hover:bg-[#b01f27]',
+  pill: 'rounded-full bg-text text-bg hover:opacity-90 shadow-[0_8px_30px_-8px_var(--mk-glow,transparent)]',
+  glass: 'rounded-full border border-border-strong bg-surface-2/70 text-text backdrop-blur hover:bg-surface-3',
 }
 const sizes: Record<Size, string> = {
   xs: 'h-7 px-2 text-xs gap-1.5 rounded-md',
@@ -38,8 +40,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       className={cn(
         'relative inline-flex shrink-0 select-none items-center whitespace-nowrap font-medium transition-[background,color,transform,opacity,box-shadow] duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
-        variants[variant],
         sizes[size],
+        variants[variant],
         className,
       )}
       {...props}

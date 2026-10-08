@@ -21,7 +21,7 @@ export function ThemeToggle({ size = 'icon' }: { size?: 'icon' | 'sm' }) {
     )}>
       {(close) => items.map((it) => (
         <MenuItem key={it.v} icon={<it.icon className="size-4" />} onClick={() => { setPref(it.v); close() }}>
-          <span className="flex items-center justify-between">{it.label}{pref === it.v && <Check className="size-3.5 text-accent" />}</span>
+          <span className="flex items-center justify-between">{it.label}{pref === it.v && <Check className="size-3.5 text-accent-ink" />}</span>
         </MenuItem>
       ))}
     </Menu>
@@ -39,7 +39,7 @@ export function LanguageToggle({ size = 'icon' }: { size?: 'icon' | 'sm' }) {
     )}>
       {(close) => (['fr', 'en'] as const).map((l) => (
         <MenuItem key={l} onClick={() => { setLocale(l); close() }}>
-          <span className="flex items-center justify-between">{l === 'fr' ? 'Français' : 'English'}{locale === l && <Check className="size-3.5 text-accent" />}</span>
+          <span className="flex items-center justify-between">{l === 'fr' ? 'Français' : 'English'}{locale === l && <Check className="size-3.5 text-accent-ink" />}</span>
         </MenuItem>
       ))}
     </Menu>

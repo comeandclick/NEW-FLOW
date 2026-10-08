@@ -103,7 +103,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     await instant({ tags: [...note.tags, v] })
   }
 
-  if (missing) return <div className="p-10 text-center text-text-3"><p>404</p><Link href={`/app/${ws.slug}/notes`} className="mt-3 inline-block text-accent hover:underline">{t('common.back')}</Link></div>
+  if (missing) return <div className="p-10 text-center text-text-3"><p>404</p><Link href={`/app/${ws.slug}/notes`} className="mt-3 inline-block text-accent-ink hover:underline">{t('common.back')}</Link></div>
   if (!note) return <div className="mx-auto max-w-3xl space-y-4 p-8"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-64" /></div>
 
   return (

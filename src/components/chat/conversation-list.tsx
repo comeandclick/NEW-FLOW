@@ -86,7 +86,7 @@ export function ConversationList() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-3.5 pb-2 pt-4"><h1 className="text-base font-semibold">{t('msg.title')}</h1>
-        <div className="flex gap-0.5"><Link href={`${base.replace('/messages', '')}/meetings`} aria-label={t('nav.meetings')} title={t('nav.meetings')}><Button variant="ghost" size="icon" tabIndex={-1}><Video className="size-4" /></Button></Link>
+        <div className="flex gap-0.5"><Link href={`${base.replace('/messages', '')}/meetings`} aria-label={t('nav.meetings')} title={t('nav.meetings')} className="flex size-8 items-center justify-center rounded-lg text-text-2 transition-colors hover:bg-surface-2 hover:text-text"><Video className="size-4" /></Link>
         {canWrite && <><Button variant="ghost" size="icon" onClick={() => setDlg('dm')} aria-label={t('msg.newDm')}><UserPlus className="size-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => setDlg('channel')} aria-label={t('msg.newChannel')}><Plus className="size-4" /></Button></>}</div></div>
       <div className="px-3 pb-2"><div className="relative"><Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-text-3" /><Input className="h-8 pl-8" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.search')} /></div></div>

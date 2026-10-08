@@ -30,7 +30,7 @@ export function AttachmentView({ att, mine }: { att: Attachment; mine?: boolean 
   return (
     <a href={url || undefined} download={att.name} target="_blank" rel="noreferrer"
       className="flex w-64 max-w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-text transition-colors hover:border-border-strong">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><FileText className="size-4" /></span>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink"><FileText className="size-4" /></span>
       <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-medium">{att.name}</span><span className="block text-[11px] text-text-3">{formatBytes(att.size)}</span></span>
       <Download className="size-4 text-text-3" />
     </a>

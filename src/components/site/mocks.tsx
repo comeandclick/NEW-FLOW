@@ -26,7 +26,7 @@ export function AppWindow({ children, active = 1, wide }: { children: React.Reac
           <div className={cn('mb-2.5 hidden items-center gap-2 px-1.5 text-[13px] font-semibold', wide && 'sm:flex')}><span className="flex size-5 items-center justify-center rounded-md bg-accent text-[10px] font-bold text-white">F</span>Flow</div>
           {items.map(([Icon, label], i) => (
             <div key={label} className={cn('flex items-center justify-center gap-2 rounded-md p-2 text-[12px]', i === active ? 'bg-surface-3 font-medium text-text' : 'text-text-3', wide && 'sm:justify-start sm:px-2 sm:py-1.5')}>
-              <Icon className={cn('size-4', i === active && 'text-accent')} /><span className={cn('hidden', wide && 'sm:inline')}>{label}</span></div>))}
+              <Icon className={cn('size-4', i === active && 'text-accent-ink')} /><span className={cn('hidden', wide && 'sm:inline')}>{label}</span></div>))}
         </aside>
         <div className={cn('min-w-0 p-3', wide ? 'sm:p-5' : 'sm:p-4')}>{children}</div>
       </div>
@@ -67,7 +67,7 @@ export function ChatMock() {
       <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-[13px] font-semibold"><span className="text-text-3">#</span>produit<span className="ml-auto flex items-center gap-1 text-text-3"><Phone className="size-3.5" /><Video className="size-3.5" /></span></div>
       <div className="space-y-3 p-4 text-[12.5px]">
         <div className="flex gap-2.5"><Avatar name="Léa Martin" size={26} /><div><div className="text-[11px] font-semibold">Léa Martin <span className="font-normal text-text-3">10:42</span></div><div className="mt-0.5 text-text-2">{L('Le nouveau parcours est prêt à tester.', 'The new flow is ready to test.')}</div>
-          <div className="mt-1 flex gap-1"><span className="rounded-full border border-accent bg-accent-soft px-1.5 text-[11px] text-accent">👍 2</span><span className="rounded-full border border-border px-1.5 text-[11px]">🎉 1</span></div></div></div>
+          <div className="mt-1 flex gap-1"><span className="rounded-full border border-accent bg-accent-soft px-1.5 text-[11px] text-accent-ink">👍 2</span><span className="rounded-full border border-border px-1.5 text-[11px]">🎉 1</span></div></div></div>
         <div className="flex gap-2.5"><Avatar name="Karim Benali" size={26} /><div className="min-w-0"><div className="text-[11px] font-semibold">Karim Benali <span className="font-normal text-text-3">10:44</span></div>
           <div className="mt-1 flex w-52 max-w-full items-center gap-2 rounded-2xl bg-surface-2 px-2.5 py-1.5"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Play className="size-3 translate-x-px fill-current" /></span>
             <div className="flex h-6 flex-1 items-center gap-[2px]">{WAVE.map((v, i) => <span key={i} className={cn('w-[2px] flex-1 rounded-full', i < 9 ? 'bg-accent' : 'bg-text-3/50')} style={{ height: `${v}%` }} />)}</div><span className="text-[10px] tabular-nums text-text-3">0:18</span></div></div></div>
@@ -132,7 +132,7 @@ export function CallMock() {
       <div className="grid grid-cols-2 gap-1.5 bg-bg-subtle p-1.5">{tiles.map(([n, hand]) => (
         <div key={n} className="relative flex aspect-video items-center justify-center rounded-lg bg-surface-2"><Avatar name={n} size={36} />
           <span className="absolute bottom-1.5 left-2 text-[10px] font-medium text-text-2">{n}</span>{hand && <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-warning text-black"><Hand className="size-3" /></span>}</div>))}</div>
-      <div className="flex items-center justify-center gap-2 border-t border-border py-2.5">{[Mic, Video].map((I, i) => <span key={i} className="flex size-7 items-center justify-center rounded-full bg-surface-3"><I className="size-3.5" /></span>)}<span className="flex size-7 items-center justify-center rounded-full bg-danger text-white"><Phone className="size-3.5 rotate-[135deg]" /></span></div>
+      <div className="flex items-center justify-center gap-2 border-t border-border py-2.5">{[Mic, Video].map((I, i) => <span key={i} className="flex size-7 items-center justify-center rounded-full bg-surface-3"><I className="size-3.5" /></span>)}<span className="flex size-7 items-center justify-center rounded-full bg-danger-bg text-white"><Phone className="size-3.5 rotate-[135deg]" /></span></div>
       <span className="sr-only">{L('Appel vidéo', 'Video call')}</span>
     </Frame>
   )

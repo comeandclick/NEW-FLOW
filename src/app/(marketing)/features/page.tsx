@@ -16,7 +16,7 @@ export default async function Features() {
   ] as const
   return (
     <>
-      <PageIntro title={t('s.features.title')} sub={t('s.features.sub')} />
+      <PageIntro kicker={t('s.nav.features')} title={t('s.features.title')} sub={t('s.features.sub')} />
       <Container className="pb-24">
         <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
           {mods.map(([Icon, title, desc], i) => (
@@ -25,7 +25,7 @@ export default async function Features() {
             </Reveal>
           ))}
         </div>
-        <div className="mt-12 flex flex-wrap items-center gap-4"><Link href="/demo"><Button variant="primary" size="lg">{t('s.cta.primary')}</Button></Link><Link href="/register" className="text-[14px] font-medium hover:text-accent">{t('s.cta.secondary')} →</Link></div>
+        <div className="mt-12 flex flex-wrap items-center gap-4"><Link href="/demo"><Button variant="primary" size="lg">{t('s.cta.primary')}</Button></Link><Link href="/register" className="text-[14px] font-medium hover:text-accent-ink">{t('s.cta.secondary')} →</Link></div>
       </Container>
     </>
   )

@@ -143,7 +143,7 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (blob: Blob, durat
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-border-strong bg-surface-2 p-1.5">
       <Button variant="ghost" size="icon" onClick={() => { cancelled.current = true; if (rec.current?.state === 'recording') rec.current.stop(); onCancel() }} aria-label="Cancel"><Trash2 className="size-4" /></Button>
-      <span className="size-2 animate-pulse rounded-full bg-danger" />
+      <span className="size-2 animate-pulse rounded-full bg-danger-bg" />
       <span className="w-10 text-xs tabular-nums">{formatDuration(elapsed)}</span>
       <div className="flex h-8 flex-1 items-center gap-[2px] overflow-hidden">
         {live.map((v, i) => <span key={i} className="w-[3px] shrink-0 rounded-full bg-accent" style={{ height: `${Math.max(12, Math.min(100, v * 260))}%` }} />)}
