@@ -366,7 +366,10 @@ class QueryBuilder implements PromiseLike<any> {
 class MockChannel {
   private bindings: ChannelBinding[] = []
   private subscribed = false
-  constructor(private client: MockClient, public name: string) {}
+  presenceKey = Math.random().toString(36).slice(2)
+  constructor(private client: MockClient, public name: string, opts?: any) {
+    if (opts?.config?.presence?.key) this.presenceKey = opts.config.presence.key
+  }
 
   on(type: string, filter: Record<string, any>, cb: Listener) {
     this.bindings.push({ type, filter, cb })
@@ -380,6 +383,7 @@ class MockChannel {
   }
   unsubscribe() {
     this.subscribed = false
+    this.client.setPresence(this.name, this.presenceKey, null)
     this.client.channels.delete(this)
     return Promise.resolve('ok')
   }
@@ -387,9 +391,13 @@ class MockChannel {
     if (msg.type === 'broadcast') this.client.broadcast(this, msg.event, msg.payload)
     return 'ok'
   }
-  track() { return Promise.resolve('ok') }
-  untrack() { return Promise.resolve('ok') }
-  presenceState() { return {} }
+  track(payload: any) { this.client.setPresence(this.name, this.presenceKey, payload); return Promise.resolve('ok') }
+  untrack() { this.client.setPresence(this.name, this.presenceKey, null); return Promise.resolve('ok') }
+  presenceState() { return this.client.presenceOf(this.name) }
+  deliverPresence() {
+    if (!this.subscribed) return
+    for (const b of this.bindings) if (b.type === 'presence') b.cb({ event: 'sync' })
+  }
 
   deliverChange(table: string, event: string, newRow: Row | null, oldRow: Row | null) {
     if (!this.subscribed) return
@@ -523,7 +531,19 @@ export class MockClient {
     return thenable
   }
 
-  channel(name: string) { return new MockChannel(this, name) }
+  private presence = new Map<string, Map<string, any>>()
+  setPresence(channel: string, key: string, payload: any) {
+    const m = this.presence.get(channel) ?? new Map<string, any>()
+    if (payload === null) m.delete(key); else m.set(key, payload)
+    this.presence.set(channel, m)
+    setTimeout(() => this.channels.forEach((ch) => { if (ch.name === channel) ch.deliverPresence() }), 0)
+  }
+  presenceOf(channel: string) {
+    const out: Record<string, any[]> = {}
+    this.presence.get(channel)?.forEach((v, k) => { out[k] = [v] })
+    return out
+  }
+  channel(name: string, opts?: any) { return new MockChannel(this, name, opts) }
   removeChannel(ch: MockChannel) { return ch.unsubscribe() }
   removeAllChannels() { this.channels.clear(); return Promise.resolve([]) }
 
@@ -554,6 +574,14 @@ export class MockClient {
     let url = this.files.get(key)
     if (!url && typeof window !== 'undefined') {
       try { url = window.sessionStorage.getItem(`flow-demo-file:${key}`) ?? undefined } catch {}
+    }
+    if (!url && path.includes('/demo/')) {
+      const name = decodeURIComponent(path.split('/').pop() ?? 'file').replace(/^\d+-/, '')
+      if (/\.(png|jpe?g|gif|webp|svg)$/i.test(name)) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b94f5"/><stop offset="1" stop-color="#5e6ad2"/></linearGradient></defs><rect width="640" height="400" fill="url(#g)"/><text x="320" y="210" text-anchor="middle" font-family="sans-serif" font-size="28" fill="#fff">${name.replace(/[<&>]/g, '')}</text></svg>`
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+      }
+      return `data:text/plain;charset=utf-8,${encodeURIComponent(`Demo file: ${name}`)}`
     }
     return url ?? ''
   }

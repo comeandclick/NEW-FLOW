@@ -312,6 +312,20 @@ create table if not exists public.meetings (
   deleted_at timestamptz
 );
 
+create table if not exists public.meeting_participants (
+  id uuid primary key default gen_random_uuid(),
+  meeting_id uuid not null references public.meetings(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  joined_at timestamptz,
+  left_at timestamptz
+);
+alter table public.meeting_participants enable row level security;
+drop policy if exists mp_read on public.meeting_participants;
+create policy mp_read on public.meeting_participants for select using (
+  exists (select 1 from meetings m where m.id = meeting_id and is_member(m.workspace_id)));
+drop policy if exists mp_write on public.meeting_participants;
+create policy mp_write on public.meeting_participants for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 -- ───────────────────────── OKR, CRM, automations ─────────────────────────
 create table if not exists public.goals (
   id uuid primary key default gen_random_uuid(),

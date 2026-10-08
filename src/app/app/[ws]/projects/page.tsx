@@ -1,0 +1,65 @@
+'use client'
+import Link from 'next/link'
+import { useState } from 'react'
+import { FolderKanban, Plus } from 'lucide-react'
+import { toast } from 'sonner'
+import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { Field, Input, Textarea } from '@/components/ui/input'
+import { EmptyState, PageHeader } from '@/components/ui/misc'
+import { Dialog } from '@/components/ui/overlay'
+import { useLive } from '@/lib/hooks/use-live'
+import { useWorkspace } from '@/lib/hooks/use-workspace'
+import { useSession } from '@/lib/hooks/use-session'
+import { getDb } from '@/lib/supabase/client'
+import { useI18n } from '@/i18n/provider'
+import { cn } from '@/lib/utils'
+import type { Task } from '@/lib/types'
+
+export const PROJECT_COLORS = ['#6366f1', '#22c55e', '#f97316', '#ec4899', '#0ea5e9', '#a855f7', '#eab308', '#14b8a6']
+
+export default function ProjectsPage() {
+  const { t } = useI18n()
+  const { ws, projects, canWrite, refreshProjects, log } = useWorkspace()
+  const { userId } = useSession()
+  const tasks = useLive<Task>('tasks', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [desc, setDesc] = useState('')
+  const [color, setColor] = useState(PROJECT_COLORS[0])
+
+  async function create() {
+    if (!name.trim() || !userId) return
+    const { data, error } = await getDb().from('projects').insert({ workspace_id: ws.id, name: name.trim(), description: desc || null, color, created_by: userId }).select().single()
+    if (error) { toast.error(t('common.error')); return }
+    log('project.created', 'project', (data as { id: string }).id, { title: name.trim() })
+    setOpen(false); setName(''); setDesc(''); await refreshProjects()
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
+      <PageHeader title={t('proj.title')} subtitle={`${projects.length}`} icon={<FolderKanban className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setOpen(true)}><Plus className="size-4" />{t('proj.new')}</Button>} />
+      {projects.length === 0 ? <EmptyState icon={<FolderKanban className="size-5" />} title={t('proj.empty')} hint={t('proj.emptyHint')} />
+        : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{projects.map((p, i) => {
+          const list = tasks.data.filter((x) => x.project_id === p.id && !x.parent_id)
+          const done = list.filter((x) => x.status === 'done').length
+          const pct = list.length ? Math.round((done / list.length) * 100) : 0
+          return (
+            <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <Link href={`/app/${ws.slug}/projects/${p.id}`} className="block rounded-xl border border-border bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
+                <div className="flex items-center gap-3"><span className="size-3 rounded-full" style={{ background: p.color }} /><h3 className="min-w-0 flex-1 truncate font-semibold">{p.name}</h3></div>
+                <p className="mt-2 line-clamp-2 min-h-10 text-[13px] text-text-2">{p.description}</p>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-3"><div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: p.color }} /></div>
+                <div className="mt-2 flex justify-between text-xs text-text-3"><span>{t('proj.tasks', { n: list.length })}</span><span>{t('proj.progress', { p: pct })}</span></div>
+              </Link>
+            </motion.div>)
+        })}</div>}
+      <Dialog open={open} onClose={() => setOpen(false)} title={t('proj.new')} size="sm"
+        footer={<><Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button><Button variant="primary" onClick={create} disabled={!name.trim()}>{t('common.create')}</Button></>}>
+        <div className="space-y-4"><Field label={t('proj.name')}><Input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && create()} /></Field>
+          <Field label={t('common.description')}><Textarea rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
+          <div><span className="mb-1.5 block text-[13px] font-medium text-text-2">{t('proj.color')}</span><div className="flex gap-2">{PROJECT_COLORS.map((c) => <button key={c} aria-label={c} onClick={() => setColor(c)} className={cn('size-6 rounded-full ring-offset-2 ring-offset-surface', color === c && 'ring-2 ring-text')} style={{ background: c }} />)}</div></div></div>
+      </Dialog>
+    </div>
+  )
+}
