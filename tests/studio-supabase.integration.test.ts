@@ -17,7 +17,7 @@ d('studio sur Supabase (réel)', () => {
     delete process.env.VAPID_PRIVATE_KEY // pas de notification push pendant le test
     admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
     const { data } = await admin.from('profiles').select('id').limit(1)
-    userId = data![0].id as string
+    userId = (data as { id: string }[])[0].id
     S = await import('@/lib/studio/server/service')
   })
   afterAll(async () => {
@@ -94,8 +94,9 @@ d('studio sur Supabase (réel)', () => {
 
   it('isolation entre utilisateurs sur la vraie base', async () => {
     const { data } = await admin.from('profiles').select('id').limit(2)
-    if ((data?.length ?? 0) < 2) return
-    const other = data!.find((x) => x.id !== userId)!.id as string
+    const rows = (data ?? []) as { id: string }[]
+    if (rows.length < 2) return
+    const other = rows.find((x) => x.id !== userId)!.id
     const job = await S.createJob(userId, { kind: 'site', title: 'IT privé', spec: {}, prompt: 'p'.repeat(80) })
     jobs.push(job.id)
     await expect(S.getJob(other, job.id)).rejects.toMatchObject({ status: 404 })
