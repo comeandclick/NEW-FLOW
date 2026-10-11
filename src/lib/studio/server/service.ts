@@ -279,6 +279,11 @@ export async function bridgePoll(dev: Row, info: { busyJob?: string | null; vers
   return { commands: cmds.map((c) => ({ id: c.id, jobId: c.job_id ?? null, type: c.type, payload: c.payload })), serverTime: Date.now(), watch }
 }
 
+export async function bridgeJobs(dev: Row) {
+  const jobs = await db().select('studio_jobs', { user_id: dev.user_id }, { order: ['created_at', false], limit: 60 })
+  return jobs.map((j) => ({ id: j.id, kind: j.kind, title: j.title, status: j.status, progress: j.progress ?? 0, step: j.step ?? null, url: (j.deliver?.url as string | undefined) ?? null, summary: (j.deliver?.summary as string | undefined) ?? null, createdAt: j.created_at, finishedAt: j.finished_at ?? null }))
+}
+
 export async function bridgeJob(dev: Row, jobId: string, origin: string) {
   uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })

@@ -238,7 +238,7 @@ export function buildMovePrompt(targets: MoveTarget[], siteUrl?: string): string
   const has = (t: MoveTarget) => targets.includes(t)
   return `# Déplacement du projet vers mes comptes
 
-Le site est terminé${siteUrl ? ` (${siteUrl})` : ''}. Je veux qu'il vive entièrement dans MES comptes (plus de lien ou compte de test). Fais-le toi-même, en autonomie, sans rien me demander, puis mets à jour la livraison (\`LIVRAISON.json\` avec la nouvelle URL, \`LIVRAISON.md\`).
+Le site est terminé${siteUrl ? ` (${siteUrl})` : ''}. Je veux une COPIE qui vive entièrement dans MES comptes (plus de lien ou compte de test). RÈGLE ABSOLUE : tu ne modifies, ne redéploies et n'écrases JAMAIS le site, le projet Vercel, le domaine ou la base actuels (ils restent exactement comme ils sont) : tu crées des projets NEUFS au nom unique. Fais-le toi-même, en autonomie, sans rien me demander, puis mets à jour la livraison (\`LIVRAISON.json\` avec la nouvelle URL, \`LIVRAISON.md\`).
 
 Comptes concernés : ${targets.map((t) => ({ vercel: 'Vercel', github: 'GitHub', supabase: 'Supabase' })[t]).join(', ')}.
 

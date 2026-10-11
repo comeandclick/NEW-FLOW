@@ -33,7 +33,7 @@ test('application Flow Studio : liaison, installation, commencer', async ({ page
     await expect(go).toBeEnabled({ timeout: 20_000 })
     await go.click()
     await expect(app.locator('#wiz')).toHaveClass(/fade/, { timeout: 10_000 }) // fondu : l'assistant disparaît
-    await expect(app.getByText('Discussion avec Claude')).toBeVisible() // Flow Studio est derrière, prêt
-    await expect(app.getByRole('button', { name: 'Envoyer' })).toBeVisible()
+    await expect(app.getByRole('heading', { name: 'Projets' })).toBeVisible() // l'accueil du logiciel, prêt
+    await expect(app.getByRole('button', { name: 'Accueil' })).toBeHidden()
   } finally { child.kill() }
 })

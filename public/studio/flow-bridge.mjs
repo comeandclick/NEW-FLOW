@@ -12,7 +12,7 @@ import readline from 'node:readline'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.3.0'
+const VERSION = '1.4.0'
 const HOME = homedir()
 const DIR = process.env.FLOW_BRIDGE_HOME || path.join(HOME, '.flow-bridge')
 const CONFIG = path.join(DIR, 'config.json')
@@ -148,9 +148,44 @@ function childEnv(job, dir) {
 }
 /** Réglages de sécurité du projet : Claude ne lit pas les secrets du Mac (clés SSH, jeton du pont, trousseau…) et ne fait pas d'actions destructrices évidentes. */
 const DENY = ['Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.config/gh/**)', 'Read(~/.gnupg/**)', 'Read(~/.flow-bridge/**)', 'Read(~/Library/Keychains/**)', 'Read(~/Library/Application Support/Google/Chrome/**)', 'Edit(~/.flow-bridge/**)', 'Edit(~/.ssh/**)', 'Edit(~/.zshrc)', 'Edit(~/.zprofile)', 'Bash(sudo:*)', 'Bash(vercel remove:*)', 'Bash(vercel rm:*)', 'Bash(vercel project rm:*)', 'Bash(vercel project remove:*)', 'Bash(vercel domains rm:*)', 'Bash(vercel domains remove:*)', 'Bash(vercel env rm:*)', 'Bash(vercel deploy --force:*)', 'Bash(vercel --force:*)', 'Bash(vercel alias set:*)', 'Bash(vercel promote:*)', 'Bash(vercel rollback:*)', 'Bash(supabase projects delete:*)', 'Bash(gh repo delete:*)', 'Bash(rm -rf /:*)', 'Bash(rm -rf ~:*)', 'Bash(rm -rf $HOME:*)', 'Bash(cat ~/.flow-bridge/*:*)']
+const GUARD_DIR = path.join(DIR, 'guard')
+/** Garde exécutée par Claude Code AVANT chaque commande Bash : refuse toute commande Vercel qui vise un projet existant (liste figée au premier démarrage du projet). */
+const GUARD_SCRIPT = `// Flow Studio : garde Vercel (ne jamais modifier un projet existant)
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+const inp = (() => { try { return JSON.parse(readFileSync(0, 'utf8')) } catch { return {} } })()
+const cmd = String(inp.tool_input?.command ?? '')
+if (!/\\b(vercel|vc)\\b/.test(cmd)) process.exit(0)
+const prot = (() => { try { return JSON.parse(readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), (process.env.FLOW_JOB_ID || '') + '.json'), 'utf8')) } catch { return null } })()
+if (!prot) process.exit(0)
+const names = new Set((prot.names || []).map((n) => String(n).toLowerCase())), ids = new Set(prot.ids || [])
+const SAFE = /\\b(vercel|vc)\\s+(whoami|--version|-v|ls|list|inspect|logs|help|login|logout|teams|switch|project\\s+(ls|list|inspect)|projects\\s+(ls|list|inspect)|env\\s+(ls|list))\\b/
+const block = (why) => { process.stderr.write('BLOQUÉ par Flow Studio : ' + why + ' Ce projet Vercel existe déjà et appartient à l\\'utilisateur : ne le modifie jamais. Crée un projet NEUF au nom unique (ex. mon-site-' + Math.random().toString(36).slice(2, 6) + ') avec vercel link --yes --project <nouveau-nom> dans un dossier dont le nom n\\'est pas déjà un projet.\\n'); process.exit(2) }
+let cwd = inp.cwd || process.cwd()
+for (const seg of cmd.split(/&&|;|\\|\\||\\n/)) {
+  const cd = /^\\s*cd\\s+("([^"]+)"|'([^']+)'|(\\S+))/.exec(seg)
+  if (cd) { const t = (cd[2] || cd[3] || cd[4] || '').replace(/^~/, process.env.HOME || ''); cwd = path.resolve(cwd, t); continue }
+  if (!/\\b(vercel|vc)\\b/.test(seg) || SAFE.test(seg)) continue
+  const flagCwd = /--cwd[ =]("([^"]+)"|\\S+)/.exec(seg); const dir = flagCwd ? path.resolve(cwd, (flagCwd[2] || flagCwd[1]).replace(/^~/, process.env.HOME || '')) : cwd
+  const named = [...seg.matchAll(/--project[ =]([\\w.-]+)|\\bprojects?\\s+(?:add|rm|remove)\\s+([\\w.-]+)|--name[ =]([\\w.-]+)/g)].map((m) => (m[1] || m[2] || m[3] || '').toLowerCase())
+  for (const n of named) if (names.has(n)) block('le projet « ' + n + ' » est protégé.')
+  let linked = null
+  for (const d of [dir, path.join(dir, '..')]) { try { linked = JSON.parse(readFileSync(path.join(d, '.vercel', 'project.json'), 'utf8')); break } catch { /* pas de lien */ } }
+  if (linked) { if (ids.has(linked.projectId)) block('ce dossier est lié à un projet protégé.') }
+  else if (!named.length && names.has(path.basename(dir).toLowerCase().replace(/[^a-z0-9._-]/g, '-'))) block('le nom du dossier « ' + path.basename(dir) + ' » correspond à un projet existant (Vercel le lierait).')
+}
+process.exit(0)
+`
+function writeGuard(jobId, projects) {
+  mkdirSync(GUARD_DIR, { recursive: true, mode: 0o700 })
+  writeFileSync(path.join(GUARD_DIR, 'vercel-guard.mjs'), GUARD_SCRIPT, { mode: 0o600 })
+  const f = path.join(GUARD_DIR, `${jobId}.json`)
+  if (!existsSync(f) && projects) writeFileSync(f, JSON.stringify({ names: projects.map((x) => x.name), ids: projects.map((x) => x.id).filter(Boolean), at: new Date().toISOString() }), { mode: 0o600 }) // figée : un projet créé ensuite par ce travail reste modifiable
+}
 function writeProjectSettings(dir) {
   const d = path.join(dir, '.claude'); mkdirSync(d, { recursive: true })
-  writeFileSync(path.join(d, 'settings.json'), JSON.stringify({ permissions: { deny: DENY } }, null, 2))
+  const hooks = { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: `"${process.execPath}" "${path.join(GUARD_DIR, 'vercel-guard.mjs')}"` }] }] }
+  writeFileSync(path.join(d, 'settings.json'), JSON.stringify({ permissions: { deny: DENY }, hooks }, null, 2))
 }
 
 function claudeArgs(c, sessionId) {
@@ -164,7 +199,7 @@ function claudeArgs(c, sessionId) {
 async function vercelProjects() {
   if (FAKE_ENV() || !which('vercel')) return []
   const out = await execFileAsync('vercel', ['project', 'ls', '--json'], 30000)
-  try { return (JSON.parse(out.slice(out.indexOf('{'))).projects ?? []).map((p) => String(p.name)).filter((n) => /^[\w.-]{1,100}$/.test(n)) } catch { return [] }
+  try { return (JSON.parse(out.slice(out.indexOf('{'))).projects ?? []).map((p) => ({ name: String(p.name), id: String(p.id ?? '') })).filter((p) => /^[\w.-]{1,100}$/.test(p.name)) } catch { return [] }
 }
 async function startRun(job, { firstMessage, resume = false } = {}) {
   const c = cfg()
@@ -177,7 +212,11 @@ async function startRun(job, { firstMessage, resume = false } = {}) {
   writeProjectSettings(dir)
   let extra = ''
   if (job.kind === 'site') {
-    const existing = await vercelProjects()
+    const prior = existsSync(path.join(GUARD_DIR, `${job.id}.json`))
+    const projects = prior ? null : await vercelProjects()
+    writeGuard(job.id, projects)
+    const frozen = readJson(path.join(GUARD_DIR, `${job.id}.json`), { names: [] })
+    const existing = frozen.names
     if (existing.length) {
       extra = `\n9. **Projets Vercel EXISTANTS : INTERDITS** (ne jamais les modifier, redéployer, lier, ni réutiliser leur nom ; ton projet est NEUF) : ${existing.join(', ')}.\n`
       try { writeFileSync(path.join(dir, 'PROJETS_VERCEL_EXISTANTS.md'), `# Projets Vercel existants (à ne jamais toucher)\n\n${existing.map((n) => `- ${n}`).join('\n')}\n`) } catch {}
@@ -563,7 +602,7 @@ async function handle(cmd) {
       run.cancelled = true; clearInterval(run.watch); killGroup(run, 'SIGCONT'); killGroup(run, 'SIGTERM'); setTimeout(() => killGroup(run, 'SIGKILL'), 4000)
       state.jobs[jobId].status = 'cancelled'; saveState(); await emit(jobId, { type: 'status', status: 'cancelled' })
     } else if (type === 'setup') {
-      if (payload?.action === 'open_studio') { const r = [...runs.values()].find((x) => !x.exited); openStudio(r?.job.id ?? payload.component); if (r) setTimeout(() => tileWindows(r), 3000); return }
+      if (payload?.action === 'open_studio') { const r = [...runs.values()].find((x) => !x.exited); if (typeof payload.component === 'string' && UUID_RE.test(payload.component)) LOCAL.focus = { jobId: payload.component, t: Date.now() }; openStudio(); if (r) setTimeout(() => tileWindows(r), 3000); return }
       await doSetupCommand(payload ?? {})
     } else if (type === 'message') {
       await runMessage(jobId, payload.text, { eventId: payload.eventId, mode: payload.mode, files: payload.files })
@@ -603,8 +642,10 @@ async function loop() {
   if (!c.deviceToken) { if (process.stdout.isTTY) { console.error('Ce Mac n\'est pas relié. Ouvre l\'application Flow Studio ou lance :  node flow-bridge.mjs connect'); process.exit(1) } }
   log('bridge démarré', VERSION, c.server)
   appState.paired = !!c.deviceToken
-  for (const [id, st] of Object.entries(state.jobs)) lj(id, { title: st.title ?? 'Projet', kind: st.kind ?? 'site', dir: st.dir ?? '', status: st.status === 'running' ? 'failed' : (st.status ?? 'done'), sessionId: st.sessionId ?? '' })
+  loadLocal()
+  for (const [id, st] of Object.entries(state.jobs)) if (!LOCAL.jobs[id]) lj(id, { title: st.title ?? 'Projet', kind: st.kind ?? 'site', dir: st.dir ?? '', status: st.status === 'running' ? 'failed' : (st.status ?? 'done'), sessionId: st.sessionId ?? '' })
   try { await startUiServer('service') } catch (e) { log('ui', e.message) }
+  setTimeout(() => void syncRemote(), 1500); setInterval(() => void syncRemote(), 15_000)
   void refreshScan()
   setInterval(() => { if (!setupState.installing) void refreshScan() }, 10 * 60_000)
   setTimeout(() => void refreshAccounts(), 3000); setInterval(() => void refreshAccounts(), 10 * 60_000)
@@ -1149,7 +1190,37 @@ function openAppWindow(url) {
   } catch (e) { log('app-window', e.message) }
 }
 /* ───────── Mémoire locale : tout ce que montre la fenêtre Flow Studio (instantané, sans passer par Internet) ───────── */
-const LOCAL = { jobs: {}, order: [], uiSeen: 0, editor: null }
+const LOCAL = { jobs: {}, order: [], uiSeen: 0, editor: null, focus: null }
+const LOCAL_JSON = path.join(DIR, 'local.json')
+let saveTimer = null
+function scheduleSaveLocal() {
+  if (saveTimer) return
+  saveTimer = setTimeout(() => { // l'état affiché survit aux redémarrages (conversation, tâches, avancement)
+    saveTimer = null
+    try { const out = {}; for (const id of LOCAL.order) { const j = LOCAL.jobs[id]; if (j) out[id] = { ...j, transcript: j.transcript.slice(-250) } }; writeFileSync(LOCAL_JSON, JSON.stringify({ order: LOCAL.order, jobs: out }), { mode: 0o600 }) } catch {}
+  }, 1500)
+}
+function loadLocal() {
+  const d = readJson(LOCAL_JSON, null); if (!d?.jobs) return
+  for (const id of d.order ?? []) { const j = d.jobs[id]; if (j && UUID_RE.test(id) && !LOCAL.jobs[id]) { LOCAL.jobs[id] = { ...j, seq: Math.max(j.seq ?? 0, ...(j.transcript ?? []).map((t) => t.n)) }; LOCAL.order.push(id) } }
+}
+/** Tous les projets du compte Flow (créés depuis le site, ailleurs, terminés…) : la page d'accueil du logiciel les montre avec leur état. */
+async function syncRemote() {
+  try {
+    const { jobs } = await api('GET', 'bridge/jobs')
+    for (const r of jobs ?? []) {
+      if (!UUID_RE.test(r.id)) continue
+      const run = runs.get(r.id)
+      const j = lj(r.id)
+      j.kind = r.kind; j.title = r.title; j.createdAt = new Date(r.createdAt).getTime() || j.createdAt
+      if (!run || run.exited) { j.status = r.status === 'starting' ? 'running' : r.status; j.progress = r.status === 'done' ? 100 : Math.max(j.progress ?? 0, r.progress ?? 0); if (r.step) j.step = r.step }
+      if (r.url) j.deliverUrl = r.url
+      if (r.summary) j.summary = r.summary
+    }
+    LOCAL.order.sort((a, b) => (LOCAL.jobs[b]?.createdAt ?? 0) - (LOCAL.jobs[a]?.createdAt ?? 0))
+    scheduleSaveLocal()
+  } catch (e) { if (e.status === 401) return; log('sync', e.message) }
+}
 const STEP_LABELS = {
   motion: { receive: 'Réception', analyse: 'Analyse de la référence', plan: 'Plan', build: 'Construction', compare: 'Comparaison image par image', sound: 'Son', render4k: 'Rendu 4K', verify: 'Vérification' },
   site: { interview: 'Compréhension du projet', analyse: 'Analyse des exemples', design: 'Design system', structure: 'Structure et contenus', build: 'Construction', data: 'Données et comptes', polish: 'Grande amélioration', deploy: 'Déploiement', qa: 'Vérification complète', motion: 'Vidéo motion design', deliver: 'Livraison' },
@@ -1160,10 +1231,11 @@ function lj(id, init) {
   if (init) Object.assign(j, init)
   return j
 }
-function lpush(j, e) { j.transcript.push({ n: ++j.seq, at: Date.now(), ...e }); if (j.transcript.length > 800) j.transcript.splice(0, j.transcript.length - 800) }
+function lpush(j, e) { scheduleSaveLocal(); j.transcript.push({ n: ++j.seq, at: Date.now(), ...e }); if (j.transcript.length > 800) j.transcript.splice(0, j.transcript.length - 800) }
 const OWN_LOG = new Set(['Claude', 'Commande', 'Bash', 'Write', 'Edit', 'Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Task', 'TodoWrite'])
 /** Reflète localement chaque événement envoyé à Flow. */
 function localApply(jobId, ev) {
+  scheduleSaveLocal()
   const j = lj(jobId)
   if (ev.type === 'status') { j.status = ev.status === 'starting' ? 'running' : ev.status; if (ev.progress != null) j.progress = Math.max(j.progress, ev.progress); if (ev.title) lpush(j, { k: 'sys', text: ev.title + (ev.body ? ` — ${ev.body}` : ''), level: ev.status === 'failed' ? 'error' : 'info' }); if (ev.error) lpush(j, { k: 'sys', text: ev.error, level: 'error' }) }
   else if (ev.type === 'step') { j.step = ev.step; if (ev.progress != null) j.progress = Math.max(j.progress, Math.min(99, ev.progress)) }
@@ -1175,7 +1247,8 @@ function localApply(jobId, ev) {
   else if (ev.type === 'delivered') { j.status = 'done'; j.progress = 100; j.summary = ev.summary ?? ''; j.deliverUrl = ev.deliver?.url ?? ''; lpush(j, { k: 'sys', text: j.kind === 'site' ? 'Site terminé.' : 'Rendu terminé.', level: 'success' }) }
 }
 function localList() {
-  return LOCAL.order.map((id) => LOCAL.jobs[id]).map((j) => ({ id: j.id, title: j.title, kind: j.kind, status: j.status, step: j.step, progress: j.progress, createdAt: j.createdAt }))
+  const labels = (j) => STEP_LABELS[j.kind]?.[j.step] ?? ''
+  return LOCAL.order.map((id) => LOCAL.jobs[id]).filter(Boolean).map((j) => ({ id: j.id, title: j.title, kind: j.kind, status: j.status, step: j.step, stepLabel: labels(j), progress: j.status === 'done' ? 100 : j.progress, createdAt: j.createdAt, deliverUrl: j.deliverUrl || '', hasDir: !!j.dir, todoDone: j.todo.filter((t) => t.state === 'done').length, todoTotal: j.todo.length }))
 }
 function localJob(id, after = 0) {
   const j = LOCAL.jobs[id]; if (!j) return null
@@ -1211,6 +1284,15 @@ async function localAction(route, b) {
     const st = state.jobs[id]
     const bin = resolveClaude('claude')
     const ctx = `Reprends ce projet (${j.kind === 'site' ? 'site web' : 'motion design'} « ${j.title} »). Lis d'abord CLAUDE.md, BRIEF.md, DESIGN.md, HYPOTHESES.md, LIVRAISON.md, todo.json, qa/RAPPORT.md et PROMPT.md s'ils existent pour retrouver tout le contexte, puis dis-moi en 5 lignes où on en est et attends mes instructions pour l'améliorer ou le continuer.`
+    // contexte lu automatiquement par la nouvelle session (CLAUDE.md) + consigne copiée dans le presse-papiers
+    try {
+      writeFileSync(path.join(j.dir, 'REPRISE.md'), `# Reprise du projet « ${j.title} »\n\n${ctx}\n${st?.sessionId ? `\nConversation d'origine : \`claude --resume ${st.sessionId}\` (dans ce dossier).\n` : ''}`)
+      const cm = path.join(j.dir, 'CLAUDE.md'); const cur = existsSync(cm) ? readFileSync(cm, 'utf8') : ''
+      if (!cur.includes('REPRISE.md')) writeFileSync(cm, `${cur}\n\n## Reprise\nAu début de chaque nouvelle session : lis REPRISE.md, BRIEF.md, DESIGN.md, HYPOTHESES.md, LIVRAISON.md et qa/RAPPORT.md, puis résume où on en est avant d'agir. Ne modifie jamais un projet Vercel existant qui n'a pas été créé par ce projet.\n`)
+    } catch {}
+    try { execFileSync('/usr/bin/pbcopy', [], { input: ctx }) } catch {}
+    const link = `claude://code/new?folder=${encodeURIComponent(j.dir)}&source=flow-studio`
+    try { execFileSync('/usr/bin/open', [link], { stdio: 'ignore' }); return { ok: true, app: true } } catch { /* application Claude absente : Terminal */ }
     const cmd = st?.sessionId ? `cd ${JSON.stringify(j.dir)} && ${JSON.stringify(bin)} --resume ${st.sessionId}` : `cd ${JSON.stringify(j.dir)} && ${JSON.stringify(bin)} ${JSON.stringify(ctx)}`
     osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(cmd)}\nend tell`])
     return { ok: true }
@@ -1244,7 +1326,7 @@ async function startUiServer(kind) {
       LOCAL.uiSeen = Date.now()
       if (req.method === 'GET') {
         if (route === '') return send(200, UI_HTML, 'text/html')
-        if (route === 'state') return send(200, { ...appSnapshot(), jobs: localList(), started: cfg().started === true, handoff: appState.handoff ?? null })
+        if (route === 'state') return send(200, { ...appSnapshot(), jobs: localList(), started: cfg().started === true, handoff: appState.handoff ?? null, focus: LOCAL.focus })
         if (route.startsWith('job/')) { const id = route.slice(4); const j = UUID_RE.test(id) ? localJob(id, Number(u.searchParams.get('after') ?? 0) || 0) : null; return j ? send(200, j) : send(404, { error: 'job' }) }
         if (route === 'editor.jpg') return LOCAL.editor ? send(200, LOCAL.editor.buf, 'image/jpeg') : send(404, { error: 'none' })
         return send(404, { error: 'not found' })
@@ -1337,12 +1419,20 @@ li.it{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px soli
 .eng{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:12px}.eng label{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
 .err{color:var(--bad);font-size:13px;margin-top:10px}.ok-t{color:var(--ok);font-weight:600}#go{width:100%;padding:15px;font-size:17px}
 body{opacity:0;transition:opacity .6s}body.on{opacity:1}
+#home{flex:1;min-height:0;overflow-y:auto;padding:18px 20px}#home h2{margin:0 0 4px;font-size:20px}#home .hs{color:var(--mute);margin:0 0 14px}
+#hg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.pc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;cursor:pointer;text-align:left}
+.pc:hover{border-color:var(--acc)}.pc .t{font-weight:700;font-size:15px;word-break:break-word}.pc .m{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pc .pg{max-width:none;flex:none;width:100%}.pc .a{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.kd{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+.emp{padding:40px 10px;text-align:center;color:var(--mute)}
 @media(max-width:820px){#studio{grid-template-columns:1fr;overflow-y:auto;display:block}#studio>section.pane,#right{margin-bottom:12px}#studio>section.pane{height:70vh}#two{grid-template-columns:1fr}#prev{height:70vh}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head><body><div id="app">
-<div id="bar" hidden><span class="logo">Flow Studio</span><select id="sel" aria-label="Projet"></select><span class="badge" id="stt"></span>
+<div id="bar" hidden><span class="logo">Flow Studio</span><button class="g s" id="bHome">Accueil</button><select id="sel" aria-label="Projet"></select><span class="badge" id="stt"></span>
 <div class="pg" role="progressbar" aria-label="Avancement" aria-valuemin="0" aria-valuemax="100" id="pgw"><i id="pgi" style="width:0%"></i></div><span class="mute small" id="pct"></span><span class="mute small" id="stp"></span><span class="sp"></span>
 <button class="g s" id="bPause">Pause</button><button class="g s" id="bCancel">Annuler</button><button class="g s" id="bDir">Dossier</button><button class="g s" id="bCC" title="Ouvre une discussion Claude Code (Terminal) qui connaît déjà ce projet">Ouvrir dans Claude Code</button><button class="g s" id="bSet">Logiciels</button></div>
+<div id="home" hidden><h2>Projets</h2><p class="hs">Tous tes projets et leur état. Clique sur un projet pour le suivre.</p><div id="hg"></div></div>
 <div id="studio" hidden>
  <section class="pane" aria-label="Discussion"><h3>Discussion avec Claude</h3><div id="feed" aria-live="polite" tabindex="0"></div><div id="qz"></div>
   <div id="comp"><textarea id="msg" placeholder="Écris à Claude : correction, idée, nouvelle demande…" aria-label="Message à Claude"></textarea>
@@ -1365,7 +1455,8 @@ var showAll=false,S=null,cur=null,lastN=0,jobId=null,engine='effectcraft',starti
 var LBL={ok:'Installé',missing:'À installer',warn:'À connecter',installing:'En cours…',waiting:'En attente',error:'Échec'},CLS={ok:'ok',missing:'bad',warn:'warn',installing:'busy',waiting:'busy',error:'bad'};
 var STT={draft:'Brouillon',starting:'Démarrage',running:'En cours',paused:'En pause',needs_answer:'Question',done:'Terminé',failed:'Échec',cancelled:'Annulé',queued:'En attente'};
 /* ---------- assistant ---------- */
-function renderWiz(s){
+var wizSig='',homeSig='',stSig='',tdSig='',qSig='';
+function renderWiz(s){var sg=JSON.stringify(s)+engine+showAll+starting;if(sg===wizSig)return;wizSig=sg;
  var p=$('pair');p.textContent='';$('n1').className='n'+(s.paired?' ok':'');$('n1').textContent=s.paired?'✓':'1';
  if(s.paired){p.appendChild(el('p','ok-t','Ce Mac est relié à ton compte Flow.'))}
  else if(s.pair){p.appendChild(el('p','mute','Entre ce code dans Flow (Création de site → Connexion du Mac), ou clique sur « Ouvrir Flow » : le Mac se relie tout seul si tu es connecté.'));
@@ -1405,15 +1496,15 @@ function renderJob(j){
  var cs=j.steps.filter(function(x){return x.state==='active'||x.state==='blocked'})[0];$('stp').textContent=cs?cs.label:'';
  var act=['starting','running','needs_answer'].indexOf(j.status)>=0;$('bPause').textContent=j.status==='paused'?'Reprendre':'Pause';$('bPause').hidden=!(act||j.status==='paused');$('bCancel').hidden=!(act||j.status==='paused');
  $('bCC').hidden=false;
- var f=$('feed'),near=f.scrollHeight-f.scrollTop-f.clientHeight<80;j.transcript.forEach(function(e){addEntry(e);lastN=Math.max(lastN,e.n)});if(near&&j.transcript.length)f.scrollTop=f.scrollHeight;
- var st=$('steps');st.textContent='';j.steps.forEach(function(x){var r=el('div','st '+x.state);var d=el('span','dot '+x.state,x.state==='done'?'✓':'');r.appendChild(d);r.appendChild(el('span','t',x.label));st.appendChild(r)});
- var td=$('todo');td.textContent='';var dn=j.todo.filter(function(x){return x.state==='done'}).length;$('tc').textContent=j.todo.length?dn+' / '+j.todo.length:'';
+ var f=$('feed'),near=f.scrollHeight-f.scrollTop-f.clientHeight<80;if(!f.childNodes.length&&!j.transcript.length&&lastN===0){f.appendChild(el('div','sys','Pas encore d’activité enregistrée sur ce Mac pour ce projet. Elle apparaît ici dès que Claude travaille dessus.'))}if(j.transcript.length&&f.firstChild&&f.firstChild.className==='sys'&&lastN===0)f.textContent='';j.transcript.forEach(function(e){addEntry(e);lastN=Math.max(lastN,e.n)});if(near&&j.transcript.length)f.scrollTop=f.scrollHeight;
+ if((JSON.stringify(j.steps))!==stSig){stSig=JSON.stringify(j.steps);var st=$('steps');st.textContent='';j.steps.forEach(function(x){var r=el('div','st '+x.state);var d=el('span','dot '+x.state,x.state==='done'?'✓':'');r.appendChild(d);r.appendChild(el('span','t',x.label));st.appendChild(r)});}
+ if((JSON.stringify(j.todo))!==tdSig){tdSig=JSON.stringify(j.todo);var td=$('todo');td.textContent='';var dn=j.todo.filter(function(x){return x.state==='done'}).length;$('tc').textContent=j.todo.length?dn+' / '+j.todo.length:'';
  if(!j.todo.length)td.appendChild(el('p','mute small','La liste arrive dès que Claude a planifié le travail.'));
- j.todo.forEach(function(x){var r=el('div','tdo '+x.state);r.appendChild(el('span','bx',x.state==='done'?'✓':''));r.appendChild(el('span','t',x.text));td.appendChild(r)});
- var qz=$('qz');qz.textContent='';j.questions.forEach(function(q){var b=el('div','qb');b.appendChild(el('strong',null,'Claude te pose une question'));b.appendChild(el('div',null,q.text));
+ j.todo.forEach(function(x){var r=el('div','tdo '+x.state);r.appendChild(el('span','bx',x.state==='done'?'✓':''));r.appendChild(el('span','t',x.text));td.appendChild(r)});}
+ if((JSON.stringify(j.questions))!==qSig){qSig=JSON.stringify(j.questions);var qz=$('qz');qz.textContent='';j.questions.forEach(function(q){var b=el('div','qb');b.appendChild(el('strong',null,'Claude te pose une question'));b.appendChild(el('div',null,q.text));
   if(q.choices){var c=el('div','ch');q.choices.forEach(function(x){var bb=el('button','g s',x);bb.onclick=function(){post('answer',{jobId:j.id,qid:q.id,text:x})};c.appendChild(bb)});b.appendChild(c)}
   var i=el('input');i.placeholder='Ta réponse…';i.setAttribute('aria-label','Réponse');i.style.cssText='width:70%;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)';var ok=el('button','s','Répondre');ok.style.marginLeft='6px';
-  ok.onclick=function(){if(i.value.trim())post('answer',{jobId:j.id,qid:q.id,text:i.value.trim()})};b.appendChild(i);b.appendChild(ok);qz.appendChild(b)});
+  ok.onclick=function(){if(i.value.trim())post('answer',{jobId:j.id,qid:q.id,text:i.value.trim()})};b.appendChild(i);b.appendChild(ok);qz.appendChild(b)});}
  var pv=$('pv');
  if(j.siteUrl&&siteShown!==j.siteUrl){siteShown=j.siteUrl;if(tab!=='ed')tab='site'}
  $('tSite').hidden=!j.siteUrl&&j.kind!=='site';$('tSite').className=tab==='site'?'on':'';$('tEd').className=tab==='ed'?'on':'';$('ext').hidden=tab!=='site'||!j.siteUrl;$('rl').hidden=tab!=='site'||!j.siteUrl;
@@ -1424,25 +1515,45 @@ function renderSel(list){var s=$('sel'),v=s.value||jobId;s.textContent='';list.f
  if(!list.length){var o=el('option',null,'Aucun projet');o.value='';s.appendChild(o);$('stt').textContent='';return}
  if(!jobId||!list.some(function(j){return j.id===jobId})){var a=list.filter(function(j){return ['running','starting','needs_answer','paused'].indexOf(j.status)>=0})[0]||list[0];jobId=a.id;lastN=0;$('feed').textContent='';siteShown=''}
  s.value=jobId}
-function setView(v){view=v;var studio=v==='studio';$('bar').hidden=!studio;$('studio').hidden=!studio;
- if(studio){$('wiz').classList.add('fade')}else{$('wiz').classList.remove('fade')}$('wiz').style.display='';}
-function tick(){get('state').then(function(s){S=s;renderWiz(s);renderSel(s.jobs);
-  if(s.handoff&&location.pathname.indexOf(s.handoff)<0){}
-  var wantStudio=s.paired&&s.started&&view!=='wiz-forced';if(view==='wiz'&&wantStudio)setView('studio');if(!s.paired&&view!=='wiz'){view='wiz';starting=false;setView('wiz')}
+function setView(v){view=v;var main=v==='home'||v==='job';$('bar').hidden=!main;$('studio').hidden=v!=='job';$('home').hidden=v!=='home';$('wiz').classList.toggle('fade',main);
+ var job=v==='job';['sel','stt','pgw','pct','stp','bPause','bCancel','bDir','bCC'].forEach(function(i){var e=$(i);if(e)e.style.display=job?'':'none'});$('bHome').style.display=v==='job'?'':'none'}
+var KIND={site:'Site',motion:'Motion design'};
+function renderHome(list){var sg=JSON.stringify(list);if(sg===homeSig)return;homeSig=sg;var g=$('hg');g.textContent='';
+ if(!list.length){g.appendChild(el('div','emp','Aucun projet pour le moment. Lance un projet depuis Flow : il apparaît ici avec son état.'));return}
+ var order={running:0,starting:0,needs_answer:0,paused:1,queued:1,draft:2,failed:3,cancelled:4,done:5};
+ list.slice().sort(function(a,b){return (order[a.status]!=null?order[a.status]:6)-(order[b.status]!=null?order[b.status]:6)||b.createdAt-a.createdAt}).forEach(function(j){
+  var c=el('div','pc');c.tabIndex=0;c.setAttribute('role','button');c.setAttribute('aria-label','Ouvrir '+j.title);
+  c.appendChild(el('span','kd',KIND[j.kind]||j.kind));c.appendChild(el('div','t',j.title));
+  var m=el('div','m');var b=el('span','badge'+(j.status==='done'?' ok':j.status==='failed'?' bad':j.status==='paused'||j.status==='needs_answer'?' warn':''),STT[j.status]||j.status);m.appendChild(b);
+  if(j.stepLabel&&j.status!=='done')m.appendChild(el('span','mute small',j.stepLabel));if(j.todoTotal)m.appendChild(el('span','mute small',j.todoDone+' / '+j.todoTotal+' tâches'));c.appendChild(m);
+  var pg=el('div','pg');var i=el('i');i.style.width=j.progress+'%';pg.appendChild(i);c.appendChild(pg);
+  var a=el('div','a');var o=el('button','s','Ouvrir');o.onclick=function(e){e.stopPropagation();openJob(j.id)};a.appendChild(o);
+  if(j.deliverUrl){var l=el('button','g s','Voir le site');l.onclick=function(e){e.stopPropagation();post('open-url',{url:j.deliverUrl})};a.appendChild(l)}
+  var cc=el('button','g s','Ouvrir dans Claude Code');cc.onclick=function(e){e.stopPropagation();post('open-claude',{jobId:j.id})};if(j.hasDir)a.appendChild(cc);c.appendChild(a);
+  c.onclick=function(){openJob(j.id)};c.onkeydown=function(e){if(e.key==='Enter')openJob(j.id)};g.appendChild(c)})}
+function openJob(id){jobId=id;lastN=0;$('feed').textContent='';siteShown='';cur=null;setView('job')}
+var lastFocus=0;
+function tick(){get('state').then(function(s){S=s;renderWiz(s);
+  if(s.focus&&s.focus.t!==lastFocus){var first=lastFocus===0;lastFocus=s.focus.t;if(!first||s.paired){if(s.paired&&s.started)openJob(s.focus.jobId)}}
+  if(!s.paired&&view!=='wiz'){view='wiz';starting=false;setView('wiz')}
+  var wantMain=s.paired&&s.started&&view==='wiz';if(wantMain)setView('home');
+  if(view==='home')renderHome(s.jobs);
+  if(view==='job'){renderSel(s.jobs)}
   $('bSet').hidden=false;
-  if(!jobId)return;return get('job/'+jobId+'?after='+lastN).then(renderJob)}).catch(function(){}).then(function(){setTimeout(tick,1000)})}
+  if(view!=='job'||!jobId)return;return get('job/'+jobId+'?after='+lastN).then(renderJob)}).catch(function(){}).then(function(){setTimeout(tick,1000)})}
 $('sel').onchange=function(){jobId=this.value;lastN=0;$('feed').textContent='';siteShown=''};
 $('bPause').onclick=function(){if(!cur)return;post('control',{jobId:cur.id,action:cur.status==='paused'?'resume':'pause'})};
 $('bCancel').onclick=function(){if(cur&&confirm('Annuler ce projet ?'))post('control',{jobId:cur.id,action:'cancel'})};
 $('bDir').onclick=function(){if(cur)post('open-folder',{jobId:cur.id})};$('bCC').onclick=function(){if(cur)post('open-claude',{jobId:cur.id})};
-$('bSet').onclick=function(){if(view==='studio'){view='wiz-forced';$('bar').hidden=false;$('wiz').classList.remove('fade')}};
+$('bHome').onclick=function(){setView('home')};
+$('bSet').onclick=function(){if(view==='home'||view==='job'){view='wiz-forced';$('bar').hidden=false;$('wiz').classList.remove('fade')}};
 $('tSite').onclick=function(){tab='site';siteShown='';if(cur)renderJob({...cur,transcript:[]})};$('tEd').onclick=function(){tab='ed';if(cur)renderJob({...cur,transcript:[]})};
 $('rl').onclick=function(){var f=$('pv').querySelector('iframe');if(f)f.src=f.getAttribute('data-u')};$('ext').onclick=function(){if(cur&&cur.siteUrl)post('open-url',{url:cur.siteUrl})};
 $('att').onclick=function(){$('fi').click()};
 $('fi').onchange=function(){var fs=Array.prototype.slice.call(this.files);var jid=jobId;fs.forEach(function(f){var r=new FileReader();r.onload=function(){var d=String(r.result).split(',')[1]||'';post('attach',{jobId:jid,name:f.name,data:d}).then(function(x){if(x.path){att.push(x.path);$('atl').textContent='Joint : '+att.join(', ')}})};r.readAsDataURL(f)});this.value=''};
 function sendMsg(){var t=$('msg').value.trim();if((!t&&!att.length)||!jobId)return;if(att.length)t+='\\n\\nFichiers joints (dans le projet) : '+att.join(', ');post('message',{jobId:jobId,text:t,mode:$('mode').value}).then(function(){$('msg').value='';att=[];$('atl').textContent=''})}
 $('snd').onclick=sendMsg;$('msg').onkeydown=function(e){if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();sendMsg()}};
-$('go').onclick=function(){if(starting)return;starting=true;$('go').disabled=true;post('start').then(function(r){if(r.error){starting=false;return}view='wiz';setView('studio')})};
+$('go').onclick=function(){if(starting)return;starting=true;$('go').disabled=true;post('start').then(function(r){if(r.error){starting=false;return}view='wiz';setView('home')})};
 requestAnimationFrame(function(){document.body.classList.add('on')});tick();
 </script></body></html>`
 
