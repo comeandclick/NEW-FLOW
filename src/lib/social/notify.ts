@@ -26,7 +26,7 @@ export async function notifyWorkspaceMembers(admin: SupabaseClient, workspaceId:
       title: payload.title,
       body: payload.body ?? null,
       url: payload.url ?? null,
-      read: false,
+      is_read: false,
     }))
   )
 }
@@ -45,7 +45,7 @@ export async function schedulePreNotification(admin: SupabaseClient, workspaceId
       title: 'Post dans 5 min',
       body: title.slice(0, 80),
       url: `/social/calendar`,
-      read: false,
+      is_read: false,
       created_at: fiveMin.toISOString(),
     }))
   )
