@@ -3,12 +3,16 @@ import Link from 'next/link'
 import { Laptop, WifiOff } from 'lucide-react'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useStudio } from '@/lib/studio/store'
+import { studioApi, usePoll, useStudioMode } from '@/lib/studio/api'
 import { cn } from '@/lib/utils'
 
 /** Pastille d'état du Mac relié. Mène à l'écran de connexion. */
 export function BridgeChip({ online, offline, className }: { online: string; offline: string; className?: string }) {
   const { ws } = useWorkspace()
-  const devices = useStudio((s) => s.devices)
+  const { mode } = useStudioMode()
+  const simDevices = useStudio((s) => s.devices)
+  const live = usePoll(studioApi.devices, 4000, mode === 'live')
+  const devices = mode === 'live' ? (live.data?.devices ?? []).filter((d) => d.online) : simDevices
   const on = devices.length > 0
   return (
     <Link href={`/app/${ws.slug}/site?tab=connect`}

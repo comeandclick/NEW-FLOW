@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { ArrowRight, Clapperboard, Film, Gauge, Image as ImageIcon, Info } from 'lucide-react'
+import { ArrowRight, Clapperboard, Film, Gauge } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
@@ -9,6 +9,11 @@ import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
 import { buildMotionPrompt } from '@/lib/studio/prompts'
 import { useStudio, useStudioReady } from '@/lib/studio/store'
+import { useStudioMode } from '@/lib/studio/api'
+import { createAndSubmit } from '@/lib/studio/launch'
+import { useWorkspace } from '@/lib/hooks/use-workspace'
+import { LiveJobsList } from '@/components/studio/live-jobs'
+import { ModeBanner } from '@/components/studio/mode-banner'
 import { QUALITIES, RATIOS, dimensions, type AudioMode, type QualityId, type Ratio, type RefItem } from '@/lib/studio/types'
 import { cn } from '@/lib/utils'
 import { BridgeChip } from '@/components/studio/bridge-chip'
@@ -26,6 +31,8 @@ export default function MotionPage() {
   const { locale } = useI18n()
   const c = studioCopy(locale)
   const ready = useStudioReady()
+  const { mode, reason } = useStudioMode()
+  const { ws } = useWorkspace()
   const jobs = useStudio((s) => s.jobs).filter((j) => j.kind === 'motion')
   const devices = useStudio((s) => s.devices)
   const addMotion = useStudio((s) => s.addMotion)
@@ -47,9 +54,19 @@ export default function MotionPage() {
   const prompt = useMemo(() => buildMotionPrompt({ title, brief, ratio, quality, fps, durationSec: duration, audio, brand, refs, verify }), [title, brief, ratio, quality, fps, duration, audio, brand, refs, verify])
   const ok = brief.trim().length >= 10
 
-  const launch = () => {
+  const launch = async () => {
     if (!ok) { toast.error(c.motion.needBrief); return }
+    if (mode === 'setup') { toast.error(c.live.setupTitle); return }
     setBusy(true)
+    if (mode === 'live') {
+      try {
+        const id = await createAndSubmit({ kind: 'motion', title: title.trim() || brief.trim().slice(0, 40), spec: { ratio, quality, fps, durationSec: duration, audio, brand, verify, brief: brief.trim(), wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
+        toast.success(c.motion.sent)
+        setTitle(''); setBrief(''); setRefs([])
+        requestAnimationFrame(() => document.getElementById(`job-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+      } catch { toast.error('Erreur') } finally { setBusy(false) }
+      return
+    }
     const j = addMotion({ title: title.trim() || brief.trim().slice(0, 40), brief: brief.trim(), ratio, quality, fps, durationSec: duration, audio, brand, refs, verify })
     toast.success(c.motion.sent, { description: devices.length ? undefined : c.bridge.offlineHint })
     setTimeout(() => setBusy(false), 400)
@@ -62,7 +79,7 @@ export default function MotionPage() {
       <PageHeader icon={<Clapperboard className="size-4" />} title={c.motion.title} subtitle={c.motion.subtitle}
         actions={<BridgeChip online={c.bridge.online} offline={c.bridge.offline} />} />
 
-      <p className="mb-5 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-2"><Info className="mt-0.5 size-4 shrink-0 text-text-3" />{c.common.previewNote}</p>
+      <ModeBanner mode={mode} reason={reason} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
@@ -146,7 +163,7 @@ export default function MotionPage() {
 
       <section className="mt-8" aria-labelledby="motion-jobs">
         <h2 id="motion-jobs" className="mb-3 flex items-center gap-2 text-sm font-semibold text-text"><Gauge className="size-4 text-text-3" />{c.motion.jobs}</h2>
-        {!ready ? null : jobs.length === 0 ? (
+        {mode === 'live' ? <LiveJobsList kind="motion" title={c.motion.jobsEmpty} hint={c.motion.jobsEmptyHint} /> : !ready ? null : jobs.length === 0 ? (
           <Card><EmptyState icon={<Film className="size-5" />} title={c.motion.jobsEmpty} hint={c.motion.jobsEmptyHint} /></Card>
         ) : (
           <div className="space-y-3">{jobs.map((j, i) => <div id={`job-${j.id}`} key={j.id}><JobCard job={j} defaultOpen={i === 0} /></div>)}</div>

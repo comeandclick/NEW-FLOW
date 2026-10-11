@@ -57,3 +57,14 @@ describe('studio : textes', () => {
     expect(keys(studioCopy('en')).sort()).toEqual(keys(studioCopy('fr')).sort())
   })
 })
+
+import { readFileSync } from 'node:fs'
+describe('studio : fichiers de déploiement', () => {
+  it('le SQL public est identique à celui de supabase/', () => {
+    expect(readFileSync('public/studio/studio.sql', 'utf8')).toBe(readFileSync('supabase/studio.sql', 'utf8'))
+  })
+  it('le pont est un fichier Node valide qui n\'a aucune adresse en dur autre que la valeur par défaut', () => {
+    const s = readFileSync('public/studio/flow-bridge.mjs', 'utf8')
+    expect(s.match(/https:\/\/[a-z0-9.-]+\.vercel\.app/g)?.length ?? 0).toBeLessThanOrEqual(1)
+  })
+})

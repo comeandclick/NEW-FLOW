@@ -1,7 +1,7 @@
 'use client'
 import { Suspense, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, Database, Globe, Info, Layers, LayoutTemplate, Rocket, ScanSearch, ShoppingBag, Sparkles, Terminal, Triangle } from 'lucide-react'
+import { ArrowRight, Database, Globe, Layers, LayoutTemplate, Rocket, ScanSearch, ShoppingBag, Sparkles, Terminal, Triangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
@@ -10,6 +10,11 @@ import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
 import { INTERVIEW_SYSTEM_PROMPT, buildSitePrompt, understandingOf } from '@/lib/studio/prompts'
 import { useStudio, useStudioReady } from '@/lib/studio/store'
+import { useStudioMode, type Mode } from '@/lib/studio/api'
+import { createAndSubmit } from '@/lib/studio/launch'
+import { useWorkspace } from '@/lib/hooks/use-workspace'
+import { LiveJobsList } from '@/components/studio/live-jobs'
+import { ModeBanner } from '@/components/studio/mode-banner'
 import type { RefItem, SiteKind } from '@/lib/studio/types'
 import { BridgeChip } from '@/components/studio/bridge-chip'
 import { ConnectPanel } from '@/components/studio/connect-panel'
@@ -24,7 +29,8 @@ const KINDS: { id: SiteKind; icon: typeof Globe }[] = [
   { id: 'showcase', icon: LayoutTemplate }, { id: 'shop', icon: ShoppingBag }, { id: 'landing', icon: Rocket }, { id: 'other', icon: Layers },
 ]
 
-function NewProject({ onLaunched }: { onLaunched: () => void }) {
+function NewProject({ onLaunched, mode }: { onLaunched: () => void; mode: Mode }) {
+  const { ws } = useWorkspace()
   const { locale } = useI18n()
   const c = studioCopy(locale)
   const addSite = useStudio((s) => s.addSite)
@@ -47,9 +53,17 @@ function NewProject({ onLaunched }: { onLaunched: () => void }) {
   const input = { title: title.trim() || brief.trim().slice(0, 40), siteKind: kind, brief: brief.trim(), refs, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa: qa.map(({ q, a }) => ({ q, a })) }
   const prompt = useMemo(() => buildSitePrompt(input), [input.title, kind, brief, refs, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const launch = () => {
-    addSite({ ...input, understanding: pct })
-    toast.success(c.site.launch, { description: devices.length ? undefined : c.bridge.offlineHint })
+  const launch = async () => {
+    if (mode === 'setup') { toast.error(c.live.setupTitle); return }
+    if (mode === 'live') {
+      try {
+        await createAndSubmit({ kind: 'site', title: input.title, spec: { siteKind: kind, brief: input.brief, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa: input.qa, understanding: pct, wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
+        toast.success(c.site.launch)
+      } catch { toast.error('Erreur'); return }
+    } else {
+      addSite({ ...input, understanding: pct })
+      toast.success(c.site.launch, { description: devices.length ? undefined : c.bridge.offlineHint })
+    }
     setTitle(''); setBrief(''); setRefs([]); setQa([]); setPhase('form')
     onLaunched()
   }
@@ -115,7 +129,7 @@ function NewProject({ onLaunched }: { onLaunched: () => void }) {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={() => setPhase('form')}>{c.common.back}</Button>
             <span className="flex-1" />
-            <Button variant="primary" size="lg" onClick={launch} disabled={pct < 100}><Rocket className="size-4" />{c.site.launch}</Button>
+            <Button variant="primary" size="lg" onClick={() => void launch()} disabled={pct < 100}><Rocket className="size-4" />{c.site.launch}</Button>
           </div>
           {pct >= 100 && <p className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">{c.site.interviewDoneHint}</p>}
           <PromptPreview title={c.site.promptTitle} prompt={prompt} show={c.motion.showPrompt} hide={c.motion.hidePrompt} copy={c.common.copy} copied={c.common.copied} defaultOpen={pct >= 100} />
@@ -133,6 +147,7 @@ function SiteInner() {
   const params = useSearchParams()
   const tab = (['new', 'projects', 'connect'].includes(params.get('tab') ?? '') ? params.get('tab') : 'new') as Tab
   const ready = useStudioReady()
+  const { mode, reason } = useStudioMode()
   const jobs = useStudio((s) => s.jobs).filter((j) => j.kind === 'site')
   const setTab = (t: Tab) => router.replace(`${pathname}?tab=${t}`, { scroll: false })
 
@@ -140,14 +155,14 @@ function SiteInner() {
     <div className="mx-auto max-w-6xl p-6 max-md:p-4">
       <PageHeader icon={<Globe className="size-4" />} title={c.site.title} subtitle={c.site.subtitle}
         actions={<BridgeChip online={c.bridge.online} offline={c.bridge.offline} />} />
-      <p className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-2"><Info className="mt-0.5 size-4 shrink-0 text-text-3" />{c.common.previewNote}</p>
+      <ModeBanner mode={mode} reason={reason} />
       <Tabs<Tab> className="mb-5" value={tab} onChange={setTab}
         items={[{ value: 'new', label: c.site.tabNew }, { value: 'projects', label: `${c.site.tabProjects}${jobs.length ? ` (${jobs.length})` : ''}` }, { value: 'connect', label: c.site.tabConnect }]} />
-      {tab === 'new' && <NewProject onLaunched={() => setTab('projects')} />}
-      {tab === 'projects' && (!ready ? null : jobs.length === 0 ? (
+      {tab === 'new' && <NewProject mode={mode} onLaunched={() => setTab('projects')} />}
+      {tab === 'projects' && (mode === 'live' ? <LiveJobsList kind="site" title={c.site.projectsEmpty} hint={c.site.projectsEmptyHint} /> : !ready ? null : jobs.length === 0 ? (
         <Card><EmptyState icon={<Globe className="size-5" />} title={c.site.projectsEmpty} hint={c.site.projectsEmptyHint} action={<Button variant="primary" onClick={() => setTab('new')}>{c.site.tabNew}</Button>} /></Card>
       ) : <div className="space-y-3">{jobs.map((j, i) => <JobCard key={j.id} job={j} defaultOpen={i === 0} />)}</div>)}
-      {tab === 'connect' && <ConnectPanel />}
+      {tab === 'connect' && <ConnectPanel live={mode === 'live'} />}
     </div>
   )
 }

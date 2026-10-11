@@ -30,6 +30,7 @@ type State = {
 }
 
 const notice = (title: string, level: Notice['level'] = 'info', body?: string): Notice => ({ id: uid(), at: Date.now(), title, body, level })
+const plain = (refs: RefItem[]): RefItem[] => refs.map(({ file: _f, ...r }) => r) // eslint-disable-line @typescript-eslint/no-unused-vars
 const libFromRefs = (jobId: string, jobTitle: string, refs: RefItem[]): LibraryItem[] =>
   refs.filter((r) => r.kind !== 'note').map((r) => ({
     id: uid(), kind: 'sent', refKind: r.kind, name: r.name, size: r.size, url: r.url, jobId, jobTitle, at: Date.now(),
@@ -50,7 +51,7 @@ export const useStudio = create<State>()(
       addMotion: (d) => {
         const hasDevice = get().devices.length > 0
         const job: MotionJob = {
-          ...d, id: uid(), kind: 'motion', createdAt: Date.now(),
+          ...d, refs: plain(d.refs), id: uid(), kind: 'motion', createdAt: Date.now(),
           status: hasDevice ? 'queued' : 'waiting_device',
           steps: freshSteps(MOTION_STEPS), questions: [],
           notices: [notice('Demande enregistrée', 'info', hasDevice ? 'Envoyée au Mac connecté.' : 'Elle partira dès qu\'un Mac sera connecté.')],
@@ -62,7 +63,7 @@ export const useStudio = create<State>()(
       addSite: (d) => {
         const hasDevice = get().devices.length > 0
         const job: SiteJob = {
-          ...d, id: uid(), kind: 'site', createdAt: Date.now(),
+          ...d, refs: plain(d.refs), id: uid(), kind: 'site', createdAt: Date.now(),
           status: hasDevice ? 'queued' : 'waiting_device',
           steps: freshSteps(SITE_STEPS).map((s, i) => (i === 0 ? { ...s, state: 'done' as const } : s)),
           questions: [],

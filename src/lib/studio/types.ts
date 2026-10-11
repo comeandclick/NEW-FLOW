@@ -2,7 +2,7 @@
  *  Aujourd'hui : visuel + prompts réels + simulation locale. Plus tard : même modèle de données côté Supabase (voir docs/STUDIO-SYSTEME.md). */
 
 export type RefKind = 'video' | 'image' | 'screen' | 'file' | 'link' | 'note'
-export type RefItem = { id: string; kind: RefKind; name: string; size?: number; mime?: string; url?: string; note?: string }
+export type RefItem = { id: string; kind: RefKind; name: string; size?: number; mime?: string; url?: string; note?: string; /** Fichier en mémoire (jamais enregistré dans le navigateur). */ file?: File }
 
 export type Ratio = '9:16' | '16:9' | '1:1' | '4:5'
 export type QualityId = 'hd' | 'fhd' | '4k'

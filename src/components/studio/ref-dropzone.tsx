@@ -38,7 +38,7 @@ export function RefDropzone({ refs, onChange, copy, className }: { refs: RefItem
       if (f.size > MAX) continue
       const id = uid()
       if (f.type.startsWith('image/') || f.type.startsWith('video/')) pv[id] = URL.createObjectURL(f)
-      add.push({ id, kind: kindOfFile(f), name: f.name, size: f.size, mime: f.type })
+      add.push({ id, kind: kindOfFile(f), name: f.name, size: f.size, mime: f.type, file: f })
     }
     if (add.length) { setPreviews((p) => ({ ...p, ...pv })); onChange([...latest.current, ...add]) }
   }, [onChange])

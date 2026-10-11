@@ -7,7 +7,9 @@ import { Badge, Card, EmptyState, PageHeader, Tabs } from '@/components/ui/misc'
 import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
 import { useStudio, useStudioReady } from '@/lib/studio/store'
-import type { LibraryKind } from '@/lib/studio/types'
+import { studioApi, useStudioMode, usePoll } from '@/lib/studio/api'
+import { ModeBanner } from '@/components/studio/mode-banner'
+import type { LibraryItem, LibraryKind } from '@/lib/studio/types'
 import { refIcon } from '@/components/studio/ref-dropzone'
 import { formatBytes } from '@/lib/utils'
 
@@ -17,7 +19,10 @@ export default function LibraryPage() {
   const { locale } = useI18n()
   const c = studioCopy(locale)
   const ready = useStudioReady()
-  const items = useStudio((s) => s.library)
+  const { mode, reason } = useStudioMode()
+  const simItems = useStudio((s) => s.library)
+  const live = usePoll(studioApi.library, 5000, mode === 'live')
+  const items: LibraryItem[] = mode === 'live' ? (live.data?.items ?? []).map((i) => ({ id: i.id, kind: i.kind, refKind: i.kind === 'site' ? 'site' : i.kind === 'render' ? 'render-video' : i.mime?.startsWith('video/') ? 'video' : i.mime?.startsWith('image/') ? 'image' : 'file', name: i.name, size: i.size ?? undefined, url: i.url ?? undefined, jobId: i.jobId ?? undefined, jobTitle: i.jobTitle ?? undefined, at: new Date(i.at).getTime() })) : simItems
   const seed = useStudio((s) => s.seedLibrary)
   const clear = useStudio((s) => s.clearLibrary)
   const [filter, setFilter] = useState<Filter>('all')
@@ -37,10 +42,11 @@ export default function LibraryPage() {
     <div className="mx-auto max-w-6xl p-6 max-md:p-4">
       <PageHeader icon={<Archive className="size-4" />} title={c.library.title} subtitle={c.library.subtitle}
         actions={<>
-          <Button size="sm" variant="outline" onClick={seed}><Sparkles className="size-3.5" />{c.library.sample}</Button>
-          {items.length > 0 && <Button size="sm" variant="ghost" onClick={clear}><Trash2 className="size-3.5" />{c.library.clear}</Button>}
+          {mode !== 'live' && <Button size="sm" variant="outline" onClick={seed}><Sparkles className="size-3.5" />{c.library.sample}</Button>}
+          {mode !== 'live' && items.length > 0 && <Button size="sm" variant="ghost" onClick={clear}><Trash2 className="size-3.5" />{c.library.clear}</Button>}
         </>} />
-      <p className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-2"><Info className="mt-0.5 size-4 shrink-0 text-text-3" />{c.library.storageNote}</p>
+      <ModeBanner mode={mode} reason={reason} />
+      {mode !== 'live' && <p className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-2"><Info className="mt-0.5 size-4 shrink-0 text-text-3" />{c.library.storageNote}</p>}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Tabs<Filter> value={filter} onChange={setFilter} items={[
@@ -54,7 +60,7 @@ export default function LibraryPage() {
       </div>
 
       {!ready ? null : shown.length === 0 ? (
-        <Card><EmptyState icon={<Archive className="size-5" />} title={c.library.empty} hint={c.library.emptyHint} action={<Button variant="primary" onClick={seed}><Sparkles className="size-4" />{c.library.sample}</Button>} /></Card>
+        <Card><EmptyState icon={<Archive className="size-5" />} title={c.library.empty} hint={c.library.emptyHint} action={mode === 'live' ? undefined : <Button variant="primary" onClick={seed}><Sparkles className="size-4" />{c.library.sample}</Button>} /></Card>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((it) => {

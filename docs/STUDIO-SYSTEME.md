@@ -1,6 +1,8 @@
-# Studio : le vrai système (à construire plus tard)
+# Studio : le système (construit le 2026-10-11)
 
-État aujourd'hui (2026-10-11) : **visuel + prompts réels + simulation locale**. Pages : `/app/<espace>/motion`, `/app/<espace>/site` (onglets Nouveau projet · Projets en cours · Connexion du Mac), `/app/<espace>/library` (Envois & rendus).
+> **Construit et testé de bout en bout** (27 vérifications `node bridge/e2e.mjs`, faux Claude). Reste à faire par l'utilisateur : exécuter `supabase/studio.sql`, installer le pont sur le Mac (`/studio/install`), connecter Claude Code (`claude auth login`). Voir aussi `docs/STUDIO-DEPLACER.md`.
+
+Ancien état (visuel seulement) : **visuel + prompts réels + simulation locale**. Pages : `/app/<espace>/motion`, `/app/<espace>/site` (onglets Nouveau projet · Projets en cours · Connexion du Mac), `/app/<espace>/library` (Envois & rendus).
 Code : `src/lib/studio/` (types, steps, copy, prompts, store zustand en `localStorage`), `src/components/studio/`. Rien n'est envoyé nulle part : les demandes restent dans le navigateur, le bouton « Simuler l'avancement » montre les écrans (étapes, notifications, question de Claude, résultat).
 Tests : `tests/studio.test.ts`.
 
