@@ -1,4 +1,4 @@
-import { Archive, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Target, Users, type LucideIcon } from 'lucide-react'
+import { Archive, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Share2, Target, Users, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
 export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages' | 'motion' | 'site'; /** other routes that keep this item highlighted */ also?: string[] }
@@ -36,6 +36,12 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    label: 'nav.group.publish',
+    items: [
+      { href: '/social/accounts', label: 'nav.social', icon: Share2, also: ['/social/publish', '/social/calendar', '/social/prepare'] },
+    ],
+  },
+  {
     label: 'nav.group.personal',
     items: [{ href: '/focus', label: 'nav.focus', icon: Clock, also: ['/habits'] }],
   },
@@ -55,6 +61,12 @@ export const HUBS: Record<string, { href: string; label: Key }[]> = {
   crm: [{ href: '/crm', label: 'nav.crm' }, { href: '/finance', label: 'nav.finance' }, { href: '/forms', label: 'nav.forms' }],
   focus: [{ href: '/focus', label: 'nav.focus' }, { href: '/habits', label: 'nav.habits' }],
   settings: [{ href: '/settings', label: 'nav.settings' }, { href: '/automations', label: 'nav.automations' }, { href: '/activity', label: 'nav.activity' }, { href: '/trash', label: 'nav.trash' }],
+  social: [
+    { href: '/social/accounts', label: 'nav.social.accounts' },
+    { href: '/social/publish', label: 'nav.social.publish' },
+    { href: '/social/calendar', label: 'nav.social.calendar' },
+    { href: '/social/prepare', label: 'nav.social.prepare' },
+  ],
 }
 
 /** The items shown in the mobile bottom bar (the rest lives under "More"). */

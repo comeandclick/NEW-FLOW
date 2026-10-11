@@ -18,9 +18,10 @@ import { vit } from './vit'
 import { features } from './features'
 import { social } from './social'
 import { studio } from './studio'
+import { publish } from './publish'
 import type { Locale } from '../config'
 
-const parts = [common, landing, auth, app, tasks, notes, calendar, messages, meetings, files, misc, settings, growth, personal, site, home, vit, features, social, studio] as const
+const parts = [common, landing, auth, app, tasks, notes, calendar, messages, meetings, files, misc, settings, growth, personal, site, home, vit, features, social, studio, publish] as const
 
 type Merge<T extends readonly { fr: object }[]> = T extends readonly [infer H extends { fr: object }, ...infer R extends readonly { fr: object }[]]
   ? H['fr'] & Merge<R>
