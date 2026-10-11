@@ -39,8 +39,14 @@ function Divider() {
   )
 }
 
+/** Page demandée avant la connexion (?next=/chemin), limitée aux chemins du site. */
+function nextPath(): string {
+  try { const n = new URLSearchParams(window.location.search).get('next'); return n && /^\/(?!\/)[\w\-./?=&%#]*$/.test(n) ? n : '/app' } catch { return '/app' }
+}
+
 async function google(t: (k: Key) => string) {
-  const { error } = await getDb().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } })
+  const next = nextPath()
+  const { error } = await getDb().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback${next === '/app' ? '' : `?next=${encodeURIComponent(next)}`}` } })
   if (error) toast.error(t('auth.err.google'))
 }
 
@@ -57,7 +63,7 @@ export function LoginForm() {
     setBusy(true); setErr(null)
     const { error } = await getDb().auth.signInWithPassword({ email: email.trim(), password })
     if (error) { setErr(t('auth.err.invalid')); setBusy(false); return }
-    router.replace('/app'); router.refresh()
+    router.replace(nextPath()); router.refresh()
   }
 
   return (

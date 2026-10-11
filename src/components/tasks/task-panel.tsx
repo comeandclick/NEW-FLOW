@@ -15,7 +15,8 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
-import { fireAutomations } from '@/lib/automations'
+import { onTaskDone } from '@/lib/task-done'
+import { REPEAT_RULES, repeatOf, withRepeat, type RepeatRule } from '@/lib/recurrence'
 import type { Priority, Task, TaskStatus } from '@/lib/types'
 
 export type TaskDraft = Partial<Task> & { title: string }
@@ -73,7 +74,10 @@ export function TaskPanel({ taskId, open, onClose, onChanged }: { taskId: string
       void notifyUser(p.assignee_id, { type: 'task', title: t('tasks.assignedTitle'), body: task.title, url: `/app/${ws.slug}/tasks?open=${task.id}` })
     }
     log(p.status === 'done' ? 'task.completed' : 'task.updated', 'task', task.id, { title: task.title })
-    if (p.status === 'done' && task.status !== 'done' && userId) void fireAutomations(ws.id, ws.slug, 'task_done', userId, task.title)
+    if (p.status === 'done' && task.status !== 'done' && userId) {
+      const next = await onTaskDone(ws, userId, { ...task, ...p } as Task)
+      if (next) toast.success(t('tasks.nextCreated', { d: new Date(next).toLocaleDateString(locale) }))
+    }
     if (!silent) toast.success(t('common.saved'))
     onChanged()
   }
@@ -140,6 +144,9 @@ export function TaskPanel({ taskId, open, onClose, onChanged }: { taskId: string
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('tasks.estimate')}</span>
                 <Input type="number" min={0} step={15} disabled={ro} value={task.estimate_minutes ?? ''} onChange={(e) => patch({ estimate_minutes: e.target.value ? Number(e.target.value) : null })} /></label>
             </div>
+            <label className="block space-y-1.5"><span className="text-xs text-text-3">{t('tasks.repeat')}</span>
+              <Select value={repeatOf(task.tags) ?? ''} disabled={ro} onChange={(e) => { const tg = withRepeat(task.tags, (e.target.value || null) as RepeatRule | null); setTags(tg.join(', ')); void patch({ tags: tg }) }}>
+                <option value="">{t('tasks.repeat.none')}</option>{REPEAT_RULES.map((r) => <option key={r} value={r}>{t(`tasks.repeat.${r}`)}</option>)}</Select></label>
             <label className="block space-y-1.5"><span className="text-xs text-text-3">{t('common.tags')} · {t('tasks.labelsHint')}</span>
               <Input value={tags} disabled={ro} onChange={(e) => { setTags(e.target.value); debounced({ tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }) }} /></label>
 

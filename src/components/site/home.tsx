@@ -1,249 +1,236 @@
 'use client'
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import {
-  ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, FileText, FolderOpen, MessageSquare, Target, Users, Video, Wallet,
-} from 'lucide-react'
+import { ArrowRight, Check, Hash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Avatar } from '@/components/ui/misc'
 import { Reveal, Container, Faq } from './blocks'
-import { GlassArt, type ArtKind } from './art'
-import { AppWindow, CalendarMock, CallMock, ChatMock, CrmMock, NotesMock, TasksMock } from './mocks'
+import { AppWindow, CalendarMock, ChatMock, CrmMock, NotesMock, TasksMock } from './mocks'
 import { getDb } from '@/lib/supabase/client'
 import { useT } from '@/i18n/provider'
 import type { Key } from '@/i18n/dict'
 import { cn } from '@/lib/utils'
 
-const Serif = ({ children }: { children: ReactNode }) => <span className="font-serif-i text-[1.08em]">{children}</span>
-
-export function Kicker({ children }: { children: ReactNode }) { return <div className="text-[12px] font-semibold tracking-[0.16em] text-accent-ink">{children}</div> }
-
-function Head({ kicker, children, sub, className }: { kicker: string; children: ReactNode; sub?: string; className?: string }) {
-  return (
-    <Reveal className={className}>
-      <Kicker>{kicker}</Kicker>
-      <h2 className="mt-4 max-w-3xl text-[clamp(2rem,4.6vw,3.6rem)] font-semibold leading-[1.04] tracking-[-0.035em]">{children}</h2>
-      {sub && <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-text-2">{sub}</p>}
-    </Reveal>
-  )
-}
+const H2 = ({ children, className }: { children: ReactNode; className?: string }) => (
+  <h2 className={cn('font-display text-[clamp(2rem,4.4vw,3.4rem)] leading-[1.06]', className)}>{children}</h2>
+)
 
 /* ───────────── Hero ───────────── */
 const DEMOS = [
-  { id: 'tasks', key: 'h.demo.tasks', node: <AppWindow wide><TasksMock /></AppWindow> },
-  { id: 'chat', key: 'h.demo.chat', node: <div className="mx-auto max-w-xl"><ChatMock /></div> },
-  { id: 'cal', key: 'h.demo.cal', node: <CalendarMock /> },
-  { id: 'notes', key: 'h.demo.notes', node: <NotesMock /> },
-  { id: 'crm', key: 'h.demo.crm', node: <CrmMock /> },
+  { id: 'tasks', key: 'v.hero.tab.tasks', node: <AppWindow wide><TasksMock /></AppWindow> },
+  { id: 'chat', key: 'v.hero.tab.chat', node: <div className="mx-auto max-w-xl"><ChatMock /></div> },
+  { id: 'cal', key: 'v.hero.tab.cal', node: <CalendarMock /> },
 ] as const
 
 export function Hero() {
   const t = useT()
   const reduce = useReducedMotion()
   const [i, setI] = useState(0)
-  const [paused, setPaused] = useState(false)
+  const [auto, setAuto] = useState(true)
   useEffect(() => {
-    if (paused || reduce) return
-    const id = setInterval(() => setI((x) => (x + 1) % DEMOS.length), 4800)
+    if (!auto || reduce) return
+    const id = setInterval(() => setI((x) => (x + 1) % DEMOS.length), 5200)
     return () => clearInterval(id)
-  }, [paused, reduce])
+  }, [auto, reduce])
+  const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const } })
   return (
-    <Container className="pt-10 text-center sm:pt-16">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Link href="/pricing" className="group inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/60 py-1.5 pl-3 pr-2.5 text-[13px] text-text-2 backdrop-blur transition-colors hover:text-text">
-          <span className="size-1.5 rounded-full bg-success" />{t('h.tag')}<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </motion.div>
-      <motion.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.05 }}
-        className="mk-grad mx-auto mt-7 max-w-4xl text-[clamp(2.7rem,7.4vw,5.6rem)] font-semibold leading-[1.02] tracking-[-0.045em]">
-        {t('h.hero.a')}<br />{t('h.hero.b')} <span className="font-serif-i text-[1.08em]">{t('h.hero.c')}</span>
-      </motion.h1>
-      <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15 }} className="mx-auto mt-6 max-w-xl text-[clamp(1rem,1.9vw,1.2rem)] leading-relaxed text-text-2">{t('h.hero.sub')}</motion.p>
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.25 }} className="mt-9 flex flex-wrap items-center justify-center gap-3">
-        <Link href="/register"><Button variant="pill" size="lg" className="h-12 px-7 text-[15px]">{t('h.hero.cta')}</Button></Link>
-        <Link href="/demo"><Button variant="glass" size="lg" className="h-12 px-7 text-[15px]">{t('h.hero.cta2')}</Button></Link>
-      </motion.div>
-      <p className="mt-5 text-[13px] text-text-3">{t('h.hero.fine')}</p>
-
-      <div className="relative mx-auto mt-14 max-w-[960px]" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
-        <div aria-hidden className="absolute -inset-x-6 -bottom-10 -top-6 -z-10 rounded-[40px] bg-[radial-gradient(60%_60%_at_50%_30%,var(--mk-glow),transparent_70%)] blur-2xl" />
-        <div role="tablist" className="no-scrollbar mx-auto mb-5 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-border-strong bg-surface-2/70 p-1 backdrop-blur">
-          {DEMOS.map((d, k) => (
-            <button key={d.id} role="tab" aria-selected={i === k} onClick={() => setI(k)} className={cn('shrink-0 rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors', i === k ? 'bg-text text-bg' : 'text-text-2 hover:text-text')}>{t(d.key)}</button>
-          ))}
-        </div>
-        <div className="relative min-h-[360px] text-left sm:min-h-[420px]">
-          <AnimatePresence mode="wait">
-            <motion.div key={DEMOS[i].id} initial={{ opacity: 0, y: 14, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
-              {DEMOS[i].node}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+    <section id="haut" className="mk-night relative overflow-hidden bg-bg pb-16 pt-28 text-text sm:pb-24 sm:pt-36">
+      <div aria-hidden className="mk-hero-glow pointer-events-none absolute inset-0" />
+      {/* Blurred product screens behind the headline, like phones behind the title on the reference page. */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 hidden h-[680px] select-none overflow-hidden md:block">
+        <div className="absolute left-[3%] top-24 w-[290px] -rotate-3 opacity-45 blur-[3px] [mask-image:linear-gradient(to_bottom,#000_35%,transparent_92%)] xl:left-[7%]"><ChatMock /></div>
+        <div className="absolute right-[3%] top-16 w-[310px] rotate-3 opacity-45 blur-[3px] [mask-image:linear-gradient(to_bottom,#000_35%,transparent_92%)] xl:right-[7%]"><AppWindow><TasksMock /></AppWindow></div>
+        <div className="absolute inset-0 bg-[radial-gradient(48%_55%_at_50%_42%,var(--bg)_28%,transparent_100%)]" />
       </div>
-    </Container>
-  )
-}
 
-/* ───────────── Marquee ───────────── */
-const MARQUEE: [typeof Check, Key][] = [
-  [Check, 'h.m.1'], [FileText, 'h.m.2'], [MessageSquare, 'h.m.3'], [Video, 'h.m.4'], [CalendarDays, 'h.m.5'], [Users, 'h.m.6'], [Wallet, 'h.m.7'], [ClipboardList, 'h.m.8'], [FolderOpen, 'h.m.9'], [Target, 'h.m.10'],
-]
-export function Marquee() {
-  const t = useT()
-  const row = (suffix: string) => MARQUEE.map(([Icon, k]) => (
-    <li key={k + suffix} className="flex shrink-0 items-center gap-2.5 rounded-full border border-border bg-surface/70 px-4 py-2.5 text-[14px] text-text-2" aria-hidden={suffix === 'b' || undefined}><Icon className="size-4 text-accent-ink" />{t(k)}</li>
-  ))
-  return (
-    <section className="py-20" aria-label={t('h.marquee')}>
-      <p className="mb-6 text-center text-[12px] font-semibold tracking-[0.16em] text-text-3">{t('h.marquee')}</p>
-      <div className="mk-marquee relative overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
-        <ul className="animate-marquee flex w-max gap-3 pr-3">{row('a')}{row('b')}</ul>
-      </div>
-    </section>
-  )
-}
+      <div className="relative mx-auto max-w-[1120px] px-5 text-center">
+        <motion.div {...rise(0)}>
+          <a href="#tarif" className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/70 px-4 py-1.5 text-[13px] text-text-2 backdrop-blur transition-colors hover:text-text">
+            {t('v.hero.pill')}<ArrowRight className="size-3.5" />
+          </a>
+        </motion.div>
+        <motion.h1 {...rise(0.06)} className="mx-auto mt-7 max-w-[860px] text-[clamp(2.5rem,7vw,5rem)] font-bold leading-[1.02] tracking-[-0.045em] text-text">
+          {t('v.hero.h1a')}<br /><span className="mk-h1-grad">{t('v.hero.h1b')}</span>
+        </motion.h1>
+        <motion.p {...rise(0.12)} className="mx-auto mt-6 max-w-[640px] text-[17px] leading-relaxed text-text-2 sm:text-[18px]">{t('v.hero.sub')}</motion.p>
+        <motion.div {...rise(0.18)} className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/register"><Button variant="pill" size="lg" className="h-12 rounded-full bg-white px-8 text-[15px] text-[#05070d]">{t('v.hero.cta1')}</Button></Link>
+          <Link href="/demo"><Button variant="glass" size="lg" className="h-12 rounded-full border-transparent bg-surface-2 px-7 text-[15px] text-text hover:bg-surface-3">{t('v.hero.cta2')}</Button></Link>
+        </motion.div>
+        <p className="mt-5 text-[13.5px] text-text-3">{t('v.hero.fine')}</p>
 
-/* ───────────── Stats ───────────── */
-export function Stats() {
-  const t = useT()
-  const items = [['12', 'h.stat.1', 'h.stat.1d'], ['6', 'h.stat.2', 'h.stat.2d'], ['0 €', 'h.stat.3', 'h.stat.3d']] as const
-  return (
-    <Container className="pb-8">
-      <div className="grid gap-4 md:grid-cols-3">
-        {items.map(([n, l, d], k) => (
-          <Reveal key={l} delay={k * 0.06}>
-            <div className="h-full rounded-3xl border border-border bg-surface/70 p-7">
-              <div className="mk-stat text-[clamp(2.6rem,5vw,3.6rem)] font-semibold leading-none tracking-[-0.04em]">{n}</div>
-              <div className="mt-3 text-[15px] font-medium">{t(l)}</div>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-text-3">{t(d)}</p>
-            </div>
-          </Reveal>
-        ))}
-      </div>
-    </Container>
-  )
-}
-
-/* ───────────── Feature carousel ───────────── */
-const CARDS = [
-  { n: 1, node: <AppWindow wide><TasksMock /></AppWindow> }, { n: 2, node: <ChatMock /> }, { n: 3, node: <CalendarMock /> },
-  { n: 4, node: <NotesMock /> }, { n: 5, node: <CrmMock /> }, { n: 6, node: <div className="mx-auto max-w-md"><CallMock /></div> },
-] as const
-
-export function FeatureCarousel() {
-  const t = useT()
-  const scroller = useRef<HTMLDivElement>(null)
-  const go = useCallback((dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * Math.min(560, (scroller.current?.clientWidth ?? 600) * 0.85), behavior: 'smooth' }), [])
-  return (
-    <section id="fonctionnalites" className="scroll-mt-24 py-24 sm:py-32">
-      <Container>
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <Head kicker={t('h.f.kicker')} sub={t('h.f.sub')}>{t('h.f.title1')}<br />{t('h.f.title2')} <Serif>{t('h.f.title3')}</Serif> {t('h.f.title4')}</Head>
-          <div className="hidden gap-2 sm:flex">
-            <Button variant="glass" size="icon" className="size-11" onClick={() => go(-1)} aria-label="←"><ChevronLeft className="size-5" /></Button>
-            <Button variant="glass" size="icon" className="size-11" onClick={() => go(1)} aria-label="→"><ChevronRight className="size-5" /></Button>
+        <div className="relative mx-auto mt-14 max-w-[960px] text-left sm:mt-20">
+          <motion.span initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+            className="absolute -top-4 right-2 z-10 inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-[13px] font-medium shadow-lg sm:right-6">
+            <span className="size-2 rounded-full bg-[#34d399]" />{t('v.hero.badge')}
+          </motion.span>
+          <div role="tablist" aria-label="Aperçu" className="mb-3 flex justify-center gap-1">
+            {DEMOS.map((d, k) => (
+              <button key={d.id} role="tab" aria-selected={i === k} onClick={() => { setI(k); setAuto(false) }}
+                className={cn('relative rounded-full px-4 py-1.5 text-[13.5px] font-medium transition-colors', i === k ? 'text-text' : 'text-text-3 hover:text-text')}>
+                {i === k && <motion.span layoutId="hero-tab" className="absolute inset-0 rounded-full bg-surface-3" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+                <span className="relative">{t(d.key)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="relative min-h-[300px] sm:min-h-[400px]" onMouseEnter={() => setAuto(false)}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={DEMOS[i].id} role="tabpanel" initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.28 }}
+                className="[&>*]:shadow-[0_30px_80px_-30px_rgba(40,80,220,0.55)]">{DEMOS[i].node}</motion.div>
+            </AnimatePresence>
           </div>
         </div>
-      </Container>
-      <div ref={scroller} className="no-scrollbar mt-12 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-[max(1.25rem,calc((100vw-1080px)/2))] pb-4" tabIndex={0} aria-label={t('h.f.kicker')}>
-        {CARDS.map((c) => (
-          <article key={c.n} className="w-[min(86vw,520px)] shrink-0 snap-start overflow-hidden rounded-3xl border border-border bg-surface/80">
-            <div className="pointer-events-none relative h-[330px] overflow-hidden bg-[radial-gradient(80%_70%_at_50%_0%,var(--art-a),transparent_75%)] p-5 pb-0" aria-hidden>
-              <div className="origin-top scale-[0.96]">{c.node}</div>
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-surface to-transparent" />
-            </div>
-            <div className="p-6 pt-3">
-              <div className="text-[11.5px] font-semibold tracking-[0.14em] text-accent-ink">{t(`h.c.${c.n}.tag` as Key)}</div>
-              <h3 className="mt-2.5 text-[21px] font-semibold tracking-tight">{t(`h.c.${c.n}.t` as Key)}</h3>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-text-2">{t(`h.c.${c.n}.d` as Key)}</p>
-            </div>
-          </article>
-        ))}
       </div>
     </section>
   )
 }
 
-/* ───────────── Numbered cards with glass art ───────────── */
-function Numbered({ items, prefix, arts }: { items: number[]; prefix: 'h.mod' | 'h.s'; arts: ArtKind[] }) {
+/* ───────────── What it replaces ───────────── */
+function Struck({ children, delay }: { children: ReactNode; delay: number }) {
+  const reduce = useReducedMotion()
+  return (
+    <span className="relative inline-block whitespace-nowrap text-text-3">
+      {children}
+      <motion.span aria-hidden className="absolute left-0 top-[54%] h-[2px] w-full origin-left bg-accent" initial={{ scaleX: reduce ? 1 : 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.5, delay, ease: [0.65, 0, 0.35, 1] }} />
+    </span>
+  )
+}
+
+export function Stack() {
   const t = useT()
   return (
-    <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-      {items.map((n, k) => (
-        <Reveal key={n} delay={(k % 3) * 0.06}>
-          <article className="h-full overflow-hidden rounded-3xl border border-border bg-surface/80 transition-colors hover:border-border-strong">
-            <GlassArt kind={arts[k % arts.length]} />
-            <div className="p-6">
-              <div className="font-mono text-[12px] text-accent-ink">{String(n).padStart(2, '0')}</div>
-              <h3 className="mt-3 text-[19px] font-semibold tracking-tight">{t(`${prefix}.${n}.t` as Key)}</h3>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-text-2">{t(`${prefix}.${n}.d` as Key)}</p>
-            </div>
-          </article>
+    <section className="border-y border-border bg-bg-subtle">
+      <div className="mx-auto max-w-[1120px] px-5 py-14 sm:py-20">
+        <Reveal>
+          <p className="text-[15px] text-text-2">{t('v.stack.lead')}</p>
+          <p className="font-display mt-4 max-w-4xl text-[clamp(1.6rem,3.4vw,2.6rem)] leading-[1.35]">
+            {([1, 2, 3, 4, 5, 6] as const).map((n, k) => <span key={n}><span className="whitespace-nowrap"><Struck delay={0.12 * k}>{t(`v.stack.${n}` as Key)}</Struck>{k < 5 ? ',' : '.'}</span>{' '}</span>)}
+          </p>
+          <p className="mt-6 max-w-xl text-[17px] font-medium">{t('v.stack.then')}</p>
         </Reveal>
+      </div>
+    </section>
+  )
+}
+
+/* ───────────── Feature rows ───────────── */
+const ROWS = [
+  { n: 1, node: <AppWindow wide><TasksMock /></AppWindow> },
+  { n: 2, node: <ChatMock /> },
+  { n: 3, node: <CalendarMock /> },
+  { n: 4, node: <NotesMock /> },
+  { n: 5, node: <CrmMock /> },
+] as const
+
+export function Features() {
+  const t = useT()
+  return (
+    <div id="fonctionnalites" className="scroll-mt-16">
+      {ROWS.map((r, idx) => (
+        <Container key={r.n} className="py-14 sm:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+            <Reveal className={cn(idx % 2 === 1 && 'lg:order-2')}>
+              <h2 className="font-display text-[clamp(1.7rem,3vw,2.4rem)] leading-[1.12]">{t(`v.f${r.n}.title` as Key)}</h2>
+              <p className="mt-4 max-w-[460px] text-[16px] leading-relaxed text-text-2">{t(`v.f${r.n}.text` as Key)}</p>
+              <ul className="mt-6 space-y-2.5 border-t border-border pt-5">
+                {([1, 2, 3] as const).map((b) => <li key={b} className="flex gap-3 text-[14.5px] text-text-2"><Check className="mt-0.5 size-4 shrink-0 text-accent-ink" strokeWidth={2.2} />{t(`v.f${r.n}.b${b}` as Key)}</li>)}
+              </ul>
+            </Reveal>
+            <Reveal delay={0.08} className={cn('min-w-0 [&>*]:shadow-[0_24px_60px_-30px_rgba(40,30,10,0.35)]', idx % 2 === 1 && 'lg:order-1')}>{r.node}</Reveal>
+          </div>
+        </Container>
       ))}
     </div>
   )
 }
 
-export function Modules() {
+/* ───────────── Agents & API ───────────── */
+export function Agents() {
   const t = useT()
   return (
-    <Container id="modules" className="scroll-mt-24 py-20 sm:py-28">
-      <Head kicker={t('h.mod.kicker')}>{t('h.mod.title1')} <Serif>{t('h.mod.title2')}</Serif></Head>
-      <Numbered items={[1, 2, 3, 4, 5, 6]} prefix="h.mod" arts={['tiles', 'orbit', 'cube', 'bars', 'arrow', 'sphere']} />
-    </Container>
+    <section id="agents" className="scroll-mt-16 border-y border-border bg-[#17160f] text-[#ece9df] [color-scheme:dark]">
+      <div className="mx-auto max-w-[1120px] px-5 py-16 sm:py-24">
+        <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          <Reveal>
+            <p className="font-mono text-[12.5px] text-[#a9a496]">/api/v1</p>
+            <h2 className="font-display mt-3 text-[clamp(1.9rem,3.8vw,3rem)] leading-[1.08]">{t('v.ag.title')}</h2>
+            <p className="mt-5 max-w-[500px] text-[16px] leading-relaxed text-[#bdb8a9]">{t('v.ag.text')}</p>
+            <ul className="mt-7 space-y-3">
+              {([1, 2, 3, 4] as const).map((b) => <li key={b} className="flex gap-3 text-[14.5px] text-[#d3cfc2]"><Check className="mt-0.5 size-4 shrink-0 text-[#a3abf2]" strokeWidth={2.2} />{t(`v.ag.b${b}` as Key)}</li>)}
+            </ul>
+          </Reveal>
+          <Reveal delay={0.08} className="min-w-0 space-y-4">
+            <pre tabIndex={0} className="overflow-x-auto rounded-lg border border-[#2f2d24] bg-[#0f0e0a] p-4 font-mono text-[12.5px] leading-[1.7] text-[#d8d4c6]" aria-label="curl"><code>
+              <span className="text-[#8c8878]">$ </span>curl -X PATCH …/api/v1/tasks/3b7d158a \{'\n'}
+              {'    '}-H <span className="text-[#e3c88a]">&quot;Authorization: Bearer $FLOW_API_KEY&quot;</span> \{'\n'}
+              {'    '}-d <span className="text-[#e3c88a]">{`'{"status":"done"}'`}</span>
+            </code></pre>
+            <div className="rounded-lg border border-[#2f2d24] bg-[#1d1c15]">
+              <div className="flex items-center gap-1.5 border-b border-[#2f2d24] px-4 py-2.5 text-[13px] font-semibold"><Hash className="size-3.5 text-[#8c8878]" />{t('v.ag.channel')}</div>
+              <div className="space-y-3.5 p-4 text-[13px]">
+                {(['v.ag.msg1', 'v.ag.msg2'] as const).map((k, n) => (
+                  <div key={k} className="flex gap-2.5"><Avatar name="Claude" size={26} />
+                    <div className="min-w-0"><div className="text-[11.5px] font-semibold">Claude (API) <span className="font-normal text-[#8c8878]">{n === 0 ? '10:42' : '10:58'}</span></div>
+                      <p className="mt-0.5 leading-snug text-[#d3cfc2]">{t(k)}</p></div></div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </section>
   )
 }
 
-export function Steps() {
+/* ───────────── Rules ───────────── */
+export function Rules() {
   const t = useT()
   return (
-    <Container id="demarrer" className="scroll-mt-24 py-20 sm:py-28">
-      <Head kicker={t('h.step.kicker')} sub={t('h.step.sub')}>{t('h.step.title1')} <Serif>{t('h.step.title2')}</Serif></Head>
-      <Numbered items={[1, 2, 3, 4, 5, 6]} prefix="h.s" arts={['sphere', 'orbit', 'tiles', 'cube', 'bars', 'arrow']} />
-    </Container>
-  )
-}
-
-/* ───────────── For you / needs ───────────── */
-export function ForYou() {
-  const t = useT()
-  return (
-    <Container className="py-20 sm:py-24">
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Reveal><div className="h-full rounded-3xl border border-border bg-surface/80 p-8 sm:p-10">
-          <Kicker>{t('h.for.kicker')}</Kicker>
-          <h3 className="mt-4 text-[clamp(1.5rem,2.6vw,2rem)] font-semibold tracking-tight">{t('h.for.title1')}</h3>
-          <ul className="mt-6 space-y-4">{([1, 2, 3] as const).map((n) => <li key={n} className="flex gap-3 text-[15px] leading-relaxed text-text-2"><Check className="mt-1 size-4 shrink-0 text-accent-ink" />{t(`h.for.${n}` as Key)}</li>)}</ul>
-        </div></Reveal>
-        <Reveal delay={0.06}><div className="h-full rounded-3xl border border-border bg-surface/80 p-8 sm:p-10">
-          <Kicker>{t('h.need.title').toUpperCase()}</Kicker>
-          <ul className="mt-8 space-y-4">{([1, 2, 3, 4] as const).map((n) => <li key={n} className="flex gap-3 text-[15px] leading-relaxed text-text-2"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-text-3" />{t(`h.need.${n}` as Key)}</li>)}</ul>
-        </div></Reveal>
+    <Container id="regles" className="scroll-mt-16 py-16 sm:py-24">
+      <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+        <Reveal><H2>{t('v.rules.title')}</H2></Reveal>
+        <Reveal delay={0.06}>
+          <ol className="divide-y divide-border border-y border-border">
+            {([1, 2, 3, 4, 5] as const).map((n) => <li key={n} className="py-4 text-[16.5px] leading-snug">{t(`v.rules.${n}` as Key)}</li>)}
+          </ol>
+        </Reveal>
       </div>
     </Container>
   )
 }
 
-/* ───────────── Pricing box ───────────── */
+/* ───────────── Pricing ───────────── */
 export function PricingBox() {
   const t = useT()
   return (
-    <Container id="tarif" className="scroll-mt-24 py-20 sm:py-28">
-      <Head kicker={t('h.price.kicker')}>{t('h.price.title1')} <Serif>{t('h.price.title2')}</Serif></Head>
+    <Container id="tarif" className="scroll-mt-16 py-16 sm:py-24">
       <Reveal>
-        <div className="relative mt-12 overflow-hidden rounded-[32px] border border-border-strong bg-surface/80 p-8 sm:p-12">
-          <div aria-hidden className="absolute -right-24 -top-24 size-80 rounded-full bg-[radial-gradient(circle,var(--mk-glow),transparent_70%)]" />
-          <div className="relative grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
-            <div><div className="mk-stat text-[clamp(4rem,9vw,6.5rem)] font-semibold leading-none tracking-[-0.05em]">{t('h.price.big')}</div><p className="mt-3 text-[15px] text-text-2">{t('h.price.per')}</p></div>
-            <div>
-              <ul className="space-y-3.5">{([1, 2, 3, 4] as const).map((n) => <li key={n} className="flex items-center gap-3 text-[15.5px]"><span className="flex size-5 items-center justify-center rounded-full bg-accent-soft text-accent-ink"><Check className="size-3" strokeWidth={3} /></span>{t(`h.price.${n}` as Key)}</li>)}</ul>
-              <Link href="/register" className="mt-8 inline-block"><Button variant="pill" size="lg" className="h-12 px-8 text-[15px]">{t('h.price.cta')}</Button></Link>
-              <p className="mt-4 max-w-md text-[13px] leading-relaxed text-text-3">{t('h.price.note')}</p>
-            </div>
+        <div className="grid gap-10 rounded-lg border border-border-strong bg-surface p-7 sm:p-12 lg:grid-cols-[1fr_1fr] lg:items-center">
+          <div>
+            <H2>{t('v.price.title')}</H2>
+            <p className="mt-4 max-w-sm text-[16px] leading-relaxed text-text-2">{t('v.price.text')}</p>
+            <div className="mt-8 flex items-baseline gap-3"><span className="font-display text-[clamp(3.5rem,8vw,5.5rem)] leading-none">{t('v.price.big')}</span><span className="text-[14px] text-text-3">{t('v.price.per')}</span></div>
+          </div>
+          <div>
+            <ul className="space-y-3 border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">{([1, 2, 3, 4] as const).map((n) => <li key={n} className="flex items-center gap-3 text-[15.5px]"><Check className="size-4 text-accent-ink" strokeWidth={2.4} />{t(`v.price.${n}` as Key)}</li>)}</ul>
+            <Link href="/register" className="mt-8 inline-block lg:ml-10"><Button variant="primary" size="lg" className="h-12 rounded-md px-7 text-[15px]">{t('v.price.cta')}</Button></Link>
           </div>
         </div>
       </Reveal>
+    </Container>
+  )
+}
+
+/* ───────────── FAQ ───────────── */
+export function FaqSection() {
+  const t = useT()
+  return (
+    <Container id="faq" className="scroll-mt-16 py-16 sm:py-24">
+      <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+        <Reveal><H2>{t('v.faq.title')}</H2></Reveal>
+        <Reveal delay={0.06}><Faq keys={[['s.faq.q1', 's.faq.a1'], ['s.faq.q2', 's.faq.a2'], ['s.faq.q3', 's.faq.a3'], ['s.faq.q4', 's.faq.a4'], ['s.faq.q5', 's.faq.a5'], ['h.faq.q6', 'h.faq.a6']]} /></Reveal>
+      </div>
     </Container>
   )
 }
@@ -261,47 +248,17 @@ export function Newsletter() {
   return (
     <Container className="py-12">
       <Reveal>
-        <div className="rounded-3xl border border-border bg-surface/80 p-8 text-center sm:p-12">
-          <Kicker>{t('h.news.kicker')}</Kicker>
-          <h2 className="mx-auto mt-4 max-w-xl text-[clamp(1.6rem,3.4vw,2.4rem)] font-semibold leading-[1.1] tracking-[-0.03em]">{t('h.news.title')}</h2>
-          <p className="mx-auto mt-3 max-w-md text-[15px] text-text-2">{t('h.news.sub')}</p>
-          {state === 'ok' ? <p className="mt-7 text-[15px] font-medium text-success" role="status">{t('h.news.ok')}</p> : (
-            <form onSubmit={submit} className="mx-auto mt-7 flex max-w-md flex-col gap-2 sm:flex-row">
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('h.news.placeholder')} aria-label="Email" autoComplete="email" maxLength={320}
-                className="h-12 flex-1 rounded-full border border-border-strong bg-surface-2/70 px-5 text-[15px] outline-none placeholder:text-text-3 focus:border-accent focus:ring-4 focus:ring-accent/15" />
-              <Button type="submit" variant="pill" size="lg" className="h-12 px-6" loading={state === 'busy'}>{t('h.news.cta')}</Button>
-            </form>
-          )}
-          {state === 'err' && <p className="mt-3 text-[13px] text-danger" role="alert">{t('h.news.err')}</p>}
-        </div>
-      </Reveal>
-    </Container>
-  )
-}
-
-/* ───────────── FAQ + final CTA ───────────── */
-export function FaqSection() {
-  const t = useT()
-  return (
-    <Container id="faq" className="scroll-mt-24 py-20 sm:py-28">
-      <Head kicker={t('h.faq.kicker')}>{t('h.faq.title1')} <Serif>{t('h.faq.title2')}</Serif></Head>
-      <div className="mt-12 max-w-3xl"><Faq keys={[['s.faq.q1', 's.faq.a1'], ['s.faq.q2', 's.faq.a2'], ['s.faq.q3', 's.faq.a3'], ['s.faq.q4', 's.faq.a4'], ['s.faq.q5', 's.faq.a5'], ['h.faq.q6', 'h.faq.a6']]} /></div>
-    </Container>
-  )
-}
-
-export function FinalCta() {
-  const t = useT()
-  return (
-    <Container className="pb-24 pt-8 sm:pb-32">
-      <Reveal>
-        <div className="relative overflow-hidden rounded-[36px] border border-border-strong px-6 py-16 text-center sm:py-24">
-          <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(60%_90%_at_50%_100%,var(--mk-glow),transparent_70%)]" />
-          <h2 className="mk-grad mx-auto max-w-3xl text-[clamp(2.4rem,6vw,4.5rem)] font-semibold leading-[1.03] tracking-[-0.04em]">{t('h.cta.title1')} <span className="font-serif-i text-[1.08em]">{t('h.cta.title2')}</span></h2>
-          <p className="mx-auto mt-5 max-w-md text-[17px] text-text-2">{t('h.cta.sub')}</p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/register"><Button variant="pill" size="lg" className="h-12 px-8 text-[15px]">{t('h.cta.primary')}</Button></Link>
-            <Link href="/demo"><Button variant="glass" size="lg" className="h-12 px-8 text-[15px]">{t('h.cta.secondary')}</Button></Link>
+        <div className="grid items-center gap-6 border-t border-border pt-10 lg:grid-cols-[1fr_1fr]">
+          <div><h2 className="font-display text-[clamp(1.4rem,2.4vw,1.9rem)] leading-tight">{t('v.news.title')}</h2><p className="mt-2 max-w-md text-[14.5px] text-text-2">{t('v.news.sub')}</p></div>
+          <div>
+            {state === 'ok' ? <p className="text-[15px] font-medium text-success" role="status">{t('h.news.ok')}</p> : (
+              <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('h.news.placeholder')} aria-label="Email" autoComplete="email" maxLength={320}
+                  className="h-11 flex-1 rounded-md border border-border-strong bg-surface px-4 text-[15px] outline-none placeholder:text-text-3 focus:border-accent focus:ring-4 focus:ring-accent/15" />
+                <Button type="submit" variant="pill" size="lg" className="h-11 px-6" loading={state === 'busy'}>{t('h.news.cta')}</Button>
+              </form>
+            )}
+            {state === 'err' && <p className="mt-2 text-[13px] text-danger" role="alert">{t('h.news.err')}</p>}
           </div>
         </div>
       </Reveal>
@@ -309,4 +266,21 @@ export function FinalCta() {
   )
 }
 
-
+/* ───────────── Final call ───────────── */
+export function FinalCta() {
+  const t = useT()
+  return (
+    <section className="border-t border-border bg-bg-subtle">
+      <div className="mx-auto max-w-[1120px] px-5 py-20 sm:py-28">
+        <Reveal>
+          <h2 className="font-display max-w-3xl text-[clamp(2.2rem,5.4vw,4.2rem)] leading-[1.04]">{t('v.cta.title')}</h2>
+          <p className="mt-4 max-w-md text-[17px] text-text-2">{t('v.cta.sub')}</p>
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link href="/register"><Button variant="primary" size="lg" className="h-12 rounded-md px-7 text-[15px]">{t('v.cta.1')}</Button></Link>
+            <Link href="/demo" className="group inline-flex items-center gap-1.5 text-[15px] font-medium underline decoration-border-strong underline-offset-[6px] transition-colors hover:decoration-text">{t('v.cta.2')}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></Link>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}

@@ -39,17 +39,3 @@ node "$DIR/flow-bridge.mjs" install
 say "Terminé. Retourne sur Flow : ton Mac est relié."
 `
 }
-
-/** Fichier à double-cliquer sur Mac : ouvre le Terminal et lance l'installation. */
-export function commandFile(origin: string): string {
-  const secure = origin.startsWith('https://') ? "--proto '=https' --tlsv1.2 " : ''
-  return `#!/bin/bash
-# Installateur Flow Studio — double-clique ce fichier. Il s'ouvre dans le Terminal.
-clear
-echo "Flow Studio : installation (${origin})"
-echo
-bash <(curl -fsSL ${secure}"${origin}/studio/install.sh")
-echo
-read -n 1 -s -r -p "Appuie sur une touche pour fermer cette fenêtre."
-`
-}

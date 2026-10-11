@@ -61,18 +61,18 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}
       className={cn('relative h-5 w-9 shrink-0 rounded-full transition-colors', checked ? 'bg-accent' : 'bg-border-strong')}>
-      <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-[18px]' : 'translate-x-0.5')} />
+      <span className={cn('absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-4' : 'translate-x-0')} />
     </button>
   )
 }
 
 export function PageHeader({ title, subtitle, actions, icon }: { title: string; subtitle?: string; actions?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 pb-5">
+    <div className="flex flex-wrap items-center justify-between gap-3 pb-5 max-md:gap-2 max-md:pb-3">
       <div className="flex min-w-0 items-center gap-3">
-        {icon && <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">{icon}</span>}
+        {icon && <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink max-md:hidden">{icon}</span>}
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="truncate text-xl font-semibold tracking-tight max-md:sr-only">{title}</h1>
           {subtitle && <p className="truncate text-[13px] text-text-3">{subtitle}</p>}
         </div>
       </div>
@@ -86,7 +86,7 @@ export function Tabs<T extends string>({ value, onChange, items, className }: { 
     <div className={cn('inline-flex rounded-lg border border-border bg-surface-2 p-0.5', className)} role="tablist">
       {items.map((it) => (
         <button key={it.value} role="tab" aria-selected={value === it.value} onClick={() => onChange(it.value)}
-          className={cn('inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition-colors',
+          className={cn('inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 sm:h-7 text-[13px] font-medium transition-colors',
             value === it.value ? 'bg-surface text-text shadow-sm' : 'text-text-3 hover:text-text')}>
           {it.icon}{it.label}
         </button>

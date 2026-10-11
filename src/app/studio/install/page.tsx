@@ -12,7 +12,7 @@ const T = {
     title: 'Installer Flow Studio sur ton Mac',
     lead: 'Flow Studio relie ton Mac à Flow : tes demandes de motion design et de sites sont réalisées par Claude Code sur ce Mac, et tu suis tout depuis Flow.',
     need: 'Ce qu\'il te faut', needList: ['Un Mac (macOS) allumé et connecté à Internet', 'Un compte Claude avec Claude Code (Pro ou Max)', 'Environ 5 minutes'],
-    steps: 'Installation', dl: 'Télécharger l\'installateur Mac', s1: 'Télécharge le fichier ci-dessus, ouvre-le et double-clique « Installer Flow Studio ».', s2: 'Si le Mac refuse de l\'ouvrir : clic droit sur le fichier > Ouvrir > Ouvrir.', s3: 'Une fenêtre vérifie ton Mac, installe ce qui manque et affiche un code (FLOW-XXXX-XXXX). Entre-le sur Flow, page « Création de site » > « Connexion du Mac ».', s4: 'C\'est tout : le Mac reste relié et redémarre tout seul avec l\'ordinateur.', adv: 'Installation par le Terminal', advHint: 'Ouvre l\'app « Terminal » et colle :',
+    steps: 'Installation', dl: 'Télécharger l\'installateur Mac', s1: 'Ouvre le fichier téléchargé (.dmg) et double-clique « Installer Flow Studio ».', s2: 'Si macOS le refuse : Réglages Système > Confidentialité et sécurité > Ouvrir quand même (une seule fois).', s3: 'Une fenêtre vérifie ton Mac et installe ce qui manque. Une page Flow s’ouvre pour relier ton Mac : connecte-toi si besoin, c’est automatique.', s4: 'C\'est tout : le Mac reste relié et redémarre tout seul avec l\'ordinateur.', adv: 'Installation par le Terminal', advHint: 'Ouvre l\'app « Terminal » et colle :',
     copy: 'Copier', copied: 'Copié', share: 'Partager le lien', link: 'Lien à partager (téléphone, autre ordinateur)', onPhone: 'Tu es sur téléphone ? Envoie-toi ce lien et ouvre-le sur ton Mac.',
     safe: 'Sécurité', safeList: ['Aucun mot de passe ni clé ne quitte ton Mac.', 'Le code est à usage unique et expire après 10 minutes.', 'Tu peux dissocier le Mac à tout moment depuis Flow.'],
   },
@@ -20,7 +20,7 @@ const T = {
     title: 'Install Flow Studio on your Mac',
     lead: 'Flow Studio links your Mac to Flow: your motion design and site requests are built by Claude Code on this Mac, and you follow everything from Flow.',
     need: 'What you need', needList: ['A Mac (macOS) that is on and online', 'A Claude account with Claude Code (Pro or Max)', 'About 5 minutes'],
-    steps: 'Installation', dl: 'Download the Mac installer', s1: 'Download the file above, open it and double-click "Installer Flow Studio".', s2: 'If the Mac refuses to open it: right-click the file > Open > Open.', s3: 'A window checks your Mac, installs what is missing and shows a code (FLOW-XXXX-XXXX). Enter it on Flow, "Site builder" page > "Connect the Mac".', s4: 'That\'s it: the Mac stays linked and restarts by itself with the computer.', adv: 'Install with Terminal', advHint: 'Open the "Terminal" app and paste:',
+    steps: 'Installation', dl: 'Download the Mac installer', s1: 'Open the downloaded file (.dmg) and double-click "Installer Flow Studio".', s2: 'If macOS refuses: System Settings > Privacy & Security > Open Anyway (one time only).', s3: 'A window checks your Mac and installs what is missing. A Flow page opens to link your Mac: sign in if needed, it is automatic.', s4: 'That\'s it: the Mac stays linked and restarts by itself with the computer.', adv: 'Install with Terminal', advHint: 'Open the "Terminal" app and paste:',
     copy: 'Copy', copied: 'Copied', share: 'Share the link', link: 'Link to share (phone, another computer)', onPhone: 'On a phone? Send yourself this link and open it on your Mac.',
     safe: 'Security', safeList: ['No password or key ever leaves your Mac.', 'The code is single-use and expires after 10 minutes.', 'You can unlink the Mac at any time from Flow.'],
   },
@@ -41,7 +41,7 @@ export default async function InstallPage() {
 
       <h2 className="mt-8 text-sm font-semibold">{t.steps}</h2>
       <ol className="mt-3 space-y-4 text-[14px] text-text-2">
-        <li><a href="/studio/Flow-Studio-Installer.zip" download className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text shadow-sm">{t.dl}</a></li>
+        <li><a href="/studio/Flow-Studio-Installer.dmg" download className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text shadow-sm">{t.dl}</a></li>
         <li><span className="font-medium text-text">1.</span> {t.s1}</li>
         <li><span className="font-medium text-text">2.</span> {t.s2}</li>
         <li><span className="font-medium text-text">3.</span> {t.s3}</li>

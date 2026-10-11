@@ -10,14 +10,14 @@ import { useT } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 
 const SECTIONS = [
-  { id: 'fonctionnalites', key: 'h.nav.features' },
-  { id: 'modules', key: 'h.nav.modules' },
-  { id: 'demarrer', key: 'h.nav.start' },
-  { id: 'tarif', key: 'h.nav.price' },
-  { id: 'faq', key: 'h.nav.faq' },
+  { id: 'fonctionnalites', key: 'v.nav.features' },
+  { id: 'agents', key: 'v.nav.agents' },
+  { id: 'regles', key: 'v.nav.rules' },
+  { id: 'tarif', key: 'v.nav.price' },
+  { id: 'faq', key: 'v.nav.faq' },
 ] as const
 
-/** Floating glass navigation with scroll-spy. */
+/** Sticky top bar with scroll-spy. */
 export function SiteNav() {
   const t = useT()
   const pathname = usePathname()
@@ -39,27 +39,34 @@ export function SiteNav() {
   }, [home])
 
   const href = (id: string) => (home ? `#${id}` : `/#${id}`)
+  const night = home // the homepage sits on the night-blue hero: floating glass bar, like the reference page
   return (
-    <header className="fixed inset-x-0 top-3 z-50 px-3 safe-top">
-      <div className="mx-auto max-w-[1080px] rounded-2xl border border-border-strong/70 bg-surface/55 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
-        <div className="flex h-14 items-center justify-between gap-2 pl-4 pr-2.5">
+    <header className={cn('z-50 safe-top', night ? 'mk-night fixed inset-x-0 top-3 bg-transparent px-3 text-text' : 'sticky top-0 border-b border-border bg-bg/92 backdrop-blur-md')}>
+      <div className={cn(night ? 'mx-auto max-w-[1080px] rounded-2xl border border-white/10 bg-[#070c19]/70 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl' : 'mx-auto max-w-[1120px]')}>
+        <div className={cn('flex h-14 items-center justify-between gap-3', night ? 'pl-4 pr-2.5' : 'px-5')}>
           <Link href="/" aria-label="Flow"><Wordmark /></Link>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
             {SECTIONS.map((s) => (
-              <a key={s.id} href={href(s.id)} className={cn('rounded-full px-3.5 py-1.5 text-[13px] transition-colors', active === s.id ? 'bg-surface-3 text-text' : 'text-text-2 hover:text-text')}>{t(s.key)}</a>
+              <a key={s.id} href={href(s.id)} aria-current={active === s.id ? 'true' : undefined}
+                className={cn('relative text-[14px] transition-colors', night ? 'rounded-full px-3.5 py-1.5' : 'mx-3 py-1', active === s.id ? 'text-text' : 'text-text-2 hover:text-text', night && active === s.id && 'bg-surface-3')}>
+                {t(s.key)}{!night && active === s.id && <span className="absolute inset-x-0 -bottom-[17px] h-0.5 bg-accent" />}
+              </a>
             ))}
           </nav>
           <div className="flex items-center gap-1">
             <span className="hidden sm:flex"><LanguageToggle /><ThemeToggle /></span>
-            <Link href="/login" className="hidden px-3 py-1.5 text-[13px] text-text-2 hover:text-text md:block">{t('nav.login')}</Link>
-            <Link href="/register"><Button variant="pill" size="sm" className="px-4">{t('h.nav.cta')}</Button></Link>
+            <Link href="/login" className="hidden px-3 py-1.5 text-[14px] text-text-2 hover:text-text md:block">{t('nav.login')}</Link>
+            <Link href="/register" className="hidden sm:block">{night
+              ? <Button variant="pill" size="sm" className="rounded-full bg-white px-4 text-[#05070d]">{t('v.nav.cta')}</Button>
+              : <Button variant="primary" size="sm" className="rounded-md px-4">{t('v.nav.cta')}</Button>}</Link>
             <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? <X className="size-5" /> : <MenuIcon className="size-5" />}</Button>
           </div>
         </div>
         {open && (
-          <div className="animate-fade-in border-t border-border px-3 pb-3 pt-2 lg:hidden">
-            {SECTIONS.map((s) => <a key={s.id} href={href(s.id)} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2.5 text-[15px] text-text-2 hover:bg-surface-2 hover:text-text">{t(s.key)}</a>)}
-            <div className="mt-2 flex items-center gap-1 border-t border-border pt-2"><LanguageToggle size="sm" /><ThemeToggle size="sm" /><Link href="/login" className="ml-auto px-3 text-[14px] text-text-2">{t('nav.login')}</Link></div>
+          <div className={cn('animate-fade-in border-t border-border px-5 pb-4 pt-2 lg:hidden', !night && 'bg-bg')}>
+            {SECTIONS.map((s) => <a key={s.id} href={href(s.id)} onClick={() => setOpen(false)} className="block border-b border-border/60 py-3 text-[16px] text-text-2 hover:text-text">{t(s.key)}</a>)}
+            <div className="mt-3 flex items-center gap-1"><LanguageToggle size="sm" /><ThemeToggle size="sm" /><Link href="/login" className="ml-auto px-3 text-[14px] text-text-2">{t('nav.login')}</Link></div>
+            <Link href="/register" className="mt-3 block"><Button variant="primary" size="lg" className="w-full rounded-md">{t('v.nav.cta')}</Button></Link>
           </div>
         )}
       </div>
@@ -91,9 +98,9 @@ export function CookieNotice() {
   useEffect(() => { try { if (!localStorage.getItem('flow_cookie_ok')) setHidden(false) } catch { setHidden(false) } }, [])
   if (hidden) return null
   return (
-    <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-xl animate-slide-up items-center gap-3 rounded-2xl border border-border-strong bg-surface/90 p-3 pl-4 shadow-lg backdrop-blur-xl safe-bottom">
+    <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-xl animate-slide-up items-center gap-3 rounded-lg border border-border-strong bg-surface p-3 pl-4 shadow-lg safe-bottom">
       <p className="flex-1 text-xs text-text-2">{t('cookies.text')}</p>
-      <Button size="sm" variant="pill" onClick={() => { try { localStorage.setItem('flow_cookie_ok', '1') } catch {} setHidden(true) }}>{t('cookies.ok')}</Button>
+      <Button size="sm" variant="primary" onClick={() => { try { localStorage.setItem('flow_cookie_ok', '1') } catch {} setHidden(true) }}>{t('cookies.ok')}</Button>
     </div>
   )
 }

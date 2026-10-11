@@ -11,7 +11,7 @@ function useL() {
 }
 
 export function Frame({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('overflow-hidden rounded-xl border border-border-strong bg-surface shadow-lg', className)}>{children}</div>
+  return <div className={cn('overflow-hidden rounded-lg border border-border-strong bg-surface', className)}>{children}</div>
 }
 
 const dot = (c: string) => <span className="size-2 shrink-0 rounded-full" style={{ background: c }} />
@@ -46,12 +46,12 @@ export function TasksMock() {
       <div className="mb-3 flex items-center justify-between"><div className="text-[14px] font-semibold">{t('nav.tasks')}</div>
         <div className="flex items-center gap-2"><span className="hidden h-7 w-32 items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2 text-[11px] text-text-3 sm:flex"><Search className="size-3" />{t('common.search')}</span>
           <span className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-white">+ {t('common.new')}</span></div></div>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         {cols.map((col) => (
-          <div key={col.k} className="min-w-0 rounded-lg border border-border bg-surface-2/60 p-1.5 sm:p-2">
+          <div key={col.k} className="min-w-0 rounded-lg [&:nth-child(3)]:hidden sm:[&:nth-child(3)]:block border border-border bg-surface-2/60 p-1.5 sm:p-2">
             <div className="mb-2 flex items-center gap-1.5 px-1 text-[11px] font-medium sm:text-[12px]">{dot(col.c)}<span className="truncate">{t(`status.${col.k}`)}</span><span className="text-text-3">{col.cards.length}</span></div>
             <div className="space-y-1.5">{col.cards.map(([title, p, who]) => (
-              <div key={title} className="rounded-md border border-border bg-surface p-2 shadow-sm"><div className="flex gap-1.5 text-[11px] leading-snug sm:text-[12px]">{dot(p)}<span className="min-w-0">{title}</span></div>
+              <div key={title} className="rounded-md border border-border bg-surface p-2 shadow-sm"><div className="flex gap-1.5 text-[11px] leading-snug [overflow-wrap:anywhere] sm:text-[12px]">{dot(p)}<span className="min-w-0">{title}</span></div>
                 <div className="mt-2 flex justify-end"><Avatar name={{ LM: 'Léa Martin', KB: 'Karim Benali', AD: 'Alex Demo', SD: 'Sophie Dubois' }[who]} size={16} /></div></div>))}</div>
           </div>))}
       </div>

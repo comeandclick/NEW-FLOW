@@ -1,0 +1,7 @@
+Flow Studio — installation sur Mac
+
+Double-clique « Installer Flow Studio » et suis la fenêtre. Rien à taper.
+
+Si macOS dit que l'application ne peut pas être ouverte (développeur non vérifié) :
+Réglages Système > Confidentialité et sécurité > descends jusqu'à « Installer Flow Studio » > Ouvrir quand même.
+(À faire une seule fois.)

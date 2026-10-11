@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 
+const ROOT = path.resolve(__dirname, '..')
 type Svc = typeof import('@/lib/studio/server/service')
 let S: Svc
 const U = '33333333-3333-4333-8333-333333333333'
@@ -62,20 +63,13 @@ describe('sécurité : installateur et origine', () => {
     for (const bad of ['evil.com/x', 'a b', 'x"; rm -rf ~; "', '']) expect(() => originFromHeaders(new Headers({ host: bad }))).toThrow()
   })
   it('le script force HTTPS et ne contient que l\'origine validée', async () => {
-    const { installScript, commandFile } = await import('@/lib/studio/server/installer-script')
+    const { installScript } = await import('@/lib/studio/server/installer-script')
     const s = installScript('https://exemple.test')
     expect(s).toContain("--proto '=https' --tlsv1.2")
     expect(s).toContain('ORIGIN="https://exemple.test"')
-    expect(commandFile('https://exemple.test')).toContain('bash <(curl')
   })
-  it('l\'archive ZIP est valide et garde le droit d\'exécution', async () => {
-    const { zipStore, crc32 } = await import('@/lib/studio/server/zip')
-    const z = zipStore([{ name: 'a.command', data: Buffer.from('#!/bin/bash\n'), mode: 0o755 }])
-    expect(z.readUInt32LE(0)).toBe(0x04034b50)
-    const eocd = z.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
-    const cdOff = z.readUInt32LE(eocd + 16)
-    expect(z.readUInt32LE(cdOff)).toBe(0x02014b50)
-    expect((z.readUInt32LE(cdOff + 38) >>> 16) & 0o777).toBe(0o755)
-    expect(z.readUInt32LE(14)).toBe(crc32(Buffer.from('#!/bin/bash\n')))
+  it('l\'application Mac est dans le .dmg et le DMG est un vrai fichier statique', async () => {
+    const { statSync } = await import('node:fs')
+    expect(statSync(path.join(ROOT, 'public', 'studio', 'Flow-Studio-Installer.dmg')).size).toBeGreaterThan(100_000)
   })
 })

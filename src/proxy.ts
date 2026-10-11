@@ -29,7 +29,10 @@ export async function proxy(request: NextRequest) {
     const url = new URL('/login', request.url)
     return NextResponse.redirect(url)
   }
-  if (session && isAuthPage) return NextResponse.redirect(new URL('/app', request.url))
+  if (session && isAuthPage) {
+    const n = request.nextUrl.searchParams.get('next')
+    return NextResponse.redirect(new URL(n && /^\/(?!\/)[\w\-./?=&%]*$/.test(n) ? n : '/app', request.url))
+  }
   return response
 }
 

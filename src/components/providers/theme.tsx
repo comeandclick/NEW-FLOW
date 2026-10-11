@@ -56,4 +56,4 @@ export function useTheme() {
 }
 
 /** Inline script: applies the theme before first paint (no flash). */
-export const themeInitScript = `(function(){try{var p=localStorage.getItem('${KEY}')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'}catch(e){document.documentElement.dataset.theme='dark'}})()`
+export const themeInitScript = `(function(){try{var p=localStorage.getItem('${KEY}')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';var u=JSON.parse(localStorage.getItem('flow_ui')||'{}');if(u.accent&&u.accent!=='indigo')document.documentElement.dataset.accent=u.accent;if(u.density==='compact')document.documentElement.dataset.density='compact';if(u.reduceMotion)document.documentElement.dataset.motion='reduce'}catch(e){document.documentElement.dataset.theme='dark'}})()`

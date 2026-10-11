@@ -12,15 +12,15 @@ const variants: Record<Variant, string> = {
   outline: 'border border-border-strong bg-transparent text-text hover:bg-surface-2',
   ghost: 'text-text-2 hover:bg-surface-2 hover:text-text',
   danger: 'bg-[#c4262f] text-white hover:bg-[#b01f27]',
-  pill: 'rounded-full bg-text text-bg hover:opacity-90 shadow-[0_8px_30px_-8px_var(--mk-glow,transparent)]',
-  glass: 'rounded-full border border-border-strong bg-surface-2/70 text-text backdrop-blur hover:bg-surface-3',
+  pill: 'rounded-md bg-text text-bg hover:opacity-85 active:scale-[0.98]',
+  glass: 'rounded-md border border-border-strong bg-surface text-text hover:bg-surface-2 active:scale-[0.98]',
 }
 const sizes: Record<Size, string> = {
   xs: 'h-7 px-2 text-xs gap-1.5 rounded-md',
   sm: 'h-8 px-3 text-[13px] gap-1.5 rounded-lg',
   md: 'h-9 px-3.5 text-sm gap-2 rounded-lg',
   lg: 'h-11 px-5 text-[15px] gap-2 rounded-xl',
-  icon: 'h-8 w-8 rounded-lg justify-center',
+  icon: 'h-8 w-8 rounded-lg justify-center max-md:h-10 max-md:w-10',
 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

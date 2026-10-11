@@ -32,8 +32,8 @@ const DEFAULTS = {
 }
 function resolveClaude(bin) {
   if (bin !== 'claude') return bin
-  const cands = ['claude', path.join(HOME, '.claude', 'local', 'claude'), path.join(HOME, '.local', 'bin', 'claude'), '/opt/homebrew/bin/claude', '/usr/local/bin/claude']
-  for (const c of cands) { try { execFileSync(c, ['--version'], { stdio: 'pipe', timeout: 10000, env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}` } }); return c } catch {} }
+  const cands = ['claude', path.join(DIR, 'npm', 'bin', 'claude'), path.join(HOME, '.claude', 'local', 'claude'), path.join(HOME, '.local', 'bin', 'claude'), '/opt/homebrew/bin/claude', '/usr/local/bin/claude']
+  for (const c of cands) { try { execFileSync(c, ['--version'], { stdio: 'pipe', timeout: 10000, env: { ...process.env, PATH: `${path.join(DIR, 'npm', 'bin')}:${path.join(DIR, 'node', 'bin')}:/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}` } }); return c } catch {} }
   return bin
 }
 const readJson = (f, d) => { try { return JSON.parse(readFileSync(f, 'utf8')) } catch { return d } }
@@ -137,7 +137,7 @@ function send(run, text) { if (run.exited || !run.child.stdin.writable) return f
 function childEnv(job, dir) {
   const env = {}
   for (const [k, v] of Object.entries(process.env)) if (!/^FLOW_BRIDGE|^FLOW_SERVER$|SECRET|PASSWORD|PRIVATE_KEY|DEVICE_TOKEN/i.test(k)) env[k] = v
-  return { ...env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}`, FLOW_JOB_ID: job.id, FLOW_JOB_DIR: dir }
+  return { ...env, PATH: `${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}`, FLOW_JOB_ID: job.id, FLOW_JOB_DIR: dir }
 }
 /** Réglages de sécurité du projet : Claude ne lit pas les secrets du Mac (clés SSH, jeton du pont, trousseau…) et ne fait pas d'actions destructrices évidentes. */
 const DENY = ['Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.config/gh/**)', 'Read(~/.gnupg/**)', 'Read(~/.flow-bridge/**)', 'Read(~/Library/Keychains/**)', 'Read(~/Library/Application Support/Google/Chrome/**)', 'Edit(~/.flow-bridge/**)', 'Edit(~/.ssh/**)', 'Edit(~/.zshrc)', 'Edit(~/.zprofile)', 'Bash(sudo:*)', 'Bash(rm -rf /:*)', 'Bash(rm -rf ~:*)', 'Bash(rm -rf $HOME:*)', 'Bash(cat ~/.flow-bridge/*:*)']
@@ -436,7 +436,8 @@ async function loop() {
 
 /* ───────── Logiciels du Mac : détection, installation guidée, état affiché sur Flow et dans le Terminal ───────── */
 const FAKE = process.env.FLOW_BRIDGE_FAKE === '1'
-const TOOL_ENV = () => ({ ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:${HOME}/.claude/local:${process.env.PATH ?? ''}` })
+const OWN_BIN = [path.join(DIR, 'node', 'bin'), path.join(DIR, 'npm', 'bin'), path.join(DIR, 'bin')]
+const TOOL_ENV = () => ({ ...process.env, PATH: `${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:${HOME}/.claude/local:${process.env.PATH ?? ''}` })
 const sh = (cmd, args = [], timeout = 20000) => { try { return execFileSync(cmd, args, { stdio: 'pipe', timeout, env: TOOL_ENV() }).toString().trim() } catch { return null } }
 const which = (c) => sh('/bin/sh', ['-c', `command -v ${c}`])
 const APP_DIRS = [ '/Applications', path.join(HOME, 'Applications') ]
@@ -515,6 +516,7 @@ function progress(id, label, step, pct, line) {
   inst.step = step; inst.pct = Math.max(0, Math.min(100, Math.round(pct))); if (line) inst.log = [...inst.log, line].slice(-12)
   setupState.installing = inst
   setupState.components = setupState.components.map((c) => (c.id === id ? { ...c, state: 'installing', detail: step } : c))
+  if (GUI_MODE) gui({ phase: 'install', step: `${label} — ${step}`, pct: guiPct(guiRange[0], guiRange[1], inst.pct) })
   if (process.stdout.isTTY) process.stdout.write(`\r\x1b[K   ${COLORS.installing}…\x1b[0m ${label} — ${step} (${inst.pct} %)`)
   void postSetup()
   log('install', id, step, inst.pct)
@@ -586,12 +588,20 @@ const INSTALLERS = {
   },
   async claude(rp) {
     rp('Installation de Claude Code', 15)
-    try { await run('npm', ['install', '-g', '@anthropic-ai/claude-code'], { onLine: (l) => rp(short(l, 70), Math.min(85, (setupState.installing?.pct ?? 15) + 1)) }) }
+    try { await run('npm', ['install', '-g', '--prefix', path.join(DIR, 'npm'), '@anthropic-ai/claude-code'], { onLine: (l) => rp(short(l, 70), Math.min(85, (setupState.installing?.pct ?? 15) + 1)) }) }
     catch { rp('Nouvel essai avec l\'installateur officiel', 50); await run('/bin/sh', ['-c', 'curl -fsSL https://claude.ai/install.sh | bash']) }
     claudeResolved = null; claudeCache = { at: 0, ok: false }
     rp('Terminé : il reste à te connecter à ton compte', 100)
   },
-  async ffmpeg(rp) { if (!which('brew')) throw new Error('Homebrew est requis (https://brew.sh).'); rp('Installation (Homebrew)', 20); await run('brew', ['install', 'ffmpeg'], { onLine: (l) => rp(short(l, 70), Math.min(90, (setupState.installing?.pct ?? 20) + 1)) }); rp('Terminé', 100) },
+  async ffmpeg(rp) {
+    if (which('brew')) { rp('Installation (Homebrew)', 20); await run('brew', ['install', 'ffmpeg'], { onLine: (l) => rp(short(l, 70), Math.min(90, (setupState.installing?.pct ?? 20) + 1)) }); rp('Terminé', 100); return }
+    rp('Installation sans Homebrew (ffmpeg-static)', 20)
+    const tools = path.join(DIR, 'tools'); mkdirSync(tools, { recursive: true }); mkdirSync(path.join(DIR, 'bin'), { recursive: true })
+    await run('npm', ['install', '--prefix', tools, 'ffmpeg-static', 'ffprobe-static'], { onLine: (l) => rp(short(l, 70), Math.min(90, (setupState.installing?.pct ?? 20) + 1)) })
+    const ff = path.join(tools, 'node_modules', 'ffmpeg-static', 'ffmpeg'), fp = readdirSync(path.join(tools, 'node_modules', 'ffprobe-static', 'bin', 'darwin')).map((a) => path.join(tools, 'node_modules', 'ffprobe-static', 'bin', 'darwin', a, 'ffprobe')).find((f) => existsSync(f))
+    for (const [src, name] of [[ff, 'ffmpeg'], [fp, 'ffprobe']]) { if (!src || !existsSync(src)) continue; const dst = path.join(DIR, 'bin', name); try { rmSync(dst) } catch {}; (await import('node:fs')).symlinkSync(src, dst) }
+    rp('Terminé', 100)
+  },
   async node(rp) { if (!which('brew')) throw new Error('Installe Node.js depuis https://nodejs.org (version LTS).'); rp('Mise à jour (Homebrew)', 20); await run('brew', ['install', 'node'], { onLine: (l) => rp(short(l, 70), 60) }); rp('Terminé', 100) },
   async python(rp) { rp('Installation de numpy et Pillow', 30); try { await run('python3', ['-m', 'pip', 'install', '--user', 'numpy', 'pillow']) } catch { await run('python3', ['-m', 'pip', 'install', '--user', '--break-system-packages', 'numpy', 'pillow']) } rp('Terminé', 100) },
   async vercel(rp) { rp('Installation de la CLI Vercel', 30); await run('npm', ['install', '-g', 'vercel']); rp('Installée : connecte-la avec « vercel login » dans le Terminal', 100) },
@@ -642,7 +652,7 @@ const inst_guided_text = (id) => (id === 'aftereffects' ? 'Termine l\'installati
 
 async function loginClaude() {
   progress('claude', 'Claude Code', 'Connexion à ton compte Claude : termine dans le navigateur qui s\'ouvre', 40)
-  const child = spawn(cfg().claudeBin === 'node' ? 'true' : resolveClaude('claude'), ['auth', 'login'], { env: TOOL_ENV(), stdio: 'ignore', detached: false })
+  const child = spawn(FAKE || cfg().claudeBin === 'node' ? 'true' : resolveClaude('claude'), ['auth', 'login'], { env: TOOL_ENV(), stdio: 'ignore', detached: false })
   child.on('error', () => {})
   const t0 = Date.now()
   while (Date.now() - t0 < 10 * 60_000) { await sleep(3000); if (FAKE || claudeOk(true)) break }
@@ -699,6 +709,89 @@ async function wizard({ yes = false } = {}) {
   if (opt.length) console.log(`  Facultatifs encore à installer : ${opt.map((c) => c.name).join(', ')} (depuis Flow > Création de site > Connexion du Mac).\n`)
 }
 
+
+/* ───────── Mode graphique : l'application « Installer Flow Studio » lit gui.txt et répond par gui-answer.txt ───────── */
+const GUI_FILE = path.join(DIR, 'gui.txt'), GUI_ANS = path.join(DIR, 'gui-answer.txt')
+let GUI_MODE = false, guiData = { phase: 'start', step: '', pct: 0 }, guiRange = [0, 100]
+function gui(patch) {
+  Object.assign(guiData, patch)
+  const body = Object.entries(guiData).filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `${k}=${String(v).replace(/[\r\n]+/g, ' ')}`).join('\n')
+  try { writeFileSync(GUI_FILE, body + '\n', { mode: 0o600 }) } catch {}
+}
+async function guiAsk(id, text, options) {
+  try { rmSync(GUI_ANS) } catch {}
+  gui({ ask: `${id}|${text}|${options.map((o) => `${o.label}~${o.value}`).join(';;')}` })
+  const t0 = Date.now()
+  while (Date.now() - t0 < 30 * 60_000) { await sleep(700); try { const l = readFileSync(GUI_ANS, 'utf8').trim(); if (l.startsWith(`${id}=`)) { gui({ ask: '' }); try { rmSync(GUI_ANS) } catch {}; return l.slice(id.length + 1) } } catch {} }
+  gui({ ask: '' }); return null
+}
+const guiPct = (a, b, p) => Math.round(a + ((b - a) * p) / 100)
+
+async function guiSetup() {
+  GUI_MODE = true
+  const issues = []
+  try {
+    gui({ phase: 'scan', step: 'Vérification de ton Mac…', pct: 3, error: '', code: '', url: '' })
+    await refreshScan({ post: false })
+    const comps = () => setupState.components
+    const state = (id) => comps().find((c) => c.id === id)?.state
+    const motionOk = () => comps().some((c) => ['effectcraft', 'aftereffects', 'remotion'].includes(c.id) && c.state === 'ok')
+    // 1. moteur de motion design
+    if (!motionOk()) {
+      const choice = await guiAsk('engine', 'Aucun moteur de motion design trouvé. Lequel veux-tu installer ?', [
+        { label: 'EffectCraft — gratuit (recommandé)', value: 'effectcraft' },
+        { label: 'After Effects — abonnement Adobe payant', value: 'aftereffects' },
+        { label: 'Remotion — gratuit, vidéos par code', value: 'remotion' },
+      ])
+      guiRange = [8, 40]
+      if (choice) { const ok = await installComponent(choice, { choice }); if (!ok && choice !== 'aftereffects') issues.push(`${choice} non installé`) }
+    }
+    // 2. le reste, sans poser de question
+    const todo = comps().filter((c) => c.state !== 'ok' && c.installable !== false && ['claude', 'skills', 'ffmpeg', 'python'].includes(c.id) && !(c.id === 'claude' && c.state === 'warn'))
+    let i = 0
+    for (const c of todo) {
+      guiRange = [40 + (i * 30) / Math.max(1, todo.length), 40 + ((i + 1) * 30) / Math.max(1, todo.length)]
+      gui({ phase: 'install', step: `Installation de ${c.name}…`, pct: Math.round(guiRange[0]) })
+      const ok = await installComponent(c.id)
+      if (!ok && ['claude', 'skills'].includes(c.id)) issues.push(`${c.name} non installé`)
+      i++
+    }
+    // 3. Claude connecté
+    await refreshScan({ post: false })
+    if (state('claude') === 'warn') {
+      guiRange = [70, 80]
+      gui({ phase: 'login', step: 'Connecte-toi à ton compte Claude dans la page du navigateur qui s’ouvre…', pct: 72 })
+      await loginClaude()
+      await refreshScan({ post: false })
+      if (state('claude') !== 'ok') issues.push('Claude Code n’est pas connecté')
+    }
+    // 4. liaison avec Flow : le code est confirmé automatiquement dans la page ouverte par l'application
+    const c = cfg()
+    if (!c.deviceToken) {
+      gui({ phase: 'pair', step: 'Liaison avec ton compte Flow…', pct: 82 })
+      const info = { deviceName: process.env.FLOW_DEVICE_NAME || hostname().replace(/\.local$/, ''), os: 'macOS', version: VERSION }
+      const res = await api('POST', 'pair/start', info, { auth: false })
+      gui({ phase: 'pair', step: 'Confirme la liaison dans la page Flow qui vient de s’ouvrir (connecte-toi si besoin).', pct: 85, code: res.code, url: `${c.server}/studio/connect#code=${res.code}` })
+      const t0 = Date.now(); let paired = false
+      while (Date.now() - t0 < res.expiresInSec * 1000) {
+        await sleep(2500)
+        const r = await api('GET', `pair/poll?token=${encodeURIComponent(res.pollToken)}`, undefined, { auth: false }).catch(() => null)
+        if (r?.status === 'paired') { saveCfg({ ...readJson(CONFIG, {}), server: c.server, deviceToken: r.deviceToken }); paired = true; break }
+        if (r?.status === 'expired') break
+      }
+      if (!paired) throw new Error('La liaison n’a pas été confirmée à temps. Relance l’installateur.')
+    }
+    // 5. démarrage automatique
+    gui({ phase: 'service', step: 'Activation du démarrage automatique…', pct: 94, code: '', url: '' })
+    install()
+    await refreshScan()
+    gui({ phase: 'done', step: issues.length ? `Terminé, avec des points à revoir : ${issues.join(' ; ')}` : 'Terminé : ton Mac est prêt.', pct: 100 })
+  } catch (e) {
+    gui({ phase: 'error', error: String(e.message ?? e).slice(0, 300) })
+    log('gui-setup', e.message)
+  }
+}
+
 /* ───────── Appairage ───────── */
 async function connect() {
   const c = cfg()
@@ -718,6 +811,7 @@ async function connect() {
 /* ───────── Service launchd (démarrage automatique, Mac gardé éveillé) ───────── */
 const PLIST = path.join(HOME, 'Library', 'LaunchAgents', 'site.flow.bridge.plist')
 function install() {
+  if (FAKE) { log('install ignoré (mode test)'); return }
   if (platform() !== 'darwin') { console.error('install : macOS uniquement pour l\'instant.'); process.exit(1) }
   const node = process.execPath
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -749,7 +843,7 @@ if (cmd === 'connect') await connect()
 else if (cmd === 'start') await loop()
 else if (cmd === 'status') await status()
 else if (cmd === 'doctor') { await refreshScan({ post: false }); printState() }
-else if (cmd === 'setup') { await wizard({ yes: process.argv.includes('--yes') }) }
+else if (cmd === 'setup') { if (process.argv.includes('--gui')) await guiSetup(); else await wizard({ yes: process.argv.includes('--yes') }) }
 else if (cmd === 'install') install()
 else if (cmd === 'uninstall') uninstall()
 else if (cmd === 'logs') console.log(readdirSync(DIR).includes('bridge.log') ? readFileSync(LOG, 'utf8').split('\n').slice(-60).join('\n') : '(aucun journal)')
