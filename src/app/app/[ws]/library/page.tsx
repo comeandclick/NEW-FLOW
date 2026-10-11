@@ -35,6 +35,15 @@ export default function LibraryPage() {
     site: items.filter((i) => i.kind === 'site').length,
   }), [items])
   const shown = items.filter((i) => (filter === 'all' || i.kind === filter) && (!q.trim() || `${i.name} ${i.jobTitle ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())))
+  const groups = useMemo(() => {
+    const m = new Map<string, { key: string; title: string; at: number; items: LibraryItem[] }>()
+    for (const it of shown) {
+      const key = it.jobId ?? 'other'
+      const g = m.get(key) ?? { key, title: it.jobTitle ?? (locale === 'en' ? 'Other' : 'Autres'), at: it.at, items: [] }
+      g.items.push(it); g.at = Math.max(g.at, it.at); m.set(key, g)
+    }
+    return [...m.values()].sort((a, b) => b.at - a.at)
+  }, [shown, locale])
   const kindLabel = { sent: c.library.kindSent, render: c.library.kindRender, site: c.library.kindSite }
   const kindColor: Record<LibraryKind, string | undefined> = { sent: undefined, render: '#15803d', site: '#4d59c7' }
 
@@ -62,32 +71,47 @@ export default function LibraryPage() {
       {!ready ? null : shown.length === 0 ? (
         <Card><EmptyState icon={<Archive className="size-5" />} title={c.library.empty} hint={c.library.emptyHint} action={mode === 'live' ? undefined : <Button variant="primary" onClick={seed}><Sparkles className="size-4" />{c.library.sample}</Button>} /></Card>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((it) => {
-            const Icon = refIcon(it.refKind)
-            const link = !!it.url && /^https?:/.test(it.url)
-            return (
-              <li key={it.id}>
-                <Card className="flex h-full flex-col gap-3 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-text-2"><Icon className="size-5" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-text" title={it.name}>{it.name}</p>
-                      <p className="truncate text-xs text-text-3">{it.size ? `${formatBytes(it.size)} · ` : ''}{new Date(it.at).toLocaleDateString(locale, { dateStyle: 'medium' })}</p>
-                    </div>
-                    <Badge color={kindColor[it.kind]}>{kindLabel[it.kind]}</Badge>
-                  </div>
-                  {it.jobTitle && <p className="truncate text-xs text-text-3">{c.library.from} : {it.jobTitle}</p>}
-                  <div className="mt-auto flex gap-2">
-                    {link ? <a href={it.url} target="_blank" rel="noreferrer"><Button size="xs" variant="glass"><ExternalLink className="size-3.5" />{c.common.open}</Button></a>
-                      : it.kind === 'render' ? <Button size="xs" variant="glass" disabled><Download className="size-3.5" />{c.common.download}</Button>
-                      : <span className="text-xs text-text-3">{c.library.noPreview}</span>}
-                  </div>
-                </Card>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="space-y-5">
+          {groups.map((g) => (
+            <section key={g.key} aria-label={g.title}>
+              <div className="mb-2 flex items-center gap-2">
+                <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-text">{g.title}</h2>
+                <span className="text-xs text-text-3">{new Date(g.at).toLocaleDateString(locale, { dateStyle: 'medium' })} · {g.items.length}</span>
+              </div>
+              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {g.items.map((it) => {
+                  const Icon = refIcon(it.refKind)
+                  const link = !!it.url && /^https?:/.test(it.url)
+                  const video = !!it.url && (it.refKind === 'render-video' || it.refKind === 'video') && /\.(mp4|mov|webm)(\?|$)/i.test(it.name + (it.url.includes('?') ? '' : ''))
+                  const image = !!it.url && it.refKind === 'image'
+                  return (
+                    <li key={it.id}>
+                      <Card className="flex h-full flex-col overflow-hidden">
+                        {video && <video src={it.url} controls preload="metadata" playsInline className="aspect-video w-full bg-black object-contain" aria-label={it.name} />}
+                        {image && /* eslint-disable-next-line @next/next/no-img-element */ <img src={it.url} alt={it.name} loading="lazy" className="aspect-video w-full bg-surface-2 object-cover" />}
+                        <div className="flex flex-1 flex-col gap-3 p-4">
+                          <div className="flex items-start gap-3">
+                            {!video && !image && <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-text-2"><Icon className="size-5" /></span>}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13px] font-medium text-text" title={it.name}>{it.name}</p>
+                              <p className="truncate text-xs text-text-3">{it.size ? `${formatBytes(it.size)} · ` : ''}{new Date(it.at).toLocaleDateString(locale, { dateStyle: 'medium' })}</p>
+                            </div>
+                            <Badge color={kindColor[it.kind]}>{kindLabel[it.kind]}</Badge>
+                          </div>
+                          <div className="mt-auto flex gap-2">
+                            {link ? <><a href={it.url} target="_blank" rel="noreferrer"><Button size="xs" variant="glass"><ExternalLink className="size-3.5" />{c.common.open}</Button></a>{it.kind === 'render' && <a href={it.url} download={it.name}><Button size="xs" variant="outline"><Download className="size-3.5" />{c.common.download}</Button></a>}</>
+                              : it.kind === 'render' ? <Button size="xs" variant="glass" disabled><Download className="size-3.5" />{c.common.download}</Button>
+                              : <span className="text-xs text-text-3">{c.library.noPreview}</span>}
+                          </div>
+                        </div>
+                      </Card>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   )

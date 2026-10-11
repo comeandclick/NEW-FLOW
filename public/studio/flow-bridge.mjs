@@ -12,7 +12,7 @@ import readline from 'node:readline'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.2.0'
+const VERSION = '1.3.0'
 const HOME = homedir()
 const DIR = process.env.FLOW_BRIDGE_HOME || path.join(HOME, '.flow-bridge')
 const CONFIG = path.join(DIR, 'config.json')
@@ -600,9 +600,9 @@ async function selfUpdate() {
 const pending = []
 async function loop() {
   const c = cfg()
-  if (!c.deviceToken) { console.error('Ce Mac n\'est pas relié. Lance :  node flow-bridge.mjs connect'); process.exit(1) }
+  if (!c.deviceToken) { if (process.stdout.isTTY) { console.error('Ce Mac n\'est pas relié. Ouvre l\'application Flow Studio ou lance :  node flow-bridge.mjs connect'); process.exit(1) } }
   log('bridge démarré', VERSION, c.server)
-  appState.paired = true
+  appState.paired = !!c.deviceToken
   for (const [id, st] of Object.entries(state.jobs)) lj(id, { title: st.title ?? 'Projet', kind: st.kind ?? 'site', dir: st.dir ?? '', status: st.status === 'running' ? 'failed' : (st.status ?? 'done'), sessionId: st.sessionId ?? '' })
   try { await startUiServer('service') } catch (e) { log('ui', e.message) }
   void refreshScan()
@@ -618,13 +618,14 @@ async function loop() {
   const quit = () => { stop = true; for (const r of runs.values()) { try { killGroup(r, 'SIGCONT') } catch {} } setTimeout(() => process.exit(0), 300) }
   process.on('SIGTERM', quit); process.on('SIGINT', quit)
   while (!stop) {
+    if (!cfg().deviceToken) { appState.paired = false; if (!appState.pair && !unpairing) { unpairing = true; void appPairing().finally(() => { unpairing = false }) } await sleep(2000); continue }
     try {
       const b = busy()
       const out = await api('POST', 'bridge/poll', { busyJob: b?.job.id ?? null, version: VERSION, claudeOk: claudeOk() })
       watching = out.watch === true
       for (const cmd of [...pending.splice(0), ...out.commands]) await handle(cmd)
     } catch (e) {
-      if (e.status === 401) { console.error('Jeton refusé : relie à nouveau ce Mac (connect).'); log('401'); await sleep(15000) }
+      if (e.status === 401) { log('401 : jeton refusé'); unpair(); await sleep(3000) }
       else log('poll', e.message)
     }
     await sleep(busy() ? 1500 : 2500)
@@ -935,6 +936,7 @@ function loginInTerminal(id) {
 }
 async function doSetupCommand(p) {
   if (p.action === 'rescan') { await refreshScan(); return }
+  if (p.action === 'open_claude') { if (typeof p.component === 'string' && UUID_RE.test(p.component)) await localAction('open-claude', { jobId: p.component }); return }
   if (p.action === 'login' && typeof p.component === 'string' && Object.hasOwn(LOGIN_CMD, p.component)) { loginInTerminal(p.component); return }
   if (p.action === 'login' && (p.component === 'claude' || !p.component)) { await loginClaude(); return }
   if (p.action === 'install' && p.component) {
@@ -1081,6 +1083,16 @@ const readyIssues = () => {
   if (!motionOk()) out.push('Choisis un moteur de motion design (EffectCraft, gratuit).')
   return out
 }
+/** Ce Mac n'est plus relié (appareil supprimé dans Flow, jeton refusé) : on repart d'un code de liaison valide, la fenêtre revient à l'assistant. */
+let unpairing = false
+function unpair() {
+  if (unpairing) return
+  unpairing = true
+  const c = readJson(CONFIG, {}); delete c.deviceToken; delete c.started; saveCfg(c)
+  appState.paired = false; appState.pair = null
+  log('mac non relié : nouveau code')
+  void appPairing().finally(() => { unpairing = false })
+}
 async function appPairing() {
   const c = cfg()
   if (c.deviceToken) { appState.paired = true; return }
@@ -1195,10 +1207,12 @@ async function localAction(route, b) {
   }
   if (route === 'open-folder') { if (j.dir && existsSync(j.dir) && platform() === 'darwin') execFileSync('/usr/bin/open', [j.dir], { stdio: 'ignore' }); return { ok: true } }
   if (route === 'open-claude') {
+    if (!j.dir || !existsSync(j.dir) || platform() !== 'darwin') return { error: 'dossier' }
     const st = state.jobs[id]
-    if (!st?.sessionId || !j.dir || platform() !== 'darwin') return { error: 'session' }
     const bin = resolveClaude('claude')
-    osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(`cd ${JSON.stringify(j.dir)} && ${JSON.stringify(bin)} --resume ${st.sessionId}`)}\nend tell`])
+    const ctx = `Reprends ce projet (${j.kind === 'site' ? 'site web' : 'motion design'} « ${j.title} »). Lis d'abord CLAUDE.md, BRIEF.md, DESIGN.md, HYPOTHESES.md, LIVRAISON.md, todo.json, qa/RAPPORT.md et PROMPT.md s'ils existent pour retrouver tout le contexte, puis dis-moi en 5 lignes où on en est et attends mes instructions pour l'améliorer ou le continuer.`
+    const cmd = st?.sessionId ? `cd ${JSON.stringify(j.dir)} && ${JSON.stringify(bin)} --resume ${st.sessionId}` : `cd ${JSON.stringify(j.dir)} && ${JSON.stringify(bin)} ${JSON.stringify(ctx)}`
+    osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(cmd)}\nend tell`])
     return { ok: true }
   }
   if (route === 'attach') {
@@ -1245,7 +1259,6 @@ async function startUiServer(kind) {
       if (route === 'start') {
         if (readyIssues().length) return send(409, { error: 'not ready', issues: readyIssues() })
         const c = readJson(CONFIG, {}); c.started = true; saveCfg(c)
-        try { install() } catch (e) { log('app-install', e.message) }
         return send(200, { ok: true })
       }
       if (['message', 'control', 'answer', 'open-folder', 'open-claude', 'attach'].includes(route)) return send(200, await localAction(route, b))
@@ -1329,7 +1342,7 @@ body{opacity:0;transition:opacity .6s}body.on{opacity:1}
 </style></head><body><div id="app">
 <div id="bar" hidden><span class="logo">Flow Studio</span><select id="sel" aria-label="Projet"></select><span class="badge" id="stt"></span>
 <div class="pg" role="progressbar" aria-label="Avancement" aria-valuemin="0" aria-valuemax="100" id="pgw"><i id="pgi" style="width:0%"></i></div><span class="mute small" id="pct"></span><span class="mute small" id="stp"></span><span class="sp"></span>
-<button class="g s" id="bPause">Pause</button><button class="g s" id="bCancel">Annuler</button><button class="g s" id="bDir">Dossier</button><button class="g s" id="bCC" title="Ouvre la conversation dans Claude Code (Terminal)">Claude Code</button><button class="g s" id="bSet">Logiciels</button></div>
+<button class="g s" id="bPause">Pause</button><button class="g s" id="bCancel">Annuler</button><button class="g s" id="bDir">Dossier</button><button class="g s" id="bCC" title="Ouvre une discussion Claude Code (Terminal) qui connaît déjà ce projet">Ouvrir dans Claude Code</button><button class="g s" id="bSet">Logiciels</button></div>
 <div id="studio" hidden>
  <section class="pane" aria-label="Discussion"><h3>Discussion avec Claude</h3><div id="feed" aria-live="polite" tabindex="0"></div><div id="qz"></div>
   <div id="comp"><textarea id="msg" placeholder="Écris à Claude : correction, idée, nouvelle demande…" aria-label="Message à Claude"></textarea>
@@ -1391,7 +1404,7 @@ function renderJob(j){
  $('pgi').style.width=j.progress+'%';$('pgw').setAttribute('aria-valuenow',j.progress);$('pct').textContent=j.progress+' %';
  var cs=j.steps.filter(function(x){return x.state==='active'||x.state==='blocked'})[0];$('stp').textContent=cs?cs.label:'';
  var act=['starting','running','needs_answer'].indexOf(j.status)>=0;$('bPause').textContent=j.status==='paused'?'Reprendre':'Pause';$('bPause').hidden=!(act||j.status==='paused');$('bCancel').hidden=!(act||j.status==='paused');
- $('bCC').hidden=!j.hasSession;
+ $('bCC').hidden=false;
  var f=$('feed'),near=f.scrollHeight-f.scrollTop-f.clientHeight<80;j.transcript.forEach(function(e){addEntry(e);lastN=Math.max(lastN,e.n)});if(near&&j.transcript.length)f.scrollTop=f.scrollHeight;
  var st=$('steps');st.textContent='';j.steps.forEach(function(x){var r=el('div','st '+x.state);var d=el('span','dot '+x.state,x.state==='done'?'✓':'');r.appendChild(d);r.appendChild(el('span','t',x.label));st.appendChild(r)});
  var td=$('todo');td.textContent='';var dn=j.todo.filter(function(x){return x.state==='done'}).length;$('tc').textContent=j.todo.length?dn+' / '+j.todo.length:'';
@@ -1415,7 +1428,7 @@ function setView(v){view=v;var studio=v==='studio';$('bar').hidden=!studio;$('st
  if(studio){$('wiz').classList.add('fade')}else{$('wiz').classList.remove('fade')}$('wiz').style.display='';}
 function tick(){get('state').then(function(s){S=s;renderWiz(s);renderSel(s.jobs);
   if(s.handoff&&location.pathname.indexOf(s.handoff)<0){}
-  var wantStudio=s.paired&&s.started&&view!=='wiz-forced';if(view==='wiz'&&wantStudio)setView('studio');
+  var wantStudio=s.paired&&s.started&&view!=='wiz-forced';if(view==='wiz'&&wantStudio)setView('studio');if(!s.paired&&view!=='wiz'){view='wiz';starting=false;setView('wiz')}
   $('bSet').hidden=false;
   if(!jobId)return;return get('job/'+jobId+'?after='+lastN).then(renderJob)}).catch(function(){}).then(function(){setTimeout(tick,1000)})}
 $('sel').onchange=function(){jobId=this.value;lastN=0;$('feed').textContent='';siteShown=''};
@@ -1437,6 +1450,7 @@ async function appMode() {
   const prev = readUiJson()
   if (prev && prev.pid !== process.pid) { if (!process.env.FLOW_APP_HOST) openAppWindow(prev.url); return } // déjà en marche : la fenêtre suit ui.json
   const { url } = await startUiServer('wizard')
+  if (cfg().deviceToken) { try { await api('GET', 'bridge/me') } catch (e) { if (e.status === 401) { const c0 = readJson(CONFIG, {}); delete c0.deviceToken; delete c0.started; saveCfg(c0) } } } // jeton périmé : on repart d'un code
   if (process.env.FLOW_BRIDGE_APP_URL_FILE) writeFileSync(process.env.FLOW_BRIDGE_APP_URL_FILE, url)
   if (!process.env.FLOW_APP_HOST && (!FAKE_ENV() || process.env.FLOW_BRIDGE_OPEN_APP === '1')) openAppWindow(url) // sans l'application native : fenêtre du navigateur
   void appPairing()
@@ -1480,6 +1494,9 @@ function install() {
   <key>StandardOutPath</key><string>${path.join(DIR, 'launchd.out.log')}</string><key>StandardErrorPath</key><string>${path.join(DIR, 'launchd.err.log')}</string>
 </dict></plist>
 `
+  let same = false
+  try { same = readFileSync(PLIST, 'utf8') === xml && execFileSync('launchctl', ['list', 'site.flow.bridge'], { stdio: 'pipe' }).length > 0 } catch {}
+  if (same) return // déjà installé et en marche : on ne le redémarre pas (la fenêtre Flow Studio est servie par ce service)
   mkdirSync(path.dirname(PLIST), { recursive: true }); writeFileSync(PLIST, xml)
   try { execFileSync('launchctl', ['unload', PLIST], { stdio: 'ignore' }) } catch {}
   execFileSync('launchctl', ['load', '-w', PLIST])

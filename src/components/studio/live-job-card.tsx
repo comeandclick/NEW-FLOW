@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, Download, ExternalLink, Film, Globe, Laptop, MonitorPlay, Pause, Play, RotateCcw, Square, Trash2, WifiOff } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Download, ExternalLink, Film, Globe, Laptop, MonitorPlay, Terminal, Pause, Play, RotateCcw, Square, Trash2, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -134,6 +134,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
         {(active || cur.status === 'draft') && cur.status !== 'draft' && <Button size="sm" variant="outline" onClick={() => { if (confirm(c.confirmCancel)) void run('cancel', () => studioApi.control(job.id, 'cancel')) }}><Square className="size-3.5" />{c.cancel}</Button>}
         <span className="flex-1" />
         {active && cur.device?.online && <Button size="sm" variant="glass" loading={busy === 'studio'} onClick={() => run('studio', async () => { await studioApi.setup(cur.device!.id, { action: 'open_studio', component: job.id }); toast.success(c.studioOpening) })}><MonitorPlay className="size-3.5" />{c.openStudio}</Button>}
+        {cur.device?.online && <Button size="sm" variant="glass" loading={busy === 'claude'} onClick={() => run('claude', async () => { await studioApi.setup(cur.device!.id, { action: 'open_claude', component: job.id }); toast.success(c.claudeOpening) })}><Terminal className="size-3.5" />{c.openClaude}</Button>}
         <a href={`/studio/live?job=${job.id}`} target="_blank" rel="noreferrer"><Button size="sm" variant="ghost">{c.previewTitle}</Button></a>
         <Button size="icon" variant="ghost" aria-label={c.remove} onClick={() => { if (confirm(c.confirmRemove)) void run('remove', () => studioApi.remove(job.id)) }}><Trash2 className="size-3.5" /></Button>
       </div>

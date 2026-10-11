@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, ExternalLink, Film, Globe, Laptop, Loader2, LogIn, Pause, Play, Square } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Film, Globe, Laptop, Loader2, LogIn, Terminal, Pause, Play, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -71,6 +71,7 @@ export function LiveClient() {
         {cur && ['starting', 'running', 'needs_answer'].includes(cur.status) && <Button size="sm" variant="secondary" loading={busy === 'pause'} onClick={() => run('pause', () => studioApi.control(cur.id, 'pause'))}><Pause className="size-3.5" />{c.pause}</Button>}
         {cur?.status === 'paused' && <Button size="sm" variant="primary" loading={busy === 'resume'} onClick={() => run('resume', () => studioApi.control(cur.id, 'resume'))}><Play className="size-3.5" />{c.resume}</Button>}
         {cur && ACTIVE.includes(cur.status) && cur.status !== 'queued' && <Button size="sm" variant="outline" onClick={() => { if (confirm(c.confirmCancel)) void run('cancel', () => studioApi.control(cur.id, 'cancel')) }}><Square className="size-3.5" />{c.cancel}</Button>}
+        {cur?.device?.online && <Button size="sm" variant="glass" onClick={() => run('claude', async () => { await studioApi.setup(cur.device!.id, { action: 'open_claude', component: cur.id }); toast.success(c.claudeOpening) })}><Terminal className="size-3.5" />{c.openClaude}</Button>}
         {cur?.status === 'done' && cur.deliver?.url && <a href={cur.deliver.url} target="_blank" rel="noreferrer"><Button size="sm" variant="primary"><ExternalLink className="size-3.5" />{c.openSite}</Button></a>}
       </header>
 

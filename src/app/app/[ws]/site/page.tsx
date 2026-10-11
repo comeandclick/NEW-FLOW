@@ -77,13 +77,8 @@ function NewProject({ onLaunched, mode }: { onLaunched: () => void; mode: Mode }
 
   return (
     <div className="space-y-5">
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label={c.site.stack}>
-        {stack.map(([I, t, d]) => (
-          <li key={t} className="flex items-start gap-2.5 rounded-xl border border-border bg-surface p-3">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-text-2"><I className="size-4" /></span>
-            <span className="min-w-0"><span className="block text-[13px] font-medium text-text">{t}</span><span className="block text-xs text-text-3">{d}</span></span>
-          </li>
-        ))}
+      <ul className="flex flex-wrap items-center gap-2" aria-label={c.site.stack}>
+        {stack.map(([I, t]) => <li key={t} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-2"><I className="size-3.5 text-text-3" />{t}</li>)}
       </ul>
 
       {phase === 'form' ? (

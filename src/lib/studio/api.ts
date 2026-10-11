@@ -43,7 +43,7 @@ export const studioApi = {
   remove: (id: string) => sf<{ ok: true }>(`jobs/${id}`, { method: 'DELETE' }),
   devices: () => sf<{ devices: LiveDevice[] }>('devices'),
   preview: (id: string) => sf<{ slots: Record<string, PreviewSlot> }>(`jobs/${id}/preview`),
-  setup: (deviceId: string, b: { action: 'install' | 'login' | 'rescan' | 'open_studio'; component?: string; choice?: string }) => post<{ ok: true }>(`devices/${deviceId}/setup`, b),
+  setup: (deviceId: string, b: { action: 'install' | 'login' | 'rescan' | 'open_studio' | 'open_claude'; component?: string; choice?: string }) => post<{ ok: true }>(`devices/${deviceId}/setup`, b),
   removeDevice: (id: string) => sf<{ ok: true }>(`devices?id=${id}`, { method: 'DELETE' }),
   confirm: (code: string) => post<{ device: LiveDevice }>('pair/confirm', { code }),
   library: () => sf<{ items: LibraryRow[] }>('library'),

@@ -259,12 +259,12 @@ export async function library(userId: string, origin: string) {
 export async function bridgeSetup(dev: Row, setup: Record<string, unknown>) {
   try { await db().update('studio_devices', { id: dev.id }, { setup: { ...setup, at: now() } }) } catch { /* colonne absente : migration 2 non exécutée */ }
 }
-export type SetupAction = { action: 'install' | 'login' | 'rescan' | 'open_studio'; component?: string; choice?: string }
+export type SetupAction = { action: 'install' | 'login' | 'rescan' | 'open_studio' | 'open_claude'; component?: string; choice?: string }
 export async function requestSetup(userId: string, deviceId: string, a: SetupAction) {
   uuid(deviceId)
   const [dev] = await db().select('studio_devices', { id: deviceId, user_id: userId })
   if (!dev) throw new StudioError(404, 'device')
-  if (!['install', 'login', 'rescan', 'open_studio'].includes(a.action)) throw new StudioError(400, 'invalid')
+  if (!['install', 'login', 'rescan', 'open_studio', 'open_claude'].includes(a.action)) throw new StudioError(400, 'invalid')
   try {
     await db().insert('studio_commands', { job_id: null, device_id: dev.id, type: 'setup', payload: { action: a.action, component: a.component ?? null, choice: a.choice ?? null }, created_at: now() })
   } catch { throw new StudioError(409, 'migration_required') }

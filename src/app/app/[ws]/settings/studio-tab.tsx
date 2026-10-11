@@ -42,7 +42,7 @@ export function StudioTab() {
 
   return (
     <>
-      <Section title={c.macTitle}><ConnectPanel live={live} /></Section>
+      <div className="mb-6"><h2 className="mb-3 text-sm font-semibold">{c.macTitle}</h2><ConnectPanel live={live} /></div>
       {live && (
         <>
           <Section title={c.accountsTitle}>

@@ -35,7 +35,10 @@ export function SetupPanel({ device, onChanged }: { device: LiveDevice; onChange
   return (
     <Card className="space-y-4 p-5 max-md:p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0"><h3 className="text-sm font-semibold text-text">{c.title} · {device.name}</h3><p className="mt-0.5 text-[13px] text-text-3">{c.intro}</p></div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold text-text">{c.title}</h3>
+          {comps.length > 0 && <div className="mt-2 flex items-center gap-3"><div className="h-1.5 w-40 max-w-full overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={c.title} aria-valuemin={0} aria-valuemax={comps.length} aria-valuenow={comps.filter((x) => x.state === 'ok').length}><div className="h-full rounded-full bg-success transition-[width] duration-500" style={{ width: `${(comps.filter((x) => x.state === 'ok').length / comps.length) * 100}%` }} /></div><span className="text-xs text-text-3">{comps.filter((x) => x.state === 'ok').length} / {comps.length}</span></div>}
+        </div>
         <Button size="sm" variant="outline" disabled={!device.online || busy === 'rescan:'} onClick={() => void send('rescan')}><RefreshCw className="size-3.5" />{c.rescan}</Button>
       </div>
       {!device.online && <p className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">{c.offline}</p>}
@@ -58,21 +61,22 @@ export function SetupPanel({ device, onChanged }: { device: LiveDevice; onChange
         return (
           <div key={g}>
             <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-3">{c.groups[g]}</h4>
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            <ul className="grid gap-2 sm:grid-cols-2">
               {list.map((x) => {
                 const installing = x.state === 'installing'
+                const optional = x.group === 'motion' && x.state === 'missing' && comps.some((y) => y.group === 'motion' && y.state === 'ok')
                 const label = x.id === 'aftereffects' ? c.guided : x.id === 'claude' && x.state === 'warn' ? c.login : x.state === 'error' ? c.retry : c.install
                 return (
-                  <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2.5">
-                    <StateIcon s={x.state} />
+                  <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border px-3 py-2.5">
+                    {optional ? <CircleDashed className="size-3.5 text-text-3" /> : <StateIcon s={x.state} />}
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-x-2 text-[13px] font-medium text-text">{x.name}{x.version && <span className="text-xs font-normal text-text-3">{x.version}</span>}
                         {x.cost && <Badge color={x.cost === 'free' ? '#15803d' : '#a16207'}>{x.cost === 'free' ? c.free : c.paid}</Badge>}</p>
                       {x.detail && x.state !== 'ok' && <p className="break-words text-xs text-text-3">{x.detail}</p>}
                     </div>
-                    <Badge color={COLOR[x.state]}>{c.states[x.state]}</Badge>
+                    <Badge color={optional ? undefined : COLOR[x.state]}>{optional ? (locale === 'en' ? 'Optional' : 'Facultatif') : c.states[x.state]}</Badge>
                     {x.state !== 'ok' && !installing && x.installable !== false && (
-                      <Button size="xs" variant={x.id === 'aftereffects' ? 'outline' : 'primary'} disabled={!device.online || !!st?.installing}
+                      <Button size="xs" variant={x.id === 'aftereffects' || optional ? 'outline' : 'primary'} disabled={!device.online || !!st?.installing}
                         loading={busy === `${x.id === 'claude' && x.state === 'warn' ? 'login' : 'install'}:${x.id}`}
                         onClick={() => void (x.id === 'claude' && x.state === 'warn' ? send('login', 'claude') : send('install', x.id, x.group === 'motion' ? x.id : undefined))}>
                         {x.id === 'claude' && x.state === 'warn' ? <KeyRound className="size-3" /> : <Download className="size-3" />}{label}
