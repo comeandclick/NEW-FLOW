@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, ExternalLink, Film, Globe, Loader2, LogIn, Pause, Play, Square } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Film, Globe, Laptop, Loader2, LogIn, Pause, Play, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -74,7 +74,12 @@ export function LiveClient() {
       </header>
 
       {!cur ? (
-        <main className="flex flex-1 items-center justify-center text-sm text-text-3">{c.noJob}</main>
+        <main className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-success/10 text-success"><Laptop className="size-6" /></span>
+          <p className="text-base font-semibold">{c.noJob}</p>
+          <p className="text-sm text-text-3">{locale === 'en' ? 'Your Mac is connected. Start a project from Flow.' : 'Ton Mac est relié. Lance un projet depuis Flow.'}</p>
+          <div className="flex gap-2"><Link href="/app" className="inline-flex h-10 items-center rounded-xl bg-accent px-4 text-sm font-medium text-accent-text">Flow</Link></div>
+        </main>
       ) : (
         <main className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[minmax(320px,36%)_minmax(0,1fr)]">
           <section className="flex min-h-0 flex-col rounded-xl border border-border bg-surface" aria-label={c.chat}>

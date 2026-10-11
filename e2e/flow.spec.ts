@@ -10,11 +10,11 @@ test.describe('marketing + auth', () => {
   test('landing renders, switches language and theme', async ({ page, isMobile }) => {
     await page.goto('/')
     if (isMobile) await page.getByRole('button', { name: 'Menu' }).click()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('sans les onglets')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Au même endroit')
     await page.getByRole('button', { name: /langue|language/i }).first().click()
     await page.getByRole('menuitem', { name: 'English' }).click()
     if (isMobile) await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('minus the tabs')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('In one place')
     if (isMobile && (await page.getByRole('button', { name: /theme|thème/i }).count()) === 0) await page.getByRole('button', { name: 'Menu' }).click()
     await page.getByRole('button', { name: /theme|thème/i }).first().click()
     await page.getByRole('menuitem', { name: /light|clair/i }).click()

@@ -54,8 +54,12 @@ on run
 			if codeText is not "" and urlText is not "" and codeText is not lastCode then
 				set lastCode to codeText
 				open location urlText
+				-- fenêtre au premier plan qui ne bloque rien : le code reste visible (et se ferme toute seule à la fin)
+				set dlg to "Dernière étape : connecte-toi à Flow dans la page qui vient de s'ouvrir." & return & "Le Mac est relié automatiquement, rien à taper." & return & return & "Code (au cas où) : " & codeText
+				do shell script "osascript -e " & quoted form of ("tell application \"System Events\" to display dialog \"" & dlg & "\" with title \"Flow Studio — liaison\" buttons {\"OK\"} default button \"OK\" giving up after 600") & " >/dev/null 2>&1 &"
 			end if
 			
+			if ph is not "pair" then do shell script "pkill -f 'Flow Studio — [l]iaison' >/dev/null 2>&1; true"
 			if ph is "done" then
 				activate
 				set progress completed steps to 100

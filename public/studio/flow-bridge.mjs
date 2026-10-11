@@ -368,14 +368,27 @@ function screenFrame() { try { return JSON.parse(osa(['-l', 'JavaScript', '-e', 
 const EDITOR_RE = /^(EffectCraft|Adobe After Effects)/i
 const studioUrl = (jobId) => `${cfg().server}/studio/live${UUID_RE.test(String(jobId ?? '')) ? `?job=${jobId}` : ''}` // seul un identifiant valide entre dans l'adresse
 
-function openStudio(jobId) {
-  if (NO_WINDOWS || platform() !== 'darwin') return false
-  const url = studioUrl(jobId)
+/** Navigateur par défaut (celui où l'utilisateur est connecté à Flow) : chrome, safari ou autre. */
+let browserCache = null
+function defaultBrowser() {
+  if (browserCache) return browserCache
+  let id = osa(['-l', 'JavaScript', '-e', `ObjC.import('AppKit');const u=$.NSWorkspace.sharedWorkspace.URLForApplicationToOpenURL($.NSURL.URLWithString('https://example.com'));u.isNil()?'':ObjC.unwrap(u.path)`]) ?? ''
+  browserCache = /Safari/i.test(id) ? 'safari' : /Chrome/i.test(id) && existsSync(CHROME) ? 'chrome' : id ? 'other' : existsSync(CHROME) ? 'chrome' : 'safari'
+  return browserCache
+}
+/** Ouvre une adresse dans une NOUVELLE fenêtre du navigateur par défaut (session Flow conservée). `app` : fenêtre sans barre d'adresse quand c'est possible. */
+function openWindow(url, { app = false } = {}) {
   try {
-    if (existsSync(CHROME)) execFileSync('/usr/bin/open', ['-na', 'Google Chrome', '--args', `--app=${url}`], { stdio: 'ignore' })
+    const b = defaultBrowser()
+    if (b === 'chrome') { if (app) execFileSync('/usr/bin/open', ['-na', 'Google Chrome', '--args', `--app=${url}`], { stdio: 'ignore' }); else osa(['-e', `tell application "Google Chrome"\nactivate\nmake new window\nset URL of active tab of front window to "${url}"\nend tell`]) }
+    else if (b === 'safari') osa(['-e', `tell application "Safari"\nactivate\nmake new document with properties {URL:"${url}"}\nend tell`])
     else execFileSync('/usr/bin/open', [url], { stdio: 'ignore' })
     return true
-  } catch (e) { log('open-studio', e.message); return false }
+  } catch (e) { log('open-window', e.message); return false }
+}
+function openStudio(jobId) {
+  if (NO_WINDOWS || platform() !== 'darwin') return false
+  return openWindow(studioUrl(jobId), { app: true })
 }
 
 /** Range les fenêtres : Flow Studio à gauche (35 %), à droite le logiciel de montage et/ou la page locale, chacun à sa place. */
@@ -392,7 +405,18 @@ function tileWindows(run) {
   else if (editor) boxes.editor = [R.x, R.y, R.x + R.w, R.y + R.h]
   else if (hasSite) boxes.site = [R.x, R.y, R.x + R.w, R.y + R.h]
   const b = (k) => `{${boxes[k].join(', ')}}`
-  if (existsSync(CHROME)) {
+  if (defaultBrowser() === 'safari') {
+    const siteHost = hasSite ? new URL(run.siteUrl).host : '__none__'
+    osa(['-e', `tell application "Safari"
+repeat with w in windows
+try
+set u to URL of current tab of w
+if u contains "/studio/live" then set bounds of w to ${b('panel')}
+${boxes.site ? `if u contains "${siteHost}" and u does not contain "/studio/live" then set bounds of w to ${b('site')}` : ''}
+end try
+end repeat
+end tell`])
+  } else if (existsSync(CHROME)) {
     const siteHost = hasSite ? new URL(run.siteUrl).host : '__none__'
     osa(['-e', `tell application "Google Chrome"
 repeat with w in windows
@@ -419,10 +443,7 @@ function setPreviewUrl(run, url) {
   run.siteUrl = url
   void emit(run.job.id, { type: 'log', title: 'Aperçu du site', body: url })
   if (NO_WINDOWS || platform() !== 'darwin') return
-  try {
-    if (existsSync(CHROME)) osa(['-e', `tell application "Google Chrome" to make new window\ntell application "Google Chrome" to set URL of active tab of front window to "${url}"`])
-    else execFileSync('/usr/bin/open', [url], { stdio: 'ignore' })
-  } catch (e) { log('open-site', e.message) }
+  openWindow(url)
   setTimeout(() => tileWindows(run), 2500)
 }
 
@@ -958,14 +979,17 @@ async function guiSetup() {
     if (!c.deviceToken) {
       gui({ phase: 'pair', step: 'Liaison avec ton compte Flow…', pct: 82 })
       const info = { deviceName: process.env.FLOW_DEVICE_NAME || hostname().replace(/\.local$/, ''), os: 'macOS', version: VERSION }
-      const res = await api('POST', 'pair/start', info, { auth: false })
-      gui({ phase: 'pair', step: 'Confirme la liaison dans la page Flow qui vient de s’ouvrir (connecte-toi si besoin).', pct: 85, code: res.code, url: `${c.server}/studio/connect#code=${res.code}` })
-      const t0 = Date.now(); let paired = false
-      while (Date.now() - t0 < res.expiresInSec * 1000) {
-        await sleep(2500)
-        const r = await api('GET', `pair/poll?token=${encodeURIComponent(res.pollToken)}`, undefined, { auth: false }).catch(() => null)
-        if (r?.status === 'paired') { saveCfg({ ...readJson(CONFIG, {}), server: c.server, deviceToken: r.deviceToken }); paired = true; break }
-        if (r?.status === 'expired') break
+      let paired = false
+      for (let attempt = 0; attempt < 4 && !paired; attempt++) { // le code est renouvelé tout seul s'il expire : l'installation n'échoue plus pour ça
+        const res = await api('POST', 'pair/start', info, { auth: false })
+        gui({ phase: 'pair', step: 'Dernière étape : connecte-toi à Flow dans la page qui s’ouvre. Le Mac est relié automatiquement.', pct: 85, code: res.code, url: `${c.server}/studio/connect#code=${res.code}` })
+        const t0 = Date.now()
+        while (Date.now() - t0 < res.expiresInSec * 1000) {
+          await sleep(2500)
+          const r = await api('GET', `pair/poll?token=${encodeURIComponent(res.pollToken)}`, undefined, { auth: false }).catch(() => null)
+          if (r?.status === 'paired') { saveCfg({ ...readJson(CONFIG, {}), server: c.server, deviceToken: r.deviceToken }); paired = true; break }
+          if (r?.status === 'expired') break
+        }
       }
       if (!paired) throw new Error('La liaison n’a pas été confirmée à temps. Relance l’installateur.')
     }
@@ -973,7 +997,9 @@ async function guiSetup() {
     gui({ phase: 'service', step: 'Activation du démarrage automatique…', pct: 94, code: '', url: '' })
     install()
     await refreshScan()
-    gui({ phase: 'done', step: issues.length ? `Terminé, avec des points à revoir : ${issues.join(' ; ')}` : 'Terminé : ton Mac est prêt.', pct: 100 })
+    gui({ phase: 'done', step: issues.length ? `Terminé, avec des points à revoir : ${issues.join(' ; ')}` : 'Terminé : ton Mac est prêt.', pct: 100, code: '', url: '' })
+    setTimeout(() => openStudio(), 1500) // une fois le Mac relié, Flow Studio s'ouvre
+    await sleep(4000)
   } catch (e) {
     gui({ phase: 'error', error: String(e.message ?? e).slice(0, 300) })
     log('gui-setup', e.message)
