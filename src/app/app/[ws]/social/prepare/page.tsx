@@ -1,8 +1,8 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowRight, CheckCircle, ChevronRight, Clock, Clapperboard, Repeat, Settings, Sparkles, Volume2 } from 'lucide-react'
+import { ArrowRight, CalendarClock, CheckCircle, ChevronRight, Clapperboard, Play, Repeat, Settings, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
 import { Card, EmptyState, PageHeader, Switch } from '@/components/ui/misc'
@@ -12,6 +12,7 @@ import { useT } from '@/i18n/provider'
 import { PLATFORM_COLORS, PLATFORM_LABELS, type Platform, type SocialAccount, type SocialSeries, type SocialTemplate, type VoiceOption, type Recurrence } from '@/lib/social/types'
 import { PlatformIcon } from '@/components/social/platform-icon'
 import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
 
 type Step = 1 | 2 | 3 | 4 | 5
 
@@ -27,6 +28,21 @@ const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
   { value: 'weekly', label: 'Chaque semaine' },
 ]
 
+const DEFAULT_SUGGESTIONS = [
+  "Comment dire 'merci' en arabe",
+  "Comment dire 'bonjour' en arabe",
+  "Comment dire 'au revoir' en arabe",
+  "Comment dire 'je m'appelle...' en arabe",
+  "Comment dire 'félicitations' en arabe",
+]
+
+function todayNoon(): string {
+  const d = new Date()
+  d.setHours(12, 0, 0, 0)
+  if (d <= new Date()) d.setDate(d.getDate() + 1)
+  return format(d, "yyyy-MM-dd'T'HH:mm")
+}
+
 function PreparePage() {
   const t = useT()
   const { ws } = useWorkspace()
@@ -41,19 +57,11 @@ function PreparePage() {
   const [newTypeName, setNewTypeName] = useState('')
   const [newTypeDesc, setNewTypeDesc] = useState('')
   const [showNewType, setShowNewType] = useState(false)
+  const [previewTemplate, setPreviewTemplate] = useState<SocialTemplate | null>(null)
 
   const [brief, setBrief] = useState('')
   const [voice, setVoice] = useState<VoiceOption>('ar+fr')
   const [sfx, setSfx] = useState(true)
-
-  // Suggestions after validation (would come from AI in prod)
-  const [suggestions] = useState([
-    'Comment dire "merci" en arabe',
-    'Comment dire "bonjour" en arabe',
-    'Comment dire "au revoir" en arabe',
-    "Comment dire \"je t'aime\" en arabe",
-    "Comment dire \"s'il vous plaît\" en arabe",
-  ])
 
   const [automate, setAutomate] = useState(false)
   const [recurrence, setRecurrence] = useState<Recurrence>('daily')
@@ -61,6 +69,9 @@ function PreparePage() {
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [seriesName, setSeriesName] = useState('')
   const [savingBusy, setSavingBusy] = useState(false)
+  const [schedulingBusy, setSchedulingBusy] = useState(false)
+
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   async function loadData() {
     const [tRes, aRes, sRes] = await Promise.all([
@@ -96,9 +107,40 @@ function PreparePage() {
   function sendToStudio() {
     if (!selectedTemplate || brief.trim().length < 5) { toast.error('Décrivez la vidéo (5 caractères minimum).'); return }
     toast.success(t('soc.prep.sent'))
-    // Navigate to /motion with brief pre-filled as a deep link
     const encodedBrief = encodeURIComponent(`[Template : ${selectedTemplate.name}] Voix : ${voice}, Bruitages : ${sfx ? 'oui' : 'non'}.\n\n${brief}`)
     router.push(`/app/${ws.slug}/motion?brief=${encodedBrief}`)
+  }
+
+  async function scheduleForNoon() {
+    if (!selectedTemplate) return
+    if (accounts.length === 0) { toast.error('Connectez au moins un réseau pour programmer.'); return }
+    setSchedulingBusy(true)
+    try {
+      const noon = new Date()
+      noon.setHours(12, 0, 0, 0)
+      if (noon <= new Date()) noon.setDate(noon.getDate() + 1)
+
+      const allAccounts = accounts.map((a) => a.id)
+      const platforms = accounts.map((a) => a.platform)
+
+      const res = await fetch('/api/social/posts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ws: ws.slug,
+          title: `Cours Kalimat : ${brief || selectedTemplate.name}`,
+          caption: brief || `Nouveau cours Kalimat avec le template "${selectedTemplate.name}"`,
+          mediaUrls: selectedTemplate.demo_video_url ? [selectedTemplate.demo_video_url] : [],
+          platforms,
+          accountIds: allAccounts,
+          scheduledAt: noon.toISOString(),
+          templateId: selectedTemplate.id,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      toast.success(`Post programmé pour ${noon.getHours()}h00 le ${noon.toLocaleDateString('fr-FR')}.`)
+      router.push(`/app/${ws.slug}/social/calendar`)
+    } catch { toast.error(t('common.error')) } finally { setSchedulingBusy(false) }
   }
 
   async function activateSeries() {
@@ -111,15 +153,7 @@ function PreparePage() {
       const res = await fetch('/api/social/series', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          ws: ws.slug,
-          name: seriesName,
-          templateId: selectedTemplate?.id ?? null,
-          accountIds,
-          platforms,
-          recurrence,
-          timeOfDay: automateTime,
-        }),
+        body: JSON.stringify({ ws: ws.slug, name: seriesName, templateId: selectedTemplate?.id ?? null, accountIds, platforms, recurrence, timeOfDay: automateTime }),
       })
       if (!res.ok) throw new Error('Failed')
       const { series: newSeries } = await res.json() as { series: SocialSeries }
@@ -137,9 +171,9 @@ function PreparePage() {
     setSeries((list) => list.map((x) => x.id === s.id ? { ...x, is_active: !x.is_active } : x))
   }
 
+  const suggestions = selectedTemplate?.prompt_template?.next ?? DEFAULT_SUGGESTIONS
   const canStep2 = !!selectedTemplate
   const canStep3 = brief.trim().length >= 5
-  const canStep4 = true
 
   const StepIndicator = ({ n, label }: { n: Step; label: string }) => (
     <div className={cn('flex items-center gap-2 text-[13px]', step >= n ? 'text-text' : 'text-text-3')}>
@@ -168,24 +202,46 @@ function PreparePage() {
       {step === 1 && (
         <div className="space-y-4">
           <p className="text-sm text-text-2">{t('soc.prep.templatePick')}</p>
+          {templates.length === 0 && (
+            <Card><EmptyState title="Aucun template" hint="Chargement…" /></Card>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             {templates.map((tpl) => (
               <button
                 key={tpl.id}
                 onClick={() => { setSelectedTemplate(tpl); setVoice(tpl.voice_options[0] as VoiceOption ?? 'ar+fr'); setSfx(tpl.sfx) }}
-                className={cn('flex flex-col gap-1.5 rounded-xl border p-4 text-left transition-colors hover:border-accent', selectedTemplate?.id === tpl.id ? 'border-accent bg-accent-soft' : 'border-border bg-surface')}
+                className={cn('flex flex-col gap-2 rounded-xl border p-4 text-left transition-colors hover:border-accent', selectedTemplate?.id === tpl.id ? 'border-accent bg-accent-soft' : 'border-border bg-surface')}
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-text">{tpl.name}</span>
-                  {tpl.is_demo && <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-text-3">{t('soc.demo')}</span>}
-                  {tpl.is_global && !tpl.is_demo && <span className="rounded-full border border-accent/30 bg-accent-soft px-2 py-0.5 text-[11px] text-accent-ink">{t('soc.global')}</span>}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-text">{tpl.name}</p>
+                    {tpl.description && <p className="mt-0.5 text-[13px] text-text-2">{tpl.description}</p>}
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {tpl.is_demo && <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-text-3">Démo</span>}
+                  </div>
                 </div>
-                {tpl.description && <p className="text-[13px] text-text-2">{tpl.description}</p>}
+
                 {tpl.demo_video_url && (
-                  <a href={tpl.demo_video_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-                    className="mt-1 text-[12px] text-accent underline underline-offset-2">Voir la démo</a>
+                  <div className="relative overflow-hidden rounded-lg bg-surface-3">
+                    <video
+                      src={tpl.demo_video_url}
+                      className="h-40 w-full object-cover"
+                      preload="metadata"
+                      muted
+                      playsInline
+                      onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
+                      onMouseLeave={(e) => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0 }}
+                    />
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="flex size-8 items-center justify-center rounded-full bg-bg/80 text-text">
+                        <Play className="size-4 translate-x-0.5" />
+                      </span>
+                    </div>
+                  </div>
                 )}
-                <div className="mt-1 flex gap-1.5 text-[11px] text-text-3">
+
+                <div className="flex flex-wrap gap-1 text-[11px] text-text-3">
                   {tpl.voice_options.map((v) => <span key={v} className="rounded border border-border px-1.5 py-0.5">{v}</span>)}
                   {tpl.sfx && <span className="rounded border border-border px-1.5 py-0.5">bruitage</span>}
                   {tpl.duration_sec && <span className="rounded border border-border px-1.5 py-0.5">{tpl.duration_sec}s</span>}
@@ -197,10 +253,22 @@ function PreparePage() {
               onClick={() => setShowNewType(true)}
               className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-text-3 transition-colors hover:border-accent hover:text-text-2"
             >
-              <Sparkles className="size-5" />
+              <Clapperboard className="size-5" />
               <span className="text-sm font-medium">{t('soc.prep.templateNew')}</span>
             </button>
           </div>
+
+          {selectedTemplate && accounts.length > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent-soft px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-accent-ink">Template sélectionné : {selectedTemplate.name}</p>
+                <p className="text-[12px] text-text-2">Programmer directement avec la vidéo démo</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={scheduleForNoon} loading={schedulingBusy}>
+                <CalendarClock className="size-3.5" />Programmer à midi
+              </Button>
+            </div>
+          )}
 
           <div className="flex justify-end">
             <Button variant="primary" disabled={!canStep2} onClick={() => setStep(2)}>
@@ -213,6 +281,11 @@ function PreparePage() {
       {/* Step 2: Brief */}
       {step === 2 && (
         <div className="space-y-4">
+          {selectedTemplate?.prompt_template?.format && (
+            <div className="rounded-xl border border-border bg-surface-2/50 p-3 text-[13px] text-text-2">
+              <span className="font-medium text-text">Format : </span>{selectedTemplate.prompt_template.format}
+            </div>
+          )}
           <Card className="p-5">
             <Field label={t('soc.prep.briefLabel')} hint={`${brief.trim().length} / 5+`}>
               <Textarea
@@ -263,7 +336,7 @@ function PreparePage() {
         <div className="space-y-4">
           <Card className="p-5 space-y-3">
             <h3 className="font-medium text-text">Résumé</h3>
-            <dl className="space-y-2 text-[13px]">
+            <dl className="space-y-1.5 text-[13px]">
               <div className="flex justify-between gap-3"><dt className="text-text-3">Template</dt><dd className="font-medium text-text">{selectedTemplate?.name}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-text-3">Voix</dt><dd className="font-medium text-text">{VOICE_OPTIONS.find((v) => v.value === voice)?.label}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-text-3">Bruitages</dt><dd className="font-medium text-text">{sfx ? 'Oui' : 'Non'}</dd></div>
@@ -271,8 +344,8 @@ function PreparePage() {
             </dl>
           </Card>
 
-          <Card className="p-5 space-y-4">
-            <p className="text-[13px] text-text-2">Cliquez sur le bouton ci-dessous pour ouvrir la page Motion Design avec ce brief pré-rempli. Une fois la vidéo créée et reçue, revenez ici pour la valider.</p>
+          <Card className="p-5 space-y-3">
+            <p className="text-[13px] text-text-2">Ouvrez la page Motion Design avec ce brief pré-rempli. Une fois la vidéo créée, revenez pour valider et programmer.</p>
             <Button variant="primary" size="lg" className="w-full justify-center" onClick={sendToStudio}>
               <Clapperboard className="size-4" />{t('soc.prep.sendStudio')}
             </Button>
@@ -288,18 +361,24 @@ function PreparePage() {
       {/* Step 5: Validate + automate */}
       {step === 5 && (
         <div className="space-y-4">
-          <Card className="p-5 space-y-3">
-            <h3 className="font-medium text-text">{t('soc.prep.nextSuggestions')}</h3>
-            <p className="text-[13px] text-text-3">{t('soc.prep.nextSuggestionsHint')}</p>
-            <ul className="space-y-1.5">
-              {suggestions.map((s, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="flex-1 rounded-lg border border-border px-3 py-2 text-[13px] text-text">{s}</span>
-                  <Button size="sm" variant="outline" onClick={() => { setBrief(s); setStep(2); toast.info('Brief pré-rempli.') }}>{t('soc.prep.acceptSuggestion')}</Button>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          {suggestions.length > 0 && (
+            <Card className="p-5 space-y-3">
+              <div>
+                <h3 className="font-medium text-text">{t('soc.prep.nextSuggestions')}</h3>
+                {selectedTemplate?.prompt_template?.series && (
+                  <p className="text-[12px] text-text-3">Série : {selectedTemplate.prompt_template.series}</p>
+                )}
+              </div>
+              <ul className="space-y-1.5">
+                {suggestions.map((s, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <span className="flex-1 rounded-lg border border-border px-3 py-2 text-[13px] text-text">{s}</span>
+                    <Button size="sm" variant="outline" onClick={() => { setBrief(s); setStep(2); toast.info('Brief pré-rempli.') }}>{t('soc.prep.acceptSuggestion')}</Button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           {/* Automation */}
           <Card className="p-5 space-y-4">
@@ -352,10 +431,10 @@ function PreparePage() {
                 </div>
 
                 <div className="rounded-lg border border-border bg-surface-2/60 p-3 space-y-1.5 text-[13px] text-text-2">
-                  <p className="font-medium text-text">Notifications prévues</p>
-                  <div className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-accent" />{t('soc.prep.notif5min')}</div>
-                  <div className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-accent" />{t('soc.prep.notifPosting')}</div>
-                  <div className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-success" />{t('soc.prep.notifDone')}</div>
+                  <p className="font-medium text-text">Notifications</p>
+                  <p>· {t('soc.prep.notif5min')}</p>
+                  <p>· {t('soc.prep.notifPosting')}</p>
+                  <p>· {t('soc.prep.notifDone')}</p>
                 </div>
 
                 <Button variant="primary" size="lg" className="w-full justify-center" onClick={activateSeries} loading={savingBusy} disabled={!selectedAccounts.size || !seriesName.trim()}>
@@ -365,7 +444,6 @@ function PreparePage() {
             )}
           </Card>
 
-          {/* Existing series */}
           {series.length > 0 && (
             <Card className="p-5 space-y-3">
               <h3 className="font-medium text-text">Séries actives</h3>
@@ -402,7 +480,6 @@ function PreparePage() {
         </div>
       )}
 
-      {/* Dialog: new template type */}
       <Dialog open={showNewType} onClose={() => setShowNewType(false)} title={t('soc.prep.templateNew')}
         footer={<><Button onClick={() => setShowNewType(false)}>{t('common.cancel')}</Button><Button variant="primary" disabled={!newTypeName.trim()} onClick={createNewTemplate}>Créer</Button></>}>
         <div className="space-y-4">

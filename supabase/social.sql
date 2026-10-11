@@ -58,16 +58,18 @@ create table if not exists public.social_templates (
   duration_sec int,
   ratio text not null default '9:16',
   demo_video_url text,
+  prompt_template jsonb,
   is_demo boolean not null default false,
   is_global boolean not null default false,
   sort_order int not null default 0,
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
+alter table public.social_templates add column if not exists prompt_template jsonb;
 create index if not exists social_templates_ws_idx on public.social_templates(workspace_id);
 
 -- Template démo "cours comment dire..."
-insert into public.social_templates (id, name, description, type, voice_options, sfx, duration_sec, ratio, is_demo, is_global, sort_order)
+insert into public.social_templates (id, name, description, type, voice_options, sfx, duration_sec, ratio, demo_video_url, prompt_template, is_demo, is_global, sort_order)
 values (
   '00000000-0000-0000-0000-000000000001',
   'Cours : Comment dire…',
@@ -77,10 +79,15 @@ values (
   true,
   45,
   '9:16',
+  'https://uwbihxsezlbqrgdebjbr.supabase.co/storage/v1/object/public/social/templates/cours-comment-dire.mp4',
+  '{"series":"mini-cours Kalimat","format":"Comment dire ''...'' en arabe ? — mot/expression en arabe avec voyelles, prononciation, exemple en contexte, quiz 4 réponses, appel à télécharger Kalimat.","next":["Comment dire ''merci'' en arabe","Comment dire ''bonjour'' en arabe","Comment dire ''au revoir'' en arabe","Comment dire ''je m''appelle...'' en arabe","Comment dire ''comment tu t''appelles ?'' en arabe","Comment dire ''je t''aime'' en arabe","Comment dire ''félicitations'' en arabe","Comment dire ''s''il vous plaît'' en arabe","Comment dire ''bienvenue'' en arabe","Comment dire ''incroyable'' en arabe"]}',
   true,
   true,
   1
-) on conflict (id) do nothing;
+) on conflict (id) do update set
+  demo_video_url = excluded.demo_video_url,
+  prompt_template = excluded.prompt_template,
+  description = excluded.description;
 
 -- ───────────────────────── Séries automatisées ─────────────────────────
 create table if not exists public.social_series (

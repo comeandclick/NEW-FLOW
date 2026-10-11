@@ -2,14 +2,13 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { AlertCircle, Clock, Image, Plus, Send, Trash2, X } from 'lucide-react'
+import { AlertCircle, Clock, ImageIcon, Send, Trash2, X, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
-import { Card, EmptyState, PageHeader, Switch } from '@/components/ui/misc'
+import { Card, PageHeader, Switch } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
-import { useSession } from '@/lib/hooks/use-session'
 import { useT } from '@/i18n/provider'
 import { PLATFORM_COLORS, PLATFORM_LABELS, PLATFORM_LIMITS, type Platform, type SocialAccount, type SocialPost } from '@/lib/social/types'
 import { PlatformIcon } from '@/components/social/platform-icon'
@@ -18,10 +17,16 @@ import Link from 'next/link'
 
 const CHAR_LIMITS: Record<Platform, number> = { instagram: 2200, facebook: 63206, tiktok: 2200, linkedin: 3000 }
 
+function todayNoon(): string {
+  const d = new Date()
+  d.setHours(12, 0, 0, 0)
+  if (d <= new Date()) d.setDate(d.getDate() + 1)
+  return format(d, "yyyy-MM-dd'T'HH:mm")
+}
+
 function PublishPage() {
   const t = useT()
   const { ws } = useWorkspace()
-  const { userId } = useSession()
   const router = useRouter()
 
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
@@ -31,6 +36,7 @@ function PublishPage() {
   const [title, setTitle] = useState('')
   const [caption, setCaption] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [scheduled, setScheduled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
@@ -38,7 +44,6 @@ function PublishPage() {
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
   const [failDetail, setFailDetail] = useState<Record<string, { ok: boolean; error?: string }> | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const dropRef = useRef<HTMLDivElement>(null)
 
   async function loadData() {
     setLoadingAccounts(true)
@@ -63,23 +68,37 @@ function PublishPage() {
   const captionOk = caption.trim().length >= 3 && caption.length <= captionLimit
   const canSubmit = captionOk && selectedAccounts.size > 0 && (!needsMedia || mediaUrls.length > 0) && (!scheduled || !!scheduledAt)
 
-  function addMediaUrl(url: string) {
-    if (url && !mediaUrls.includes(url)) setMediaUrls((m) => [...m, url])
+  async function uploadFiles(files: File[]) {
+    if (!files.length) return
+    setUploading(true)
+    const uploaded: string[] = []
+    try {
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('ws', ws.slug)
+        const res = await fetch('/api/social/upload', { method: 'POST', body: fd })
+        if (!res.ok) {
+          const { error } = await res.json() as { error?: string }
+          toast.error(error ?? 'Erreur lors du téléversement.')
+          continue
+        }
+        const { url } = await res.json() as { url: string }
+        uploaded.push(url)
+      }
+      setMediaUrls((m) => [...m, ...uploaded])
+    } finally { setUploading(false) }
   }
 
-  function handleFiles(files: FileList | null) {
-    if (!files) return
-    Array.from(files).forEach((f) => {
-      const url = URL.createObjectURL(f)
-      addMediaUrl(url)
-    })
-    toast.info('Aperçu local. Pour publier, hébergez les fichiers (ex. Supabase Storage ou CDN).')
-  }
+  const handleFiles = useCallback((list: FileList | null) => {
+    if (!list) return
+    void uploadFiles(Array.from(list))
+  }, [ws.slug])
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation()
     handleFiles(e.dataTransfer.files)
-  }, [])
+  }, [handleFiles])
 
   async function submit() {
     if (!canSubmit) return
@@ -110,7 +129,6 @@ function PublishPage() {
       }
 
       if (!scheduled) {
-        // Publish now
         const pubRes = await fetch('/api/social/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ postId }) })
         const result = await pubRes.json() as { status: string; results: Record<string, { ok: boolean; error?: string }> }
         if (result.status === 'failed') {
@@ -160,12 +178,11 @@ function PublishPage() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-6">
-      <PageHeader icon={<Send className="size-4" />} title={t('soc.pub.title')} />
+      <PageHeader title={t('soc.pub.title')} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         {/* Composer */}
-        <div className="space-y-5">
-          {/* Caption */}
+        <div className="space-y-4">
           <Card className="space-y-4 p-5">
             <Field label={t('soc.pub.postTitle')}>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('soc.pub.postTitlePh')} />
@@ -187,14 +204,12 @@ function PublishPage() {
           <Card className="space-y-3 p-5">
             <p className="text-sm font-medium text-text">{t('soc.pub.media')}</p>
             <div
-              ref={dropRef}
               onDrop={onDrop}
               onDragOver={(e) => e.preventDefault()}
-              onClick={() => fileRef.current?.click()}
-              className="flex min-h-[100px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border text-sm text-text-3 transition-colors hover:border-accent hover:text-text-2"
+              onClick={() => !uploading && fileRef.current?.click()}
+              className={cn('flex min-h-[90px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border text-sm text-text-3 transition-colors hover:border-accent hover:text-text-2', uploading && 'cursor-wait opacity-70')}
             >
-              <Image className="size-5" />
-              <span>{t('soc.pub.mediaHint')}</span>
+              {uploading ? <><Loader2 className="size-5 animate-spin" /><span>Téléversement…</span></> : <><ImageIcon className="size-5" /><span>{t('soc.pub.mediaHint')}</span></>}
             </div>
             <input ref={fileRef} type="file" multiple accept="image/*,video/*" hidden onChange={(e) => handleFiles(e.target.files)} />
 
@@ -209,7 +224,7 @@ function PublishPage() {
                       <img src={url} alt="" className="size-full object-cover" />
                     )}
                     <button
-                      onClick={() => setMediaUrls((m) => m.filter((_, j) => j !== i))}
+                      onClick={(e) => { e.stopPropagation(); setMediaUrls((m) => m.filter((_, j) => j !== i)) }}
                       className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-bg/90 text-text opacity-0 transition-opacity group-hover:opacity-100"
                       aria-label={t('common.delete')}
                     ><X className="size-3" /></button>
@@ -221,7 +236,14 @@ function PublishPage() {
 
           {/* Timing */}
           <Card className="space-y-4 p-5">
-            <p className="text-sm font-medium text-text">{t('soc.pub.when')}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-text">{t('soc.pub.when')}</p>
+              {scheduled && (
+                <button onClick={() => { setScheduled(true); setScheduledAt(todayNoon()) }} className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[12px] text-text-2 hover:border-accent hover:text-accent transition-colors">
+                  <Clock className="size-3" />Aujourd'hui à midi
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <Switch checked={scheduled} onChange={setScheduled} label={t('soc.pub.later')} />
               <span className="text-sm text-text-2">{scheduled ? t('soc.pub.later') : t('soc.pub.now')}</span>
@@ -236,13 +258,12 @@ function PublishPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Network selector */}
           <Card className="p-4 space-y-3">
             <p className="text-sm font-medium text-text">{t('soc.pub.networks')}</p>
             {loadingAccounts ? (
               <div className="h-16 animate-pulse rounded-lg bg-surface-2" />
             ) : accounts.length === 0 ? (
-              <div className="text-center text-sm text-text-3 py-2">
+              <div className="py-2 text-center text-sm text-text-3">
                 <p>{t('soc.pub.noAccounts')}</p>
                 <Link href={`/app/${ws.slug}/social/accounts`} className="mt-1 inline-block text-accent underline underline-offset-2">{t('soc.pub.noAccountsLink')}</Link>
               </div>
@@ -267,38 +288,21 @@ function PublishPage() {
             )}
           </Card>
 
-          {/* Actions */}
           <Card className="space-y-2 p-4">
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full justify-center"
-              onClick={submit}
-              loading={busy}
-              disabled={!canSubmit}
-            >
-              {scheduled ? t('soc.pub.schedule') : t('soc.pub.publish')}
+            <Button variant="primary" size="lg" className="w-full justify-center" onClick={submit} loading={busy} disabled={!canSubmit}>
+              <Send className="size-4" />{scheduled ? t('soc.pub.schedule') : t('soc.pub.publish')}
             </Button>
-            {!canSubmit && caption.trim().length < 3 && caption.length > 0 && (
-              <p className="text-xs text-text-3">{t('soc.pub.needCaption')}</p>
-            )}
-            {!canSubmit && selectedAccounts.size === 0 && caption.trim().length >= 3 && (
-              <p className="text-xs text-text-3">{t('soc.pub.needNetwork')}</p>
-            )}
-            {!canSubmit && needsMedia && mediaUrls.length === 0 && (
-              <p className="text-xs text-text-3">{t('soc.pub.needMedia')}</p>
-            )}
-            <Button variant="outline" size="sm" className="w-full justify-center" onClick={saveDraft}>
-              {t('soc.pub.draft')}
-            </Button>
+            {!canSubmit && caption.trim().length < 3 && caption.length > 0 && <p className="text-xs text-text-3">{t('soc.pub.needCaption')}</p>}
+            {!canSubmit && selectedAccounts.size === 0 && captionOk && <p className="text-xs text-text-3">{t('soc.pub.needNetwork')}</p>}
+            {!canSubmit && needsMedia && mediaUrls.length === 0 && <p className="text-xs text-text-3">{t('soc.pub.needMedia')}</p>}
+            <Button variant="outline" size="sm" className="w-full justify-center" onClick={saveDraft}>{t('soc.pub.draft')}</Button>
             {editingDraftId && (
-              <Button variant="ghost" size="sm" className="w-full justify-center text-text-3" onClick={resetForm}>
-                <X className="size-3.5" />Annuler la modification
-              </Button>
+              <button onClick={resetForm} className="flex w-full items-center justify-center gap-1.5 py-1 text-[12px] text-text-3 hover:text-text transition-colors">
+                <X className="size-3" />Annuler la modification
+              </button>
             )}
           </Card>
 
-          {/* Drafts */}
           {drafts.length > 0 && (
             <Card className="p-4 space-y-2">
               <p className="text-sm font-medium text-text">{t('soc.pub.drafts')}</p>

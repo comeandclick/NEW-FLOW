@@ -39,6 +39,12 @@ export interface SocialPost {
   updated_at: string
 }
 
+export interface TemplatePrompt {
+  series?: string
+  format?: string
+  next: string[]
+}
+
 export interface SocialTemplate {
   id: string
   workspace_id: string | null
@@ -50,6 +56,7 @@ export interface SocialTemplate {
   duration_sec: number | null
   ratio: string
   demo_video_url: string | null
+  prompt_template: TemplatePrompt | null
   is_demo: boolean
   is_global: boolean
   sort_order: number
