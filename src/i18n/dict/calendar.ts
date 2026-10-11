@@ -1,6 +1,8 @@
 export const calendar = {
   fr: {
     'cal.title': 'Calendrier',
+    'cal.prev': 'Précédent',
+    'cal.next': 'Suivant',
     'cal.today': "Aujourd'hui",
     'cal.month': 'Mois',
     'cal.week': 'Semaine',
@@ -22,6 +24,8 @@ export const calendar = {
   },
   en: {
     'cal.title': 'Calendar',
+    'cal.prev': 'Previous',
+    'cal.next': 'Next',
     'cal.today': 'Today',
     'cal.month': 'Month',
     'cal.week': 'Week',

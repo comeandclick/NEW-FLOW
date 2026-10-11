@@ -427,41 +427,26 @@ Le web reprend le design de l’app mobile : palette sombre alignée, système d
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
-type Doc = { type: 'doc'; content: unknown[] }
 
-/** Tiny markdown → TipTap JSON (headings, bullets, task lists, paragraphs). */
-export function mdToDoc(md: string): Doc {
-  const out: unknown[] = []
-  let list: { kind: 'bullet' | 'task'; items: unknown[] } | null = null
-  const flush = () => {
-    if (!list) return
-    out.push(list.kind === 'bullet' ? { type: 'bulletList', content: list.items } : { type: 'taskList', content: list.items })
-    list = null
-  }
-  const text = (t: string) => ({ type: 'paragraph', content: t ? [{ type: 'text', text: t }] : [] })
-  for (const raw of md.split('\n')) {
-    const line = raw.trimEnd()
-    const task = line.match(/^- \[( |x)\] (.*)$/)
-    const bullet = line.match(/^- (.*)$/)
-    const h = line.match(/^(#{1,3}) (.*)$/)
-    if (task) {
-      if (!list || list.kind !== 'task') { flush(); list = { kind: 'task', items: [] } }
-      list.items.push({ type: 'taskItem', attrs: { checked: task[1] === 'x' }, content: [text(task[2])] })
-    } else if (bullet) {
-      if (!list || list.kind !== 'bullet') { flush(); list = { kind: 'bullet', items: [] } }
-      list.items.push({ type: 'listItem', content: [text(bullet[1])] })
-    } else {
-      flush()
-      if (h) out.push({ type: 'heading', attrs: { level: h[1].length }, content: [{ type: 'text', text: h[2] }] })
-      else if (line.trim()) out.push(text(line))
-    }
-  }
-  flush()
-  return { type: 'doc', content: out }
-}
+export { mdToDoc } from '../md-doc'
 
 /** Resolve an event day: absolute 'YYYY-MM-DD' or an offset in days from `now`. */
 export function eventDay(at: string | number, now: Date): Date {
   if (typeof at === 'string') { const [y, m, d] = at.split('-').map(Number); return new Date(y, m - 1, d) }
   const d = new Date(now); d.setDate(d.getDate() + at); d.setHours(0, 0, 0, 0); return d
 }
+
+/** CRM: prestataires et partenaires réels du projet (pas de personnes inventées). */
+export const crmContacts = [
+  { key: 'apple', name: 'Apple Developer', company: 'Apple', position: 'Programme développeur', status: 'customer', tags: ['publication'], notes: 'Compte requis pour TestFlight et l’App Store (99 $/an). Sign in with Apple pour la 2.0 : ajouter le bundle id com.kalimat.v2.kalimat2.' },
+  { key: 'revenuecat', name: 'RevenueCat', company: 'RevenueCat', position: 'Abonnements & achats in-app', status: 'customer', tags: ['paiement'], notes: 'Webhook côté serveur pour créditer les packs pack_s/m/l/xl. Produits liés à l’app 1.0, partagés avec la 2.0.' },
+  { key: 'supabase', name: 'Supabase', company: 'Supabase', position: 'Backend partagé 1.0 / 2.0', status: 'customer', tags: ['infra'], notes: 'Auth, Postgres, Storage. Même projet pour la 1.0 et la 2.0, utilisateurs conservés.' },
+  { key: 'google', name: 'Google Cloud', company: 'Google', position: 'Google Sign-In', status: 'customer', tags: ['auth'], notes: 'Console gratuite. Client OAuth pour l’app Flutter.' },
+  { key: 'testers', name: 'Bêta-testeurs TestFlight', company: 'Kalimat', position: 'Groupe de test', status: 'lead', tags: ['bêta'], notes: 'À constituer avant la soumission App Store (voir TESTFLIGHT_PREPARATION).' },
+] as const
+
+export const crmDeals = [
+  { title: 'Compte Apple Developer', contact: 'apple', value: 99, stage: 'négociation', probability: 70, close: 14 },
+  { title: 'Abonnement Kalimat+ (RevenueCat)', contact: 'revenuecat', value: 0, stage: 'qualification', probability: 40, close: 45 },
+  { title: 'Groupe de bêta-testeurs TestFlight', contact: 'testers', value: 0, stage: 'prospection', probability: 25, close: 30 },
+] as const

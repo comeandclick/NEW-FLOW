@@ -41,6 +41,7 @@ async function work() {
     if (aborted) { working = false; return }
     const step = steps[stepIdx]
     writeFileSync(path.join(dir, 'progress.json'), JSON.stringify({ step, progress: Math.round((stepIdx / steps.length) * 95), detail: `Étape ${step} (test)` }))
+    writeFileSync(path.join(dir, 'todo.json'), JSON.stringify({ items: steps.map((x, i) => ({ text: `Tâche ${x}`, state: i < stepIdx ? 'done' : i === stepIdx ? 'doing' : 'todo' })) }))
     tool(`echo ${step}`)
     if (queue.length) { say(`Message pris en compte : ${queue.splice(0).join(' / ')}`) }
     await wait(STEP_MS)
@@ -71,6 +72,7 @@ rl.on('line', (l) => {
     if (resumed) { stepIdx = STEPS[kind].length; say(`Message reçu après livraison : ${text.slice(0, 80)}`); deliver(); result(); return }
     void work(); return
   }
+  if (/AUCUNE question/.test(text)) { waitingAnswer = false; say('Compris, je décide seul.'); return }
   if (/Réponse de l'utilisateur/.test(text)) { waitingAnswer = false; say('Merci pour la réponse.'); return }
   if (!working) { // après livraison (ou après interruption) : on applique le message puis on reprend s'il reste du travail
     say(`Message appliqué : ${text.replace(/\s+/g, ' ').slice(0, 80)}`)

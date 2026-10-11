@@ -2,6 +2,7 @@
  
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getDb } from '@/lib/supabase/client'
+import { readCache, writeCache } from '@/lib/offline'
 import { isDemoBrowser } from '@/lib/demo/runtime'
 import { useSession } from './use-session'
 import { useLive } from './use-live'
@@ -12,6 +13,8 @@ type WsCtx = {
   members: (Member & { profile: Profile | null })[]
   projects: Project[]
   me: Profile | null
+  /** User ids currently connected to this workspace (live presence). */
+  online: Set<string>
   role: Role
   canWrite: boolean
   isAdmin: boolean
@@ -33,9 +36,11 @@ export function WorkspaceProvider({ slug, children, fallback, notFound }: { slug
     if (!userId) return
     let alive = true
     setState('loading')
-    getDb().from('workspaces').select('*').eq('slug', slug).maybeSingle().then(({ data }) => {
+    getDb().from('workspaces').select('*').eq('slug', slug).maybeSingle().then(({ data, error }) => {
       if (!alive) return
-      if (data) { setWs(data as Workspace); setState('ok') } else setState('missing')
+      if (data) { setWs(data as Workspace); setState('ok'); if (!isDemoBrowser()) { writeCache(`ws:${slug}`, data); try { localStorage.setItem('flow_last_ws', slug) } catch {} } }
+      else if (error) { const c = readCache<Workspace>(`ws:${slug}`); if (c) { setWs(c); setState('ok') } else setState('missing') }
+      else setState('missing')
     })
     return () => { alive = false }
   }, [slug, userId])
@@ -47,6 +52,15 @@ export function WorkspaceProvider({ slug, children, fallback, notFound }: { slug
 function Inner({ ws, me, userId, children }: { ws: Workspace; me: Profile | null; userId: string; children: ReactNode }) {
   const membersQ = useLive<any>('workspace_members', { select: '*, profile:profiles!workspace_members_user_id_fkey(*)', eq: { workspace_id: ws.id }, order: ['joined_at', true] })
   const projectsQ = useLive<Project>('projects', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', true] })
+
+  const [online, setOnline] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    const db = getDb()
+    const ch = db.channel(`presence:ws:${ws.id}`, { config: { presence: { key: userId } } })
+    const sync = () => setOnline(new Set(Object.keys(ch.presenceState())))
+    ch.on('presence', { event: 'sync' }, sync).subscribe((st: string) => { if (st === 'SUBSCRIBED') void ch.track({ at: Date.now() }) })
+    return () => { void db.removeChannel(ch) }
+  }, [ws.id, userId])
 
   const members = membersQ.data as (Member & { profile: Profile | null })[]
   const myMember = members.find((m) => m.user_id === userId)
@@ -63,13 +77,13 @@ function Inner({ ws, me, userId, children }: { ws: Workspace; me: Profile | null
     if (target === userId) return
     await getDb().from('notifications').insert({ user_id: target, workspace_id: ws.id, type: n.type, title: n.title, body: n.body ?? null, url: n.url ?? null })
     // Offline devices get a Web Push (no-op in demo mode / when VAPID isn't configured).
-    if (!isDemoBrowser()) void fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId: target, workspaceId: ws.id, title: n.title, body: n.body, url: n.url }) }).catch(() => {})
+    if (!isDemoBrowser()) void fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId: target, workspaceId: ws.id, type: n.type, title: n.title, body: n.body, url: n.url }) }).catch(() => {})
   }, [ws.id, userId])
 
   const value = useMemo<WsCtx>(() => ({
-    ws, members, projects: projectsQ.data, me, role, canWrite: role !== 'viewer', isAdmin: role === 'owner' || role === 'admin',
+    ws, members, projects: projectsQ.data, me, online, role, canWrite: role !== 'viewer', isAdmin: role === 'owner' || role === 'admin',
     profileOf, nameOf, log, notifyUser, refreshProjects: projectsQ.refresh, refreshMembers: membersQ.refresh,
-  }), [ws, members, projectsQ.data, projectsQ.refresh, membersQ.refresh, me, role, profileOf, nameOf, log, notifyUser])
+  }), [ws, members, projectsQ.data, projectsQ.refresh, membersQ.refresh, me, online, role, profileOf, nameOf, log, notifyUser])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

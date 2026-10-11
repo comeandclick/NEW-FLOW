@@ -24,12 +24,24 @@ function loadDb(): DemoDB {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
-function saveDb(db: DemoDB) {
+let pending: DemoDB | null = null
+function flush() {
   if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    try { window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db)) } catch {}
-  }, 200)
+  saveTimer = null
+  if (pending) { try { window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(pending)) } catch {} pending = null }
 }
+function saveDb(db: DemoDB) {
+  pending = db
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(flush, 200)
+  if (typeof window !== 'undefined' && !flushHooked) {
+    flushHooked = true
+    // A reload or tab switch right after an edit must not lose it.
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush() })
+  }
+}
+let flushHooked = false
 
 export function getBrowserDemoClient(): MockClient {
   if (!browserClient) {

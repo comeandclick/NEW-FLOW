@@ -1,10 +1,9 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, Download, ExternalLink, Film, Globe, Laptop, MessageCircleQuestion, Pause, Play, RotateCcw, Square, Trash2, WifiOff } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Download, ExternalLink, Film, Globe, Laptop, MonitorPlay, Pause, Play, RotateCcw, Square, Trash2, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
 import { MOTION_STEPS, SITE_STEPS } from '@/lib/studio/steps'
@@ -15,6 +14,9 @@ import type { Step } from '@/lib/studio/types'
 import { ActivityFeed } from './activity-feed'
 import { MessageComposer } from './message-composer'
 import { Pipeline } from './pipeline'
+import { QuestionBox } from './question-box'
+import { TodoList } from './todo-list'
+import { LivePreview } from './live-preview'
 
 const COLORS: Record<LiveStatus, string | undefined> = {
   draft: undefined, queued: '#0369a1', starting: '#4d59c7', running: '#4d59c7', paused: '#a16207', needs_answer: '#c2410c', done: '#15803d', failed: '#c4262f', cancelled: undefined,
@@ -29,7 +31,6 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
   const cp = studioCopy(locale)
   const c = cp.live
   const [open, setOpen] = useState(defaultOpen)
-  const [reply, setReply] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [, tick] = useState(0)
   const active = ACTIVE.includes(job.status) || job.status === 'queued'
@@ -68,7 +69,6 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
   }, [detail?.events, job.title])
 
   const run = async (name: string, f: () => Promise<unknown>) => { setBusy(name); try { await f(); await refresh(); onChanged() } catch { toast.error('Erreur') } finally { setBusy(null) } }
-  const answer = (qid: string, a: string) => { if (a.trim()) void run('answer', async () => { await studioApi.answer(job.id, qid, a.trim()); setReply(''); toast.success(cp.site.replied) }) }
 
   const finalVideo = detail?.assets.find((a) => a.direction === 'out' && a.mime?.startsWith('video/') && a.url) ?? detail?.assets.find((a) => a.direction === 'out' && a.name.endsWith('.mp4') && a.url)
   const report = detail?.assets.find((a) => a.direction === 'out' && a.name === 'rapport.md' && a.url)
@@ -103,23 +103,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
       {claudeOff && <p className="mx-4 mb-4 flex items-center gap-2 rounded-lg bg-[#c2410c]/10 px-3 py-2 text-[13px] text-text"><AlertTriangle className="size-4 text-[#c2410c]" />{c.claudeOff}</p>}
       {cur.status === 'failed' && cur.error && <p className="mx-4 mb-4 flex items-start gap-2 rounded-lg bg-danger/10 px-3 py-2 text-[13px] text-text"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" /><span className="break-words">{cur.error}</span></p>}
 
-      {openQ && (
-        <div className="mx-4 mb-4 rounded-lg border border-[#c2410c]/30 bg-[#c2410c]/5 p-3 animate-fade-in">
-          <div className="flex items-start gap-2.5">
-            <MessageCircleQuestion className="mt-0.5 size-4 shrink-0 text-[#c2410c]" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className="text-[13px] font-medium text-text">{cp.site.questionTitle}</p>
-              <p className="text-[13px] text-text-2">{openQ.text}</p>
-              <p className="text-xs text-text-3">{cp.site.questionHint}</p>
-              {openQ.choices && <div className="flex flex-wrap gap-1.5">{openQ.choices.map((x) => <Button key={x} size="xs" variant="outline" onClick={() => answer(openQ.id, x)}>{x}</Button>)}</div>}
-              <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); answer(openQ.id, reply) }}>
-                <Input value={reply} onChange={(e) => setReply(e.target.value)} placeholder={cp.site.answerPlaceholder} aria-label={cp.site.reply} />
-                <Button type="submit" variant="primary" disabled={!reply.trim()} loading={busy === 'answer'}>{cp.site.reply}</Button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {openQ && <div className="mx-4 mb-4"><QuestionBox jobId={job.id} q={openQ} onAnswered={() => { void refresh(); onChanged() }} /></div>}
 
       {cur.status === 'done' && cur.kind === 'site' && cur.deliver?.url && (
         <div className="mx-4 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-success/30 bg-success/5 p-3">
@@ -146,6 +130,8 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
         {(['failed', 'cancelled'] as LiveStatus[]).includes(cur.status) && <Button size="sm" variant="primary" loading={busy === 'retry'} onClick={() => run('retry', () => studioApi.control(job.id, 'retry'))}><RotateCcw className="size-3.5" />{c.retry}</Button>}
         {(active || cur.status === 'draft') && cur.status !== 'draft' && <Button size="sm" variant="outline" onClick={() => { if (confirm(c.confirmCancel)) void run('cancel', () => studioApi.control(job.id, 'cancel')) }}><Square className="size-3.5" />{c.cancel}</Button>}
         <span className="flex-1" />
+        {active && cur.device?.online && <Button size="sm" variant="glass" loading={busy === 'studio'} onClick={() => run('studio', async () => { await studioApi.setup(cur.device!.id, { action: 'open_studio', component: job.id }); toast.success(c.studioOpening) })}><MonitorPlay className="size-3.5" />{c.openStudio}</Button>}
+        <a href={`/studio/live?job=${job.id}`} target="_blank" rel="noreferrer"><Button size="sm" variant="ghost">{c.previewTitle}</Button></a>
         <Button size="icon" variant="ghost" aria-label={c.remove} onClick={() => { if (confirm(c.confirmRemove)) void run('remove', () => studioApi.remove(job.id)) }}><Trash2 className="size-3.5" /></Button>
       </div>
 
@@ -154,6 +140,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-4">
               <Pipeline steps={steps} labels={labels} />
+              <div><h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-3">{c.todo}</h4><TodoList items={detail?.todo ?? []} compact /></div>
               {detail && detail.assets.length > 0 && (
                 <div>
                   <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-3">{c.files}</h4>
@@ -172,6 +159,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
               <ActivityFeed events={detail?.events ?? []} labels={labels} />
             </div>
           </div>
+          {(active || cur.status === 'done') && <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.previewTitle}</h4><LivePreview jobId={job.id} active={active} /></div>}
           {cur.status !== 'draft' && cur.status !== 'cancelled' && <MessageComposer jobId={job.id} status={cur.status} onSent={() => void refresh()} />}
         </div>
       )}

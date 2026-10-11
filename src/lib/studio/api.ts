@@ -15,7 +15,9 @@ export type LiveJob = {
   sessionId: string | null; deliver: { url?: string; files?: { name: string; size?: number }[] } | null
   createdAt: string; startedAt: string | null; finishedAt: string | null; updatedAt: string; device: LiveDevice | null
 }
-export type LiveJobDetail = LiveJob & { events: LiveEvent[]; questions: LiveQuestion[]; assets: LiveAsset[] }
+export type TodoItem = { text: string; state: 'todo' | 'doing' | 'done' }
+export type PreviewSlot = { url: string; at: string; w?: number; h?: number; label?: string }
+export type LiveJobDetail = LiveJob & { events: LiveEvent[]; questions: LiveQuestion[]; assets: LiveAsset[]; todo: TodoItem[] }
 export type LibraryRow = { id: string; kind: 'sent' | 'render' | 'site'; name: string; size: number | null; mime: string | null; jobId: string | null; jobTitle: string | null; at: string; url: string | null }
 
 export class ApiError extends Error { constructor(public status: number, public code: string) { super(code) } }
@@ -40,7 +42,8 @@ export const studioApi = {
   answer: (id: string, questionId: string, answer: string) => post<{ ok: true }>(`jobs/${id}/answer`, { questionId, answer }),
   remove: (id: string) => sf<{ ok: true }>(`jobs/${id}`, { method: 'DELETE' }),
   devices: () => sf<{ devices: LiveDevice[] }>('devices'),
-  setup: (deviceId: string, b: { action: 'install' | 'login' | 'rescan'; component?: string; choice?: string }) => post<{ ok: true }>(`devices/${deviceId}/setup`, b),
+  preview: (id: string) => sf<{ slots: Record<string, PreviewSlot> }>(`jobs/${id}/preview`),
+  setup: (deviceId: string, b: { action: 'install' | 'login' | 'rescan' | 'open_studio'; component?: string; choice?: string }) => post<{ ok: true }>(`devices/${deviceId}/setup`, b),
   removeDevice: (id: string) => sf<{ ok: true }>(`devices?id=${id}`, { method: 'DELETE' }),
   confirm: (code: string) => post<{ device: LiveDevice }>('pair/confirm', { code }),
   library: () => sf<{ items: LibraryRow[] }>('library'),

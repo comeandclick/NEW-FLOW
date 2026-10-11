@@ -7,7 +7,7 @@ import type { LiveEvent } from '@/lib/studio/api'
 import { cn } from '@/lib/utils'
 
 /** Fil d'activité en direct : ce que Claude fait, tes messages (avec leur état de remise) et les événements importants. */
-export function ActivityFeed({ events, labels }: { events: LiveEvent[]; labels: Record<string, { t: string; d: string }> }) {
+export function ActivityFeed({ events, labels, className }: { events: LiveEvent[]; labels: Record<string, { t: string; d: string }>; className?: string }) {
   const { locale } = useI18n()
   const c = studioCopy(locale).live
   const end = useRef<HTMLDivElement>(null)
@@ -17,7 +17,7 @@ export function ActivityFeed({ events, labels }: { events: LiveEvent[]; labels: 
   const time = (e: LiveEvent) => new Date(e.at).toLocaleTimeString(locale, { timeStyle: 'short' })
   const stateLabel = (s?: string) => (s === 'applied' ? c.msgApplied : s === 'delivered' ? c.msgDelivered : c.msgSent)
   return (
-    <div className="max-h-[360px] overflow-y-auto pr-1" aria-live="polite" tabIndex={0}>
+    <div className={cn(className ?? 'max-h-[360px]', 'overflow-y-auto pr-1')} aria-live="polite" tabIndex={0}>
     <ol className="space-y-2">
       {events.map((e) => {
         if (e.kind === 'message') {

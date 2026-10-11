@@ -51,13 +51,15 @@ function NewProject({ onLaunched, mode }: { onLaunched: () => void; mode: Mode }
   const ok = brief.trim().length >= 10
 
   const input = { title: title.trim() || brief.trim().slice(0, 40), siteKind: kind, brief: brief.trim(), refs, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa: qa.map(({ q, a }) => ({ q, a })) }
-  const prompt = useMemo(() => buildSitePrompt(input), [input.title, kind, brief, refs, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [skipQ, setSkipQ] = useState(false)
+  const prompt = useMemo(() => buildSitePrompt({ ...input, noQuestions: skipQ }), [input.title, kind, brief, refs, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa, skipQ]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const launch = async () => {
+  const launch = async (noQ = skipQ) => {
     if (mode === 'setup') { toast.error(c.live.setupTitle); return }
     if (mode === 'live') {
       try {
-        await createAndSubmit({ kind: 'site', title: input.title, spec: { siteKind: kind, brief: input.brief, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa: input.qa, understanding: pct, wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
+        const finalPrompt = noQ ? buildSitePrompt({ ...input, noQuestions: true }) : prompt
+        await createAndSubmit({ kind: 'site', title: input.title, spec: { siteKind: kind, brief: input.brief, withFigma, withSupabase, withMotion, motionBrief, languages, domain, qa: input.qa, understanding: pct, noQuestions: noQ, wsSlug: ws.slug }, prompt: finalPrompt, refs, workspaceId: ws.id })
         toast.success(c.site.launch)
       } catch { toast.error('Erreur'); return }
     } else {
@@ -119,6 +121,7 @@ function NewProject({ onLaunched, mode }: { onLaunched: () => void; mode: Mode }
               <h2 className="text-sm font-semibold text-text">{c.site.interviewTitle}</h2>
               <p className="text-[13px] text-text-3">{c.site.interviewHint}</p>
               <Button variant="primary" size="lg" className="w-full justify-center" disabled={!ok} onClick={() => setPhase('interview')}>{c.site.startInterview}<ArrowRight className="size-4" /></Button>
+              <Button variant="outline" className="w-full justify-center" disabled={!ok} onClick={() => { setSkipQ(true); void launch(true) }}>{c.site.noQuestions}</Button>
               {!ok && <p className="text-xs text-text-3">{c.motion.needBrief}</p>}
             </Card>
           </aside>
@@ -129,6 +132,7 @@ function NewProject({ onLaunched, mode }: { onLaunched: () => void; mode: Mode }
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={() => setPhase('form')}>{c.common.back}</Button>
             <span className="flex-1" />
+            <Button variant="outline" onClick={() => { setSkipQ(true); void launch(true) }}>{c.site.noQuestions}</Button>
             <Button variant="primary" size="lg" onClick={() => void launch()} disabled={pct < 100}><Rocket className="size-4" />{c.site.launch}</Button>
           </div>
           {pct >= 100 && <p className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">{c.site.interviewDoneHint}</p>}

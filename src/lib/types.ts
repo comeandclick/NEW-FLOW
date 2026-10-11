@@ -23,7 +23,7 @@ export type CalEvent = {
   color: string | null; location: string | null; attendees: string[]; task_id: string | null; meeting_id: string | null; created_by: string | null; deleted_at: string | null
 }
 export type Conversation = { id: string; workspace_id: string; type: 'channel' | 'dm' | 'group'; name: string | null; description: string | null; is_private: boolean; created_by: string | null; created_at: string; updated_at: string }
-export type ConvMember = { id: string; conversation_id: string; user_id: string; last_read_at: string; muted: boolean }
+export type ConvMember = { id: string; conversation_id: string; user_id: string; role?: string; last_read_at: string; muted: boolean }
 export type Attachment = { type: 'audio' | 'file' | 'image' | 'video'; url?: string; path?: string; name?: string; size?: number; mime?: string; duration?: number; waveform?: number[] }
 export type Message = {
   id: string; conversation_id: string; user_id: string; content: string | null; parent_id: string | null; kind: 'text' | 'voice' | 'file' | 'system' | 'call'

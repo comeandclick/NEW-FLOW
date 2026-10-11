@@ -7,7 +7,7 @@ import { Field, Input, Textarea } from '@/components/ui/input'
 import { Card, EmptyState, PageHeader, Switch } from '@/components/ui/misc'
 import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
-import { buildMotionPrompt, type Engine } from '@/lib/studio/prompts'
+import { buildMotionPrompt, buildVoicePrompt, type Engine } from '@/lib/studio/prompts'
 import { useStudio, useStudioReady } from '@/lib/studio/store'
 import { useStudioMode, usePoll, studioApi } from '@/lib/studio/api'
 import { createAndSubmit } from '@/lib/studio/launch'
@@ -48,13 +48,21 @@ export default function MotionPage() {
   const [audio, setAudio] = useState<AudioMode>('sfx')
   const [verify, setVerify] = useState(true)
   const [engine, setEngine] = useState<Engine>('auto')
+  const [noQuestions, setNoQuestions] = useState(false)
+  const [voiceOn, setVoiceOn] = useState(false)
+  const [voiceScript, setVoiceScript] = useState('')
+  const [voiceLang, setVoiceLang] = useState('')
+  const [voiceStyle, setVoiceStyle] = useState('')
+  const [voiceEdited, setVoiceEdited] = useState<string | null>(null)
   const devs = usePoll(studioApi.devices, 6000, mode === 'live')
   const ready_ = (id: string) => (devs.data?.devices ?? []).some((d) => d.setup?.components.some((x) => x.id === id && x.state === 'ok'))
   const [busy, setBusy] = useState(false)
 
   const dim = dimensions(ratio, quality)
   const frames = Math.round(duration * fps)
-  const prompt = useMemo(() => buildMotionPrompt({ title, brief, ratio, quality, fps, durationSec: duration, audio, brand, refs, verify, engine }), [title, brief, ratio, quality, fps, duration, audio, brand, refs, verify, engine])
+  const autoVoice = useMemo(() => buildVoicePrompt({ script: voiceScript, language: voiceLang, style: voiceStyle }, duration), [voiceScript, voiceLang, voiceStyle, duration])
+  const voicePrompt = voiceOn ? (voiceEdited ?? autoVoice) : ''
+  const prompt = useMemo(() => buildMotionPrompt({ title, brief, ratio, quality, fps, durationSec: duration, audio, brand, refs, verify, engine, voicePrompt, noQuestions }), [title, brief, ratio, quality, fps, duration, audio, brand, refs, verify, engine, voicePrompt, noQuestions])
   const ok = brief.trim().length >= 10
 
   const launch = async () => {
@@ -63,7 +71,7 @@ export default function MotionPage() {
     setBusy(true)
     if (mode === 'live') {
       try {
-        const id = await createAndSubmit({ kind: 'motion', title: title.trim() || brief.trim().slice(0, 40), spec: { ratio, quality, fps, durationSec: duration, audio, brand, verify, engine, brief: brief.trim(), wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
+        const id = await createAndSubmit({ kind: 'motion', title: title.trim() || brief.trim().slice(0, 40), spec: { ratio, quality, fps, durationSec: duration, audio, brand, verify, engine, noQuestions, voice: voiceOn, brief: brief.trim(), wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
         toast.success(c.motion.sent)
         setTitle(''); setBrief(''); setRefs([])
         requestAnimationFrame(() => document.getElementById(`job-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
@@ -136,9 +144,36 @@ export default function MotionPage() {
                 ] as const).map(([v, t, ok]) => ({ value: v as Engine, title: t, hint: mode === 'live' && ok !== undefined ? (ok ? c.setup.states.ok : c.setup.states.missing) : undefined }))} />
             </Section>
             <Section step={8} title={c.motion.secVerify}>
-              <div className="flex items-start gap-3">
-                <Switch checked={verify} onChange={setVerify} label={c.motion.verifyLabel} />
-                <div><p className="text-[13px] font-medium text-text">{c.motion.verifyLabel}</p><p className="text-xs text-text-3">{c.motion.verifyHint}</p></div>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Switch checked={verify} onChange={setVerify} label={c.motion.verifyLabel} />
+                  <div><p className="text-[13px] font-medium text-text">{c.motion.verifyLabel}</p></div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Switch checked={noQuestions} onChange={setNoQuestions} label={c.motion.noQuestions} />
+                  <div><p className="text-[13px] font-medium text-text">{c.motion.noQuestions}</p></div>
+                </div>
+              </div>
+            </Section>
+            <Section step={9} title={c.motion.voiceOn}>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Switch checked={voiceOn} onChange={setVoiceOn} label={c.motion.voiceOn} />
+                  <div><p className="text-[13px] font-medium text-text">{c.motion.voiceOn}</p><p className="text-xs text-text-3">VoiceStudio · open source</p></div>
+                </div>
+                {voiceOn && (
+                  <div className="space-y-4 animate-fade-in">
+                    <Field label={c.motion.voiceScript}><Textarea value={voiceScript} onChange={(e) => { setVoiceScript(e.target.value); setVoiceEdited(null) }} placeholder={c.motion.voiceScriptPh} /></Field>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label={c.motion.voiceLang}><Input value={voiceLang} onChange={(e) => { setVoiceLang(e.target.value); setVoiceEdited(null) }} placeholder="Français" /></Field>
+                      <Field label={c.motion.voiceStyle}><Input value={voiceStyle} onChange={(e) => { setVoiceStyle(e.target.value); setVoiceEdited(null) }} placeholder={c.motion.voiceStylePh} /></Field>
+                    </div>
+                    <Field label={c.motion.voicePromptTitle}>
+                      <Textarea value={voicePrompt} onChange={(e) => setVoiceEdited(e.target.value)} className="min-h-56 font-mono text-xs" />
+                    </Field>
+                    {voiceEdited !== null && <Button size="xs" variant="ghost" onClick={() => setVoiceEdited(null)}>{locale === 'en' ? 'Reset' : 'Réinitialiser'}</Button>}
+                  </div>
+                )}
               </div>
             </Section>
           </div>

@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Badge, Skeleton } from '@/components/ui/misc'
 import { Dialog, Menu } from '@/components/ui/overlay'
 import { RichEditor } from '@/components/notes/editor'
+import { PeoplePicker } from '@/components/common/people-picker'
+import { useTagMeta } from '@/lib/hooks/use-tag-meta'
+import { assigneesOf, tagColor, visibleTags, withAssignees } from '@/lib/note-tags'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
@@ -25,7 +28,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
   const router = useRouter()
-  const { ws, canWrite, log } = useWorkspace()
+  const { ws, canWrite, log, notifyUser, me, nameOf } = useWorkspace()
+  const tagMeta = useTagMeta(ws.id)
   const { userId } = useSession()
   const [note, setNote] = useState<Note | null>(null)
   const [missing, setMissing] = useState(false)
@@ -101,6 +105,14 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
     const v = tagInput.trim().toLowerCase(); setTagInput('')
     if (!v || !note || note.tags.includes(v)) return
     await instant({ tags: [...note.tags, v] })
+    // People attached to this tag are told, with an alert in their inbox and on their devices.
+    for (const u of tagMeta.meta[v]?.users ?? []) void notifyUser(u, { type: 'assign', title: t('tag.notified', { n: me?.full_name ?? '', t: v, note: note.title || t('notes.untitled') }), url })
+  }
+  async function setAssignees(ids: string[]) {
+    if (!note) return
+    const before = assigneesOf(note.tags)
+    await instant({ tags: withAssignees(note.tags, ids) })
+    for (const u of ids.filter((x) => !before.includes(x))) void notifyUser(u, { type: 'assign', title: t('asg.noteBy', { n: me?.full_name ?? '', t: note.title || t('notes.untitled') }), url })
   }
 
   if (missing) return <div className="p-10 text-center text-text-3"><p>404</p><Link href={`/app/${ws.slug}/notes`} className="mt-3 inline-block text-accent-ink hover:underline">{t('common.back')}</Link></div>
@@ -128,9 +140,15 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
           className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-text-3" />
       </div>
       <div className="mb-5 flex flex-wrap items-center gap-1.5 pl-1">
-        {note.tags.map((x) => <Badge key={x} className="gap-1">{x}{canWrite && <button className="text-text-3 hover:text-danger" aria-label={`${t('common.delete')} ${x}`} onClick={() => instant({ tags: note.tags.filter((y) => y !== x) })}>×</button>}</Badge>)}
-        {canWrite && <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTag()} placeholder={t('notes.tag')} className="h-6 w-32 bg-transparent text-xs outline-none placeholder:text-text-3" />}
+        {visibleTags(note.tags).map((x) => <Badge key={x} color={tagColor(tagMeta.meta, x)} className="gap-1">{x}{canWrite && <button className="text-text-3 hover:text-danger" aria-label={`${t('common.delete')} ${x}`} onClick={() => instant({ tags: note.tags.filter((y) => y !== x) })}>×</button>}</Badge>)}
+        {canWrite && <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTag()} placeholder={t('notes.tag')} list="note-tag-options" maxLength={40} className="h-6 w-32 bg-transparent text-xs outline-none placeholder:text-text-3" />}
+        <datalist id="note-tag-options">{Object.keys(tagMeta.meta).filter((x) => !note.tags.includes(x)).map((x) => <option key={x} value={x} />)}</datalist>
         <span className="text-[11px] text-text-3">· {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: dfl })}</span>
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-2 pl-1" data-testid="note-assignees">
+        <span className="text-xs font-medium text-text-3">{t('asg.label')}</span>
+        <PeoplePicker label={t('asg.pick')} value={assigneesOf(note.tags)} disabled={!canWrite} onChange={(ids) => void setAssignees(ids)} />
       </div>
 
       <RichEditor content={note.content} editable={canWrite} resetKey={resetKey}

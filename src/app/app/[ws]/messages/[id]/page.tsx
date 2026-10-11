@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, isSameDay } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { ArrowLeft, Hash, Lock, Mic, Paperclip, Phone, Pin, Reply, Search, Send, SmilePlus, Trash2, Pencil, Video, X } from 'lucide-react'
+import { ArrowLeft, Hash, Info as InfoIcon, Lock, Mic, Paperclip, Copy, Phone, Pin, Reply, Search, Send, SmilePlus, Trash2, Pencil, Video, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,8 @@ import { Avatar, Skeleton } from '@/components/ui/misc'
 import { Dialog, Menu } from '@/components/ui/overlay'
 import { AttachmentView, CallCard } from '@/components/chat/message-view'
 import { VoiceRecorder } from '@/components/chat/voice'
+import { ChannelInfo } from '@/components/chat/channel-info'
+import { readers, SeenButton, SeenDialog, Ticks, TypingLine } from '@/components/chat/receipts'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
@@ -29,7 +31,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
   const router = useRouter()
-  const { ws, members, canWrite, profileOf, nameOf, notifyUser, me } = useWorkspace()
+  const { ws, members, canWrite, profileOf, nameOf, notifyUser, me, online } = useWorkspace()
   const { userId } = useSession()
   const [conv, setConv] = useState<Conversation | null>(null)
   const [text, setText] = useState('')
@@ -41,6 +43,11 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [pinsOpen, setPinsOpen] = useState(false)
   const [typers, setTypers] = useState<Record<string, number>>({})
   const [mention, setMention] = useState<string | null>(null)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [dropping, setDropping] = useState(false)
+  const [seenFor, setSeenFor] = useState<Message | null>(null)
+  const [actionFor, setActionFor] = useState<Message | null>(null)
+  const press = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bottom = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -53,9 +60,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const reacts = useLive<Reaction>('reactions', { in: { message_id: ids }, enabled: ids.length > 0 })
   const cmembers = useLive<ConvMember>('conversation_members', { eq: { conversation_id: id } })
 
-  useEffect(() => {
+  const loadConv = useCallback(() => {
     getDb().from('conversations').select('*').eq('id', id).maybeSingle().then(({ data }) => setConv((data as Conversation) ?? null))
   }, [id])
+  useEffect(() => { loadConv() }, [loadConv])
 
   const other = conv?.type === 'dm' ? cmembers.data.find((m) => m.user_id !== userId)?.user_id : null
   const title = conv?.type === 'channel' ? conv.name : conv?.type === 'dm' ? nameOf(other) : cmembers.data.filter((m) => m.user_id !== userId).map((m) => nameOf(m.user_id).split(' ')[0]).join(', ')
@@ -175,13 +183,16 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   if (!msgs.loading && !conv) return <div className="flex h-full items-center justify-center text-text-3">404</div>
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col" onDragOver={(e) => { if (canWrite && e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropping(true) } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDropping(false) }}
+      onDrop={(e) => { setDropping(false); if (canWrite && e.dataTransfer.files.length) { e.preventDefault(); void uploadFiles(e.dataTransfer.files) } }}>
+      {dropping && <div className="pointer-events-none absolute inset-3 z-20 grid place-items-center rounded-2xl border-2 border-dashed border-accent bg-accent-soft/60 text-sm font-medium text-accent-ink">{t('msg.dropFiles')}</div>}
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3 sm:px-5">
         <Button variant="ghost" size="icon" className="md:hidden" onClick={() => router.push(`/app/${ws.slug}/messages`)} aria-label={t('common.back')}><ArrowLeft className="size-4" /></Button>
-        {conv?.type === 'channel' ? (conv.is_private ? <Lock className="size-4 text-text-3" /> : <Hash className="size-4 text-text-3" />) : <Avatar name={title} src={profileOf(other)?.avatar_url} size={28} status={profileOf(other)?.status} />}
-        <div className="min-w-0 flex-1"><h2 className="truncate text-[15px] font-semibold">{title ?? <Skeleton className="h-4 w-24" />}</h2>
-          <p className="truncate text-xs text-text-3">{conv?.description ?? t('msg.members', { n: cmembers.data.length })}</p></div>
+        {conv?.type === 'channel' ? (conv.is_private ? <Lock className="size-4 text-text-3" /> : <Hash className="size-4 text-text-3" />) : <Avatar name={title} src={profileOf(other)?.avatar_url} size={28} status={other && online.has(other) ? 'online' : 'offline'} />}
+        <button onClick={() => conv && setInfoOpen(true)} className="min-w-0 flex-1 text-left" aria-label={t('chi.title')}><h2 className="truncate text-[15px] font-semibold">{title ?? <Skeleton className="h-4 w-24" />}</h2>
+          <p className="truncate text-xs text-text-3">{conv?.type === 'dm' ? (other && online.has(other) ? t('chi.isOnline') : t('chi.isOffline')) : `${t('msg.members', { n: cmembers.data.length })} · ${t('chi.online', { n: cmembers.data.filter((m) => online.has(m.user_id)).length })}`}{conv?.description ? ` · ${conv.description}` : ''}</p></button>
         {pinned.length > 0 && <Button variant="ghost" size="icon" onClick={() => setPinsOpen(true)} aria-label={t('msg.pinned')}><Pin className="size-4" /></Button>}
+        <Button variant="ghost" size="icon" onClick={() => setInfoOpen(true)} aria-label={t('chi.title')}><InfoIcon className="size-4" /></Button>
         <Button variant="ghost" size="icon" onClick={() => setSearch(search === null ? '' : null)} aria-label={t('msg.search')}><Search className="size-4" /></Button>
         {canWrite && others.length > 0 && <><Button variant="ghost" size="icon" onClick={() => call(false)} aria-label={t('msg.audioCall')}><Phone className="size-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => call(true)} aria-label={t('msg.videoCall')}><Video className="size-4" /></Button></>}
@@ -203,10 +214,16 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             return (
               <div key={m.id}>
                 {newDay && <div className="my-4 flex items-center gap-3 text-[11px] text-text-3"><span className="h-px flex-1 bg-border" />{isSameDay(new Date(m.created_at), new Date()) ? t('msg.today') : format(new Date(m.created_at), 'EEEE d MMMM', { locale: dfl })}<span className="h-px flex-1 bg-border" /></div>}
-                <div className={cn('group relative flex gap-3 rounded-lg px-2 py-0.5 hover:bg-surface-2/60', grouped ? 'mt-0' : 'mt-3')}>
+                <div data-selectable className={cn('group relative flex gap-3 rounded-lg px-2 py-0.5 hover:bg-surface-2/60', grouped ? 'mt-0' : 'mt-3')}
+                  onDoubleClick={(e) => { if (!m.deleted_at && canWrite && !(e.target as HTMLElement).closest('button,a,input,textarea,video,audio')) void react(m, '❤️') }}
+                  onTouchStart={() => { if (m.deleted_at || !canWrite) return; press.current = setTimeout(() => { navigator.vibrate?.(10); setActionFor(m) }, 450) }}
+                  onTouchEnd={() => press.current && clearTimeout(press.current)} onTouchMove={() => press.current && clearTimeout(press.current)} onTouchCancel={() => press.current && clearTimeout(press.current)}
+                  onContextMenu={(e) => { if (m.deleted_at || !canWrite || (e.target as HTMLElement).closest('a,input,textarea')) return; e.preventDefault(); setActionFor(m) }}>
+                  {mine && !m.deleted_at && <span className="absolute -left-0.5 -top-1 z-[1]"><SeenButton onClick={() => setSeenFor(m)} /></span>}
                   <div className="w-8 shrink-0">{!grouped && <Avatar name={author?.full_name} src={author?.avatar_url} size={32} />}</div>
                   <div className="min-w-0 flex-1">
                     {!grouped && <div className="flex items-baseline gap-2"><span className="text-[13px] font-semibold">{author?.full_name ?? '—'}</span><span className="text-[11px] text-text-3">{format(new Date(m.created_at), 'HH:mm')}</span></div>}
+                    {mine && !m.deleted_at && (() => { const r = readers(m, cmembers.data, m.user_id); return r.total > 0 ? <span className="absolute bottom-1 right-2"><Ticks all={r.unseen.length === 0} /></span> : null })()}
                     {parent && <div className="mb-1 truncate border-l-2 border-border-strong pl-2 text-xs text-text-3">{nameOf(parent.user_id)}: {parent.content ?? (parent.kind === 'voice' ? `🎤 ${t('msg.voiceNote')}` : '📎')}</div>}
                     {m.deleted_at ? <p className="text-[13px] italic text-text-3">{t('msg.deleted')}</p>
                       : editing?.id === m.id ? (
@@ -242,7 +259,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       </div>
 
       <div className="shrink-0 px-3 pb-3 pt-1 safe-bottom sm:px-5">
-        <div className="h-5 px-1 text-xs text-text-3" aria-live="polite">{typingNames.length === 1 ? t('msg.typing1', { a: typingNames[0] }) : typingNames.length === 2 ? t('msg.typing2', { a: typingNames[0], b: typingNames[1] }) : typingNames.length > 2 ? t('msg.typingMany') : ''}</div>
+        <TypingLine names={typingNames} />
         {!canWrite || !isMember ? <p className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-center text-sm text-text-3">{!canWrite ? '🔒' : ''}</p>
           : recording ? <VoiceRecorder onSend={sendVoice} onCancel={() => setRecording(false)} />
           : (
@@ -265,6 +282,23 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           )}
       </div>
 
+      {conv && <ChannelInfo open={infoOpen} onClose={() => setInfoOpen(false)} conv={conv} members={cmembers.data} msgs={msgs.data} onChanged={loadConv} />}
+      <SeenDialog message={seenFor} members={cmembers.data} profileOf={profileOf} onClose={() => setSeenFor(null)} />
+      <Dialog open={!!actionFor} onClose={() => setActionFor(null)} size="sm">
+        {actionFor && (
+          <div className="space-y-3">
+            <div className="flex justify-between">{QUICK.map((e) => <button key={e} onClick={() => { void react(actionFor, e); setActionFor(null) }} className="rounded-xl p-2 text-2xl active:bg-surface-2">{e}</button>)}</div>
+            <div className="grid gap-1">
+              <button onClick={() => { setReplyTo(actionFor); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2"><Reply className="size-4 text-text-3" />{t('msg.reply')}</button>
+              <button onClick={() => { void togglePin(actionFor); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2"><Pin className="size-4 text-text-3" />{actionFor.is_pinned ? t('msg.unpin') : t('msg.pin')}</button>
+              {actionFor.content && <button onClick={() => { void navigator.clipboard?.writeText(actionFor.content ?? ''); toast.success(t('chi.copied')); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2"><Copy className="size-4 text-text-3" />{t('chi.copy')}</button>}
+              {actionFor.user_id === userId && <button onClick={() => { setSeenFor(actionFor); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2"><InfoIcon className="size-4 text-text-3" />{t('rcp.info')}</button>}
+              {actionFor.user_id === userId && actionFor.kind === 'text' && <button onClick={() => { setEditing({ id: actionFor.id, text: actionFor.content ?? '' }); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2"><Pencil className="size-4 text-text-3" />{t('msg.edit')}</button>}
+              {actionFor.user_id === userId && <button onClick={() => { void removeMsg(actionFor); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-danger hover:bg-surface-2"><Trash2 className="size-4" />{t('common.delete')}</button>}
+            </div>
+          </div>
+        )}
+      </Dialog>
       <Dialog open={pinsOpen} onClose={() => setPinsOpen(false)} title={t('msg.pinned')}>
         <ul className="space-y-3">{pinned.map((m) => <li key={m.id} className="rounded-xl border border-border p-3"><div className="text-xs text-text-3">{nameOf(m.user_id)} · {format(new Date(m.created_at), 'PPp', { locale: dfl })}</div><p className="mt-1 text-sm">{m.content ?? '📎'}</p></li>)}</ul>
       </Dialog>

@@ -1,18 +1,16 @@
-import { FaqSection, FeatureCarousel, FinalCta, ForYou, Hero, Marquee, Modules, Newsletter, PricingBox, Stats, Steps } from '@/components/site/home'
+import { Agents, FaqSection, Features, FinalCta, Hero, Newsletter, PricingBox, Rules, Stack } from '@/components/site/home'
 
 export default function Home() {
   return (
     <>
       <Hero />
-      <Marquee />
-      <Stats />
-      <FeatureCarousel />
-      <Modules />
-      <Steps />
-      <ForYou />
+      <Stack />
+      <Features />
+      <Agents />
+      <Rules />
       <PricingBox />
-      <Newsletter />
       <FaqSection />
+      <Newsletter />
       <FinalCta />
     </>
   )

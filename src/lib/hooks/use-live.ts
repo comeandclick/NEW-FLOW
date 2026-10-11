@@ -1,7 +1,9 @@
 'use client'
  
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getDb } from '@/lib/supabase/client'
+import { isDemoBrowser } from '@/lib/demo/runtime'
+import { readCache, writeCache } from '@/lib/offline'
 
 type Opts<T> = {
   select?: string
@@ -30,7 +32,8 @@ export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
   const seq = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const key = useMemo(() => JSON.stringify({ table, select, eq, is, inn, order, limit, enabled }), [table, select, eq, is, order, limit, enabled])
+  // Computed on every render on purpose: `in` lists (e.g. message ids) must change the key when their content changes.
+  const key = JSON.stringify({ table, select, eq, is, inn, order, limit, enabled })
   const transformRef = useRef(transform)
   useEffect(() => { transformRef.current = transform })
 
@@ -48,13 +51,19 @@ export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
     if (limit) q = q.limit(limit)
     const { data: rows, error: err } = await q
     if (id !== seq.current) return
-    if (err) { setError(err.message); setLoading(false); return }
+    if (err) { setError(err.message); setLoading(false); return } // keeps whatever the cache already showed
     setError(null)
+    if (!isDemoBrowser()) writeCache(key, rows ?? [])
     setData(transformRef.current ? transformRef.current(rows ?? []) : ((rows ?? []) as T[]))
     setLoading(false)
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setLoading(true); void fetchNow() }, [fetchNow])
+  useEffect(() => {
+    // Paint the last known rows immediately (also what an offline reload shows), then refresh from the server.
+    const cached = enabled && !isDemoBrowser() ? readCache<any[]>(key) : null
+    if (cached) { setData(transformRef.current ? transformRef.current(cached) : (cached as T[])); setLoading(false) } else setLoading(true)
+    void fetchNow()
+  }, [fetchNow]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!enabled || !live) return

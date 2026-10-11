@@ -1,7 +1,7 @@
 'use client'
  
 import { getDb } from '@/lib/supabase/client'
-import { channels, eventDay, events, goals, mdToDoc, messages, notes, projects, tasks, KALIMAT_NAME } from '@/lib/demo/kalimat-data'
+import { channels, crmContacts, crmDeals, eventDay, events, goals, mdToDoc, messages, notes, projects, tasks, KALIMAT_NAME } from '@/lib/demo/kalimat-data'
 import { uploadToBucket } from '@/lib/storage'
 
 /**
@@ -45,6 +45,12 @@ export async function importKalimat(userId: string): Promise<string> {
     if (ge || !row) throw new Error(ge?.message ?? 'goal')
     ok(await db.from('key_results').insert(g.krs.map((k) => ({ workspace_id: wsId, goal_id: (row as any).id, title: k.title, target: k.target, current: k.current, unit: k.unit }))), 'key_results')
   }
+
+  const { data: cts, error: ce } = await db.from('crm_contacts').insert(crmContacts.map((c) => ({ workspace_id: wsId, name: c.name, company: c.company, position: c.position, status: c.status, tags: [...c.tags], notes: c.notes, created_by: userId }))).select('id,name')
+  ok({ error: ce }, 'crm_contacts')
+  const cid: Record<string, string> = {}
+  crmContacts.forEach((c) => { cid[c.key] = ((cts ?? []) as any[]).find((r) => r.name === c.name)?.id })
+  ok(await db.from('crm_deals').insert(crmDeals.map((d, i) => ({ workspace_id: wsId, contact_id: cid[d.contact], title: d.title, value: d.value, stage: d.stage, probability: d.probability, close_date: day(d.close).slice(0, 10), position: i * 1000, created_by: userId }))), 'crm_deals')
 
   // Channels: #general already exists (created by create_workspace); add the others.
   const { data: convs } = await db.from('conversations').select('id,name').eq('workspace_id', wsId)

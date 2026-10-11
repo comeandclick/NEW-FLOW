@@ -7,8 +7,13 @@ import { Camera, Check, Copy, Download, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar, Badge, PageHeader, Tabs } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
-import { Field, Input, Select } from '@/components/ui/input'
+import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/overlay'
+import { ApiTab } from './api-tab'
+import { StudioTab } from './studio-tab'
+import { ProfileTab } from './profile-tab'
+import { PreferencesTab } from './preferences-tab'
+import { Section } from './section'
 import { LanguageToggle, ThemeToggle } from '@/components/ui/toggles'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -20,63 +25,25 @@ import { enablePush, pushPermission } from '@/lib/push'
 import { useI18n } from '@/i18n/provider'
 import type { Role } from '@/lib/types'
 
-type Tab = 'profile' | 'workspace' | 'members' | 'preferences'
+type Tab = 'profile' | 'workspace' | 'members' | 'preferences' | 'api' | 'studio'
 const EXPORT_TABLES = ['projects', 'tasks', 'notes', 'events', 'goals', 'crm_contacts', 'crm_deals', 'invoices', 'forms', 'habits', 'automations', 'files']
 
 function SettingsInner() {
   const { t } = useI18n()
   const q = useSearchParams().get('tab')
-  const [tab, setTab] = useState<Tab>(q === 'members' || q === 'workspace' || q === 'preferences' ? q : 'profile')
+  const [tab, setTab] = useState<Tab>(q === 'members' || q === 'workspace' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile')
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
       <HubTabs hub="settings" />
       <PageHeader title={t('set.title')} icon={<Settings className="size-[18px]" />} />
       <Tabs className="mb-6 max-w-full overflow-x-auto" value={tab} onChange={setTab} items={[
-        { value: 'profile', label: t('set.tab.profile') }, { value: 'workspace', label: t('set.tab.workspace') }, { value: 'members', label: t('set.tab.members') }, { value: 'preferences', label: t('set.tab.preferences') }]} />
-      {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'members' && <MembersTab />}{tab === 'preferences' && <PreferencesTab />}
+        { value: 'profile', label: t('set.tab.profile') }, { value: 'workspace', label: t('set.tab.workspace') }, { value: 'members', label: t('set.tab.members') }, { value: 'preferences', label: t('set.tab.preferences') }, { value: 'api', label: t('set.tab.api') }, { value: 'studio', label: t('set.tab.studio') }]} />
+      {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'members' && <MembersTab />}{tab === 'preferences' && <PreferencesTab />}{tab === 'api' && <ApiTab />}{tab === 'studio' && <StudioTab />}
     </div>
   )
 }
 
 export default function SettingsPage() { return <Suspense><SettingsInner /></Suspense> }
-
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return <section className="mb-6 rounded-2xl border border-border bg-surface p-5"><h2 className="text-sm font-semibold">{title}</h2>{hint && <p className="mt-0.5 text-[13px] text-text-3">{hint}</p>}<div className="mt-4 space-y-4">{children}</div></section>
-}
-
-function ProfileTab() {
-  const { t } = useI18n()
-  const { profile, updateProfile, userId, isDemo } = useSession()
-  const [name, setName] = useState(profile?.full_name ?? '')
-  const [busy, setBusy] = useState(false)
-  const [avatar, setAvatar] = useState(profile?.avatar_url ?? null)
-  const file = useRef<HTMLInputElement>(null)
-  useEffect(() => { setName(profile?.full_name ?? ''); setAvatar(profile?.avatar_url ?? null) }, [profile])
-  async function save() { setBusy(true); await updateProfile({ full_name: name.trim() }); setBusy(false); toast.success(t('common.saved')) }
-  async function pick(f: File) {
-    if (!userId || f.size > 5 * 1024 * 1024) { toast.error('5 MB max'); return }
-    try {
-      const path = await uploadToBucket('avatars', userId, f, f.name)
-      const url = getDb().storage.from('avatars').getPublicUrl(path).data.publicUrl
-      setAvatar(url); await updateProfile({ avatar_url: url }); toast.success(t('common.saved'))
-    } catch { toast.error(t('common.error')) }
-  }
-  return (
-    <>
-      <Section title={t('set.tab.profile')}>
-        <div className="flex items-center gap-4"><Avatar name={name} src={avatar} size={64} />
-          <div><input ref={file} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])} />
-            <Button onClick={() => file.current?.click()}><Camera className="size-4" />{t('set.profile.change')}</Button><p className="mt-1 text-xs text-text-3">{t('set.profile.avatar')}</p></div></div>
-        <Field label={t('set.profile.name')}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label={t('set.profile.email')}><Input value={profile?.email ?? ''} readOnly disabled /></Field>
-        <Field label={t('set.profile.status')}><Select value={profile?.status ?? 'online'} onChange={(e) => updateProfile({ status: e.target.value })}>
-          {(['online', 'away', 'dnd', 'offline'] as const).map((s) => <option key={s} value={s}>{t(`set.status.${s}`)}</option>)}</Select></Field>
-        <div className="flex justify-end"><Button variant="primary" loading={busy} onClick={save} disabled={!name.trim()}>{t('common.save')}</Button></div>
-        {isDemo && <p className="text-xs text-text-3">{t('common.demoBanner')}</p>}
-      </Section>
-    </>
-  )
-}
 
 function WorkspaceTab() {
   const { t } = useI18n()
@@ -87,7 +54,23 @@ function WorkspaceTab() {
   const [confirm, setConfirm] = useState(false)
   const [typed, setTyped] = useState('')
   const [importing, setImporting] = useState(false)
-  async function save() { await getDb().from('workspaces').update({ name: name.trim() }).eq('id', ws.id); toast.success(t('common.saved')); window.location.reload() }
+  const [desc, setDesc] = useState(String((ws.settings as { description?: string })?.description ?? ''))
+  const [logo, setLogo] = useState(ws.logo_url)
+  const logoInput = useRef<HTMLInputElement>(null)
+  async function save() {
+    // Merge into the latest settings so API keys / alert routes stored there are never overwritten.
+    const { data: cur } = await getDb().from('workspaces').select('settings').eq('id', ws.id).single()
+    const settings = { ...((cur as { settings?: object } | null)?.settings ?? {}), description: desc.trim() }
+    await getDb().from('workspaces').update({ name: name.trim(), settings }).eq('id', ws.id); toast.success(t('common.saved')); window.location.reload()
+  }
+  async function pickLogo(f: File) {
+    if (!userId || f.size > 2 * 1024 * 1024 || !f.type.startsWith('image/')) { toast.error('2 MB max'); return }
+    try {
+      const path = await uploadToBucket('avatars', userId, f, f.name)
+      const url = getDb().storage.from('avatars').getPublicUrl(path).data.publicUrl
+      await getDb().from('workspaces').update({ logo_url: url }).eq('id', ws.id); setLogo(url); toast.success(t('common.saved'))
+    } catch { toast.error(t('common.error')) }
+  }
   async function exportAll() {
     const out: Record<string, unknown> = { exported_at: new Date().toISOString(), workspace: ws }
     for (const tb of EXPORT_TABLES) out[tb] = ((await getDb().from(tb).select('*').eq('workspace_id', ws.id)).data) ?? []
@@ -99,9 +82,12 @@ function WorkspaceTab() {
   return (
     <>
       <Section title={t('set.tab.workspace')}>
-        <Field label={t('set.ws.name')}><Input value={name} disabled={!isAdmin} onChange={(e) => setName(e.target.value)} /></Field>
+        <div className="flex items-center gap-4"><Avatar name={ws.name} src={logo} size={56} />
+          {isAdmin && <div><input ref={logoInput} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])} /><Button onClick={() => logoInput.current?.click()}><Camera className="size-4" />{t('set.ws.logo')}</Button></div>}</div>
+        <Field label={t('set.ws.name')}><Input value={name} disabled={!isAdmin} maxLength={60} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label={t('set.ws.desc')}><Textarea rows={3} value={desc} disabled={!isAdmin} maxLength={300} onChange={(e) => setDesc(e.target.value)} placeholder={t('set.ws.descPh')} /></Field>
         <Field label={t('set.ws.slug')}><Input value={`/app/${ws.slug}`} readOnly disabled /></Field>
-        {isAdmin && <div className="flex justify-end"><Button variant="primary" onClick={save} disabled={!name.trim() || name === ws.name}>{t('common.save')}</Button></div>}
+        {isAdmin && <div className="flex justify-end"><Button variant="primary" onClick={save} disabled={!name.trim() || (name === ws.name && desc.trim() === String((ws.settings as { description?: string })?.description ?? ''))}>{t('common.save')}</Button></div>}
       </Section>
       <Section title={t('set.import.title')} hint={t('set.import.hint')}>
         <Button loading={importing} onClick={async () => { if (!userId) return; setImporting(true); try { router.push(`/app/${await importKalimat(userId)}`) } catch { toast.error(t('common.error')); setImporting(false) } }}>{t('set.import.cta')}</Button>
@@ -161,26 +147,6 @@ function MembersTab() {
             {isAdmin && m.role !== 'owner' && m.user_id !== userId ? <><Select className="h-8 w-36" value={m.role} onChange={(e) => changeRole(m.id, e.target.value as Role)}>{(['admin', 'member', 'viewer'] as const).map((r) => <option key={r} value={r}>{t(`role.${r}`)}</option>)}</Select>
               <Button variant="ghost" size="icon" onClick={() => remove(m.id)} aria-label={t('set.members.remove')}><Trash2 className="size-4" /></Button></> : <Badge>{t(`role.${m.role}`)}</Badge>}
           </li>))}</ul>
-      </Section>
-    </>
-  )
-}
-
-function PreferencesTab() {
-  const { t } = useI18n()
-  const { isDemo } = useSession()
-  const [perm, setPerm] = useState<NotificationPermission | 'unsupported'>('default')
-  useEffect(() => { setPerm(pushPermission()) }, [])
-
-  return (
-    <>
-      <Section title={t('common.language')}><LanguageToggle size="sm" /></Section>
-      <Section title={t('common.theme')}><ThemeToggle size="sm" /></Section>
-      <Section title={t('set.pref.notifications')} hint={t('set.pref.notificationsHint')}>
-        {perm === 'granted' ? <Badge color="var(--success)"><Check className="size-3" />{t('set.pref.enabled')}</Badge>
-          : perm === 'denied' ? <Badge color="var(--danger)">{t('set.pref.blocked')}</Badge>
-          : perm === 'unsupported' ? <Badge>—</Badge>
-          : <Button variant="primary" onClick={async () => setPerm(await enablePush(isDemo))}>{t('set.pref.enable')}</Button>}
       </Section>
     </>
   )

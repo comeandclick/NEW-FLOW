@@ -6,6 +6,8 @@ import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
 import { CalendarDays, CheckSquare, FileText, MessageSquare, Users, Video, Activity as ActivityIcon, ArrowRight, Sparkles } from 'lucide-react'
 import { Avatar, Card, EmptyState, Skeleton } from '@/components/ui/misc'
+import { DigestButton } from '@/components/home/digest'
+import { AlertsWidget } from '@/components/home/alerts'
 import { PriorityIcon, StatusIcon } from '@/components/common/task-ui'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -16,6 +18,7 @@ import type { Activity, CalEvent, Note, Task } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const fade = (i: number) => ({ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] as const } })
+
 
 export default function HomePage() {
   const { t, locale } = useI18n()
@@ -60,9 +63,12 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <motion.div {...fade(0)} className="mb-7">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{greeting}, {me?.full_name?.split(' ')[0] ?? ''}</h1>
-        <p className="mt-1 text-sm capitalize text-text-3">{format(new Date(), 'EEEE d MMMM yyyy', { locale: dfl })}</p>
+      <motion.div {...fade(0)} className="mb-7 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{greeting}, {me?.full_name?.split(' ')[0] ?? ''}</h1>
+          <p className="mt-1 text-sm capitalize text-text-3">{format(new Date(), 'EEEE d MMMM yyyy', { locale: dfl })}</p>
+        </div>
+        <DigestButton tasks={tasksQ.data} />
       </motion.div>
 
       <motion.div {...fade(0.5)} className="mb-4">
@@ -84,7 +90,9 @@ export default function HomePage() {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <motion.div {...fade(4.5)} className="mt-6"><AlertsWidget /></motion.div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <motion.div {...fade(5)} className="min-w-0 lg:col-span-2">
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">{t('home.myTasks')}</h2>

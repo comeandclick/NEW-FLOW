@@ -1,5 +1,10 @@
 export const common = {
   fr: {
+    'off.title': 'Vous êtes hors ligne',
+    'off.text': 'Cette page n’a pas encore été ouverte avec une connexion. Retrouvez les pages déjà visitées, ou reconnectez-vous.',
+    'off.retry': 'Ouvrir Flow',
+    'off.banner': 'Hors ligne : vous voyez les dernières données enregistrées. Les modifications ne sont pas envoyées.',
+    'off.back': 'Connexion rétablie',
     'common.save': 'Enregistrer',
     'common.cancel': 'Annuler',
     'common.delete': 'Supprimer',
@@ -56,6 +61,7 @@ export const common = {
     'common.optional': 'optionnel',
     'common.required': 'obligatoire',
     'common.demoBanner': 'Mode démo — vos données restent dans ce navigateur.',
+    'common.demoShort': 'Mode démo',
     'common.exitDemo': 'Quitter la démo',
     'common.signOut': 'Se déconnecter',
     'common.soon': 'Bientôt',
@@ -75,6 +81,11 @@ export const common = {
     'role.viewer': 'Lecteur',
   },
   en: {
+    'off.title': 'You are offline',
+    'off.text': 'This page has not been opened with a connection yet. Open pages you already visited, or reconnect.',
+    'off.retry': 'Open Flow',
+    'off.banner': 'Offline: you are seeing the last saved data. Changes are not sent.',
+    'off.back': 'Back online',
     'common.save': 'Save',
     'common.cancel': 'Cancel',
     'common.delete': 'Delete',
@@ -131,6 +142,7 @@ export const common = {
     'common.optional': 'optional',
     'common.required': 'required',
     'common.demoBanner': 'Demo mode — your data stays in this browser.',
+    'common.demoShort': 'Demo mode',
     'common.exitDemo': 'Exit demo',
     'common.signOut': 'Sign out',
     'common.soon': 'Soon',

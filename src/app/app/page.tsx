@@ -27,7 +27,13 @@ function Router() {
   useEffect(() => {
     if (loading) return
     if (!userId) { router.replace('/login'); return }
-    getDb().from('workspace_members').select('workspace:workspaces(id,name,slug)').eq('user_id', userId).then(({ data }) => {
+    getDb().from('workspace_members').select('workspace:workspaces(id,name,slug)').eq('user_id', userId).then(({ data, error }) => {
+      if (error) {
+        // Offline (or server unreachable): go straight to the workspace opened last, its pages are cached.
+        let last: string | null = null
+        try { last = localStorage.getItem('flow_last_ws') } catch {}
+        if (last) { router.replace(`/app/${last}`); return }
+      }
       const ws = ((data ?? []) as any[]).map((r) => r.workspace).filter(Boolean)
       setList(ws)
       if (ws.length === 1 && !forceNew) router.replace(`/app/${ws[0].slug}`)

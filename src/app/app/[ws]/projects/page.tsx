@@ -2,7 +2,7 @@
 import { HubTabs } from '@/components/shell/hub-tabs'
 import Link from 'next/link'
 import { useState } from 'react'
-import { FolderKanban, Plus } from 'lucide-react'
+import { FolderKanban, LayoutTemplate, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -16,11 +16,12 @@ import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import type { Task } from '@/lib/types'
+import { TEMPLATES, type Template } from '@/lib/templates'
 
 export const PROJECT_COLORS = ['#6366f1', '#22c55e', '#f97316', '#ec4899', '#0ea5e9', '#a855f7', '#eab308', '#14b8a6']
 
 export default function ProjectsPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { ws, projects, canWrite, refreshProjects, log } = useWorkspace()
   const { userId } = useSession()
   const tasks = useLive<Task>('tasks', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
@@ -29,6 +30,22 @@ export default function ProjectsPage() {
   const [desc, setDesc] = useState('')
   const [color, setColor] = useState(PROJECT_COLORS[0])
 
+  const [tplOpen, setTplOpen] = useState(false)
+  const [busyTpl, setBusyTpl] = useState<string | null>(null)
+  async function fromTemplate(tp: Template) {
+    if (!userId) return
+    setBusyTpl(tp.id)
+    const L = locale === 'en' ? 'en' : 'fr'
+    const { data: p, error } = await getDb().from('projects').insert({ workspace_id: ws.id, name: tp.name[L], description: tp.description[L], color: tp.color, created_by: userId }).select().single()
+    if (error || !p) { toast.error(t('common.error')); setBusyTpl(null); return }
+    const now = new Date()
+    await getDb().from('tasks').insert(tp.tasks.map((x, i) => {
+      const due = new Date(now); due.setDate(due.getDate() + (x.day ?? 0))
+      return { workspace_id: ws.id, project_id: (p as { id: string }).id, title: x[L], status: 'todo', priority: x.priority ?? 'medium', created_by: userId, position: i * 1000, due_date: due.toISOString(), tags: [] }
+    }))
+    log('project.created', 'project', (p as { id: string }).id, { title: tp.name[L] })
+    setBusyTpl(null); setTplOpen(false); await refreshProjects(); toast.success(t('common.saved'))
+  }
   async function create() {
     if (!name.trim() || !userId) return
     const { data, error } = await getDb().from('projects').insert({ workspace_id: ws.id, name: name.trim(), description: desc || null, color, created_by: userId }).select().single()
@@ -40,7 +57,7 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
       <HubTabs hub="tasks" />
-      <PageHeader title={t('proj.title')} subtitle={`${projects.length}`} icon={<FolderKanban className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setOpen(true)}><Plus className="size-4" />{t('proj.new')}</Button>} />
+      <PageHeader title={t('proj.title')} subtitle={`${projects.length}`} icon={<FolderKanban className="size-[18px]" />} actions={canWrite && <><Button aria-label={t('proj.fromTemplate')} onClick={() => setTplOpen(true)}><LayoutTemplate className="size-4" /><span className="hidden sm:inline">{t('proj.fromTemplate')}</span></Button><Button variant="primary" onClick={() => setOpen(true)}><Plus className="size-4" />{t('proj.new')}</Button></>} />
       {projects.length === 0 ? <EmptyState icon={<FolderKanban className="size-5" />} title={t('proj.empty')} hint={t('proj.emptyHint')} />
         : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{projects.map((p, i) => {
           const list = tasks.data.filter((x) => x.project_id === p.id && !x.parent_id)
@@ -56,6 +73,22 @@ export default function ProjectsPage() {
               </Link>
             </motion.div>)
         })}</div>}
+      <Dialog open={tplOpen} onClose={() => setTplOpen(false)} title={t('proj.fromTemplate')}>
+        <ul className="space-y-2">
+          {TEMPLATES.map((tp) => {
+            const L = locale === 'en' ? 'en' : 'fr'
+            return (
+              <li key={tp.id}>
+                <button disabled={!!busyTpl} onClick={() => fromTemplate(tp)} className="flex w-full items-start gap-3 rounded-lg border border-border bg-surface p-3.5 text-left transition-colors hover:border-border-strong hover:bg-surface-2 disabled:opacity-60">
+                  <span className="mt-1 size-3 shrink-0 rounded-full" style={{ background: tp.color }} />
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{tp.name[L]}</span><span className="mt-0.5 block text-[13px] text-text-2">{tp.description[L]}</span><span className="mt-1 block text-xs text-text-3">{t('proj.tasks', { n: tp.tasks.length })}</span></span>
+                  {busyTpl === tp.id && <span className="text-xs text-text-3">…</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </Dialog>
       <Dialog open={open} onClose={() => setOpen(false)} title={t('proj.new')} size="sm"
         footer={<><Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button><Button variant="primary" onClick={create} disabled={!name.trim()}>{t('common.create')}</Button></>}>
         <div className="space-y-4"><Field label={t('proj.name')}><Input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && create()} /></Field>

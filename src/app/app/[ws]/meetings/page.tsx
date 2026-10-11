@@ -12,6 +12,7 @@ import { Field, Input, Textarea } from '@/components/ui/input'
 import { Badge, EmptyState, PageHeader, Skeleton } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useLive } from '@/lib/hooks/use-live'
+import { emailMembers } from '@/lib/mail'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
@@ -42,7 +43,7 @@ export default function MeetingsPage() {
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
   const router = useRouter()
-  const { ws, canWrite, nameOf, log } = useWorkspace()
+  const { ws, canWrite, nameOf, log, members, me, notifyUser } = useWorkspace()
   const { userId } = useSession()
   const { data, loading } = useLive<Meeting>('meetings', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false] })
   const [open, setOpen] = useState(false)
@@ -58,6 +59,14 @@ export default function MeetingsPage() {
     }).select().single()
     if (error || !row) { toast.error(t('common.error')); return }
     log('meeting.created', 'meeting', (row as Meeting).id, { title: (row as Meeting).title })
+    if (!instant) {
+      // Scheduled meeting: tell the other members in the app, on their devices and by e-mail.
+      const others = members.map((m) => m.user_id).filter((u) => u !== userId)
+      const when = (row as Meeting).scheduled_at ? format(new Date((row as Meeting).scheduled_at!), 'PPp', { locale: dfl }) : ''
+      const link = `/app/${ws.slug}/meetings/${(row as Meeting).id}`
+      for (const u of others) void notifyUser(u, { type: 'meeting', title: t('meet.invited', { n: me?.full_name ?? '', t: (row as Meeting).title }), body: when, url: link })
+      void emailMembers({ workspaceId: ws.id, userIds: others, subject: t('meet.invitedMail', { t: (row as Meeting).title }), text: when, when, url: link })
+    }
     setOpen(false); setTitle(''); setWhen(''); setDesc('')
     if (instant) router.push(`/app/${ws.slug}/meetings/${(row as Meeting).id}`)
   }

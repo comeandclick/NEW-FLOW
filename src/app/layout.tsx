@@ -1,13 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Geist_Mono, Instrument_Serif } from 'next/font/google'
+import { Geist_Mono, Newsreader } from 'next/font/google'
 import './globals.css'
 import { I18nProvider } from '@/i18n/provider'
 import { getLocale } from '@/i18n/server'
 import { ThemeProvider, themeInitScript } from '@/components/providers/theme'
 import { Toaster } from '@/components/ui/toaster'
 
-const inter = Inter({ variable: '--font-inter', subsets: ['latin'], display: 'swap' })
-const serif = Instrument_Serif({ variable: '--font-serif', subsets: ['latin'], weight: '400', style: 'italic', display: 'swap' })
+const serif = Newsreader({ variable: '--font-serif', subsets: ['latin'], style: ['normal', 'italic'], display: 'swap' })
 const mono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'], display: 'swap' })
 
 const SITE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://new-flow-dashboard.vercel.app'
@@ -22,20 +21,20 @@ export const metadata: Metadata = {
   openGraph: { title: 'Flow — Work, in flow.', description: 'The all-in-one workspace.', type: 'website', siteName: 'Flow' },
   twitter: { card: 'summary_large_image', title: 'Flow', description: 'The all-in-one workspace.' },
   appleWebApp: { capable: true, title: 'Flow', statusBarStyle: 'black-translucent' },
-  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icons/192', sizes: '192x192', type: 'image/png' }], apple: [{ url: '/icons/180', sizes: '180x180', type: 'image/png' }] },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#08090a',
+  themeColor: [{ media: '(prefers-color-scheme: light)', color: '#fbfbfc' }, { media: '(prefers-color-scheme: dark)', color: '#08090a' }],
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
   return (
-    <html lang={locale} data-theme="dark" data-scroll-behavior="smooth" suppressHydrationWarning className={`${inter.variable} ${mono.variable} ${serif.variable}`}>
+    <html lang={locale} data-theme="dark" data-scroll-behavior="smooth" suppressHydrationWarning className={`${mono.variable} ${serif.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

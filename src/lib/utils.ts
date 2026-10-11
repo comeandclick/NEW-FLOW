@@ -60,3 +60,8 @@ export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: numb
   wrapped.cancel = () => t && clearTimeout(t)
   return wrapped
 }
+
+/** Only same-site absolute paths ("/app/…") are allowed as redirect/notification targets: no "//host", "\\host", "javascript:". */
+export function safePath(url: unknown, fallback = '/app'): string {
+  return typeof url === 'string' && /^\/(?![/\\])[^\u0000-\u001f]*$/.test(url) ? url : fallback
+}

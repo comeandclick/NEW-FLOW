@@ -168,9 +168,11 @@ export async function getJob(userId: string, jobId: string, origin = '') {
     id: a.id, direction: a.direction, kind: a.kind, name: a.name, size: a.size, mime: a.mime, uploaded: a.uploaded, createdAt: a.created_at, link: a.link ?? null,
     url: a.uploaded && a.storage_path ? await db().signedDownload(a.storage_path, origin, 3600) : null,
   })))
+  const [todoEv] = await db().select('studio_events', { job_id: jobId, kind: 'todo' }, { limit: 1 })
   return {
     ...publicJob(job, devs[0]),
-    events: events.reverse().map((e) => ({ id: e.id, at: e.at, level: e.level, kind: e.kind, title: e.title, body: e.body, data: e.data })),
+    todo: (todoEv?.data?.items ?? []) as { text: string; state: 'todo' | 'doing' | 'done' }[],
+    events: events.filter((e) => e.kind !== 'todo' && e.kind !== 'preview').reverse().map((e) => ({ id: e.id, at: e.at, level: e.level, kind: e.kind, title: e.title, body: e.body, data: e.data })),
     questions: questions.map((q) => ({ id: q.id, text: q.text, choices: q.choices, askedAt: q.asked_at, answer: q.answer ?? null, answeredAt: q.answered_at ?? null })),
     assets: assetsOut,
   }
@@ -257,12 +259,12 @@ export async function library(userId: string, origin: string) {
 export async function bridgeSetup(dev: Row, setup: Record<string, unknown>) {
   try { await db().update('studio_devices', { id: dev.id }, { setup: { ...setup, at: now() } }) } catch { /* colonne absente : migration 2 non exécutée */ }
 }
-export type SetupAction = { action: 'install' | 'login' | 'rescan'; component?: string; choice?: string }
+export type SetupAction = { action: 'install' | 'login' | 'rescan' | 'open_studio'; component?: string; choice?: string }
 export async function requestSetup(userId: string, deviceId: string, a: SetupAction) {
   uuid(deviceId)
   const [dev] = await db().select('studio_devices', { id: deviceId, user_id: userId })
   if (!dev) throw new StudioError(404, 'device')
-  if (!['install', 'login', 'rescan'].includes(a.action)) throw new StudioError(400, 'invalid')
+  if (!['install', 'login', 'rescan', 'open_studio'].includes(a.action)) throw new StudioError(400, 'invalid')
   try {
     await db().insert('studio_commands', { job_id: null, device_id: dev.id, type: 'setup', payload: { action: a.action, component: a.component ?? null, choice: a.choice ?? null }, created_at: now() })
   } catch { throw new StudioError(409, 'migration_required') }
@@ -273,7 +275,8 @@ export async function bridgePoll(dev: Row, info: { busyJob?: string | null; vers
   await assignWaiting(dev.user_id, dev.id)
   const cmds = await db().select('studio_commands', { device_id: dev.id, delivered_at: null }, { order: ['id', true], limit: 50 })
   for (const c of cmds) await db().update('studio_commands', { id: c.id }, { delivered_at: now() })
-  return { commands: cmds.map((c) => ({ id: c.id, jobId: c.job_id ?? null, type: c.type, payload: c.payload })), serverTime: Date.now() }
+  const watch = info.busyJob ? await isWatched(info.busyJob).catch(() => false) : false
+  return { commands: cmds.map((c) => ({ id: c.id, jobId: c.job_id ?? null, type: c.type, payload: c.payload })), serverTime: Date.now(), watch }
 }
 
 export async function bridgeJob(dev: Row, jobId: string, origin: string) {
@@ -294,6 +297,7 @@ export type BridgeEvent =
   | { type: 'session'; sessionId: string }
   | { type: 'msgstate'; eventId: number; state: 'delivered' | 'applied' }
   | { type: 'delivered'; deliver?: Record<string, unknown>; summary?: string }
+  | { type: 'todo'; items: { text: string; state: 'todo' | 'doing' | 'done' }[] }
 
 export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
   uuid(jobId)
@@ -333,6 +337,11 @@ export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
   } else if (ev.type === 'msgstate') {
     const [e] = await db().select('studio_events', { id: ev.eventId })
     if (e) await db().update('studio_events', { id: ev.eventId }, { data: { ...(e.data ?? {}), state: ev.state } })
+  } else if (ev.type === 'todo') {
+    const items = (Array.isArray(ev.items) ? ev.items : []).slice(0, 60).map((i) => ({ text: String(i?.text ?? '').slice(0, 200), state: (['todo', 'doing', 'done'] as const).find((x) => x === i?.state) ?? 'todo' })).filter((i) => i.text)
+    const [cur] = await db().select('studio_events', { job_id: jobId, kind: 'todo' }, { limit: 1 })
+    if (cur) await db().update('studio_events', { id: cur.id }, { data: { items }, at: now() })
+    else await event(jobId, { kind: 'todo', title: 'Liste des tâches', data: { items } })
   } else if (ev.type === 'delivered') {
     patch.status = 'done'; patch.progress = 100; patch.finished_at = now(); patch.deliver = ev.deliver ?? null
     await db().update('studio_jobs', { id: jobId }, patch)
@@ -354,3 +363,57 @@ export async function bridgeAsset(dev: Row, jobId: string, a: { name: string; si
 }
 export async function bridgeAssetDone(dev: Row, assetId: string) {
   uuid(assetId); await db().update('studio_assets', { id: assetId, user_id: dev.user_id }, { uploaded: true }) }
+
+
+/* ───────── Aperçus en direct (captures du Mac : page du site, logiciel de montage) ───────── */
+export type PreviewSlot = 'site' | 'editor' | 'studio'
+const SLOTS: PreviewSlot[] = ['site', 'editor', 'studio']
+type PreviewMeta = { slots: Partial<Record<PreviewSlot, { path: string; at: string; w?: number; h?: number; label?: string }>>; viewedAt?: string; n?: number }
+const previewRow = async (jobId: string) => (await db().select('studio_events', { job_id: jobId, kind: 'preview' }, { limit: 1 }))[0]
+
+/** Le pont demande où envoyer une capture : 3 noms tournants par zone, pour que le navigateur ne montre jamais une image périmée. */
+export async function bridgePreview(dev: Row, jobId: string, slot: string, origin: string) {
+  uuid(jobId)
+  if (!SLOTS.includes(slot as PreviewSlot)) throw new StudioError(400, 'slot')
+  const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })
+  if (!job) throw new StudioError(404, 'job')
+  const row = await previewRow(jobId)
+  const n = ((row?.data as PreviewMeta | undefined)?.n ?? 0) + 1
+  const storage_path = `${dev.user_id}/${jobId}/preview/${slot}-${n % 3}.jpg`
+  return { path: storage_path, upload: await db().signedUpload(storage_path, origin) }
+}
+export async function bridgePreviewDone(dev: Row, jobId: string, slot: string, path: string, size: { w?: number; h?: number; label?: string }) {
+  uuid(jobId)
+  if (!SLOTS.includes(slot as PreviewSlot) || !path.startsWith(`${dev.user_id}/${jobId}/preview/`)) throw new StudioError(400, 'slot')
+  const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })
+  if (!job) throw new StudioError(404, 'job')
+  const row = await previewRow(jobId)
+  const meta: PreviewMeta = { ...((row?.data as PreviewMeta | undefined) ?? { slots: {} }) }
+  meta.slots = { ...meta.slots, [slot]: { path, at: now(), w: size.w, h: size.h, label: size.label?.slice(0, 80) } }
+  meta.n = (meta.n ?? 0) + 1
+  if (row) await db().update('studio_events', { id: row.id }, { data: meta })
+  else await event(jobId, { kind: 'preview', title: 'Aperçu', data: meta })
+}
+/** Lecture par Flow : renvoie les liens signés et note que quelqu'un regarde (le pont capture alors plus souvent). */
+export async function getPreview(userId: string, jobId: string, origin: string) {
+  uuid(jobId)
+  const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
+  if (!job) throw new StudioError(404, 'job')
+  const row = await previewRow(jobId)
+  const meta = ((row?.data as PreviewMeta | undefined) ?? { slots: {} }) as PreviewMeta
+  if (row && (!meta.viewedAt || Date.now() - new Date(meta.viewedAt).getTime() > 8000)) await db().update('studio_events', { id: row.id }, { data: { ...meta, viewedAt: now() } })
+  else if (!row) await event(jobId, { kind: 'preview', title: 'Aperçu', data: { slots: {}, viewedAt: now() } })
+  const slots: Record<string, { url: string; at: string; w?: number; h?: number; label?: string }> = {}
+  for (const [k, v] of Object.entries(meta.slots ?? {})) {
+    if (!v) continue
+    const url = await db().signedDownload(v.path, origin, 300)
+    if (url) slots[k] = { url, at: v.at, w: v.w, h: v.h, label: v.label }
+  }
+  return { slots }
+}
+/** Quelqu'un regarde-t-il ce projet en ce moment ? (le pont s'en sert pour capturer toutes les 3 s au lieu de 15 s) */
+export async function isWatched(jobId: string) {
+  const row = await previewRow(jobId)
+  const v = (row?.data as PreviewMeta | undefined)?.viewedAt
+  return !!v && Date.now() - new Date(v).getTime() < 25_000
+}

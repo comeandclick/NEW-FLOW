@@ -18,6 +18,8 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { fireAutomations } from '@/lib/automations'
+import { onTaskDone } from '@/lib/task-done'
+import { CsvMenu } from '@/components/common/csv-menu'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import type { Task, TaskStatus } from '@/lib/types'
@@ -60,7 +62,7 @@ function Column({ status, tasks, onOpen, onAdd, canWrite }: { status: TaskStatus
   const t = useI18n().t
   const { setNodeRef, isOver } = useDroppable({ id: status })
   return (
-    <div ref={setNodeRef} className={cn('flex w-[280px] shrink-0 flex-col rounded-2xl border bg-surface-2/50 transition-colors', isOver ? 'border-accent/60 bg-accent-soft/40' : 'border-border')}>
+    <div ref={setNodeRef} className={cn('flex w-[min(300px,82vw)] shrink-0 snap-start scroll-ml-3 flex-col rounded-2xl border bg-surface-2/50 transition-colors', isOver ? 'border-accent/60 bg-accent-soft/40' : 'border-border')}>
       <div className="flex items-center gap-2 px-3 py-2.5"><StatusIcon status={status} /><span className="text-[13px] font-medium">{t(`status.${status}`)}</span><span className="text-xs text-text-3">{tasks.length}</span>
         <span className="flex-1" />{canWrite && <button onClick={() => onAdd(status)} className="rounded-md p-1 text-text-3 hover:bg-surface-3 hover:text-text" aria-label={t('common.add')}><Plus className="size-3.5" /></button>}</div>
       <div className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
@@ -71,7 +73,7 @@ function Column({ status, tasks, onOpen, onAdd, canWrite }: { status: TaskStatus
 }
 
 function TasksPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const router = useRouter()
   const params = useSearchParams()
   const { ws, projects, canWrite, log, notifyUser } = useWorkspace()
@@ -122,7 +124,10 @@ function TasksPage() {
     const { error } = await getDb().from('tasks').update(patch).eq('id', task.id)
     if (error) { toast.error(t('common.error')); refresh(); return }
     log(target === 'done' ? 'task.completed' : 'task.updated', 'task', task.id, { title: task.title })
-    if (target === 'done' && userId) void fireAutomations(ws.id, ws.slug, 'task_done', userId, task.title)
+    if (target === 'done' && userId) {
+      const next = await onTaskDone(ws, userId, { ...task, ...patch } as Task)
+      if (next) { toast.success(t('tasks.nextCreated', { d: new Date(next).toLocaleDateString(locale) })); refresh(); return }
+    }
     toast.success(t('tasks.moved'))
   }
 
@@ -134,8 +139,8 @@ function TasksPage() {
       <div className="px-4 pt-4 sm:px-6">
         <HubTabs hub="tasks" />
         <PageHeader title={t('tasks.title')} subtitle={t('tasks.subtitle', { n: filtered.length })} icon={<CheckSquare className="size-[18px]" />}
-          actions={<Tabs value={view} onChange={(v) => { setView(v); try { localStorage.setItem('flow_tasks_view', v) } catch {} }}
-            items={[{ value: 'list', label: t('tasks.view.list'), icon: <List className="size-3.5" /> }, { value: 'board', label: t('tasks.view.board'), icon: <Columns3 className="size-3.5" /> }]} />} />
+          actions={<><CsvMenu kind="tasks" onDone={refresh} /><Tabs value={view} onChange={(v) => { setView(v); try { localStorage.setItem('flow_tasks_view', v) } catch {} }}
+            items={[{ value: 'list', label: t('tasks.view.list'), icon: <List className="size-3.5" /> }, { value: 'board', label: t('tasks.view.board'), icon: <Columns3 className="size-3.5" /> }]} /></>} />
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative min-w-40 flex-1 sm:max-w-xs"><Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-text-3" /><Input className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('tasks.search')} /></div>
           <Tabs value={scope} onChange={setScope} items={[{ value: 'all', label: t('tasks.filter.all') }, { value: 'mine', label: t('tasks.filter.mine') }]} />

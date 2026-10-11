@@ -35,7 +35,7 @@ export const asUser = (h: UserHandler, opts: { write?: boolean; limit?: number }
     if (opts.write !== false && req.method !== 'GET' && crossSite(req)) return json({ error: 'origin' }, 403)
     const user = await studioUser()
     if (!user) return json({ error: 'unauthorized' }, 401)
-    if (rateLimited(`studio:${user.id}`, opts.limit ?? 240)) return json({ error: 'rate_limited' }, 429)
+    if (rateLimited(`studio:${user.id}`, opts.limit ?? (req.method === 'GET' ? 900 : 240))) return json({ error: 'rate_limited' }, 429)
     return await h(req, user, ctx)
   } catch (e) {
     if (e instanceof StudioError) return json({ error: e.code }, e.status)

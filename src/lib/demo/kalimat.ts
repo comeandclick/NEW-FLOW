@@ -1,7 +1,7 @@
  
 import { DEMO_USER_ID } from './constants'
 import type { DemoDB, Row } from './mock-client'
-import { channels, eventDay, events, files, goals, messages, mdToDoc, notes, projects, tasks, KALIMAT_NAME, KALIMAT_SLUG } from './kalimat-data'
+import { channels, crmContacts, crmDeals, eventDay, events, files, goals, messages, mdToDoc, notes, projects, tasks, KALIMAT_NAME, KALIMAT_SLUG } from './kalimat-data'
 
 const uid = (prefix: string, n: number) => {
   const hex = prefix.split('').map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').padEnd(8, '0').slice(0, 8)
@@ -54,6 +54,9 @@ export function addKalimat(db: DemoDB, now = new Date()) {
     id: uid('kfile', i + 1), workspace_id: WS, folder: f.folder, name: f.name, size: 4_000 + ((i * 7919) % 50_000), mime_type: f.mime, storage_path: `${WS}/demo/${i + 1}-${f.name}`,
     uploaded_by: ME, created_at: ago(60 * 24 * 4 - i * 30), deleted_at: null,
   }))
+
+  crmContacts.forEach((c, i) => db.crm_contacts.push({ id: uid('kcrm', i + 1), workspace_id: WS, name: c.name, email: null, phone: null, company: c.company, position: c.position, status: c.status, tags: [...c.tags], notes: c.notes, created_by: ME, created_at: created, updated_at: created, deleted_at: null }))
+  crmDeals.forEach((d, i) => db.crm_deals.push({ id: uid('kdeal', i + 1), workspace_id: WS, contact_id: uid('kcrm', crmContacts.findIndex((c) => c.key === d.contact) + 1), title: d.title, value: d.value, currency: 'EUR', stage: d.stage, probability: d.probability, close_date: day(d.close).slice(0, 10), position: i * 1000, created_by: ME, created_at: created, updated_at: created, deleted_at: null }))
 
   const convId: Record<string, string> = {}
   channels.forEach((c, i) => {

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getServerDb } from '@/lib/supabase/server'
+import { safePath } from '@/lib/utils'
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url)
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (code) {
     const db = await getServerDb()
     const { error } = await db.auth.exchangeCodeForSession(code)
-    if (!error) return NextResponse.redirect(`${origin}${next.startsWith('/') ? next : '/app'}`)
+    if (!error) return NextResponse.redirect(`${origin}${safePath(next)}`)
   }
   return NextResponse.redirect(`${origin}/login`)
 }

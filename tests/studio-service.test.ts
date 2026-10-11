@@ -151,3 +151,32 @@ describe('logiciels du Mac', () => {
     await expect(S.requestSetup(U2, dev.id, { action: 'rescan' })).rejects.toMatchObject({ status: 404 })
   })
 })
+
+describe('tâches et aperçus en direct', () => {
+  it('la liste des tâches est unique (mise à jour sur place) et absente du fil', async () => {
+    const { row } = await pairDevice(U1, 'Mac Todo')
+    const job = await S.createJob(U1, { kind: 'site', title: 'Todo', spec: {}, prompt: PROMPT })
+    await S.submitJob(U1, job.id)
+    await S.bridgeEvent(row, job.id, { type: 'todo', items: [{ text: 'Design', state: 'doing' }, { text: 'Build', state: 'todo' }] })
+    await S.bridgeEvent(row, job.id, { type: 'todo', items: [{ text: 'Design', state: 'done' }, { text: 'Build', state: 'doing' }, { text: '', state: 'todo' }, { text: 'x', state: 'weird' as never }] })
+    const d = await S.getJob(U1, job.id)
+    expect(d.todo.map((t) => `${t.text}:${t.state}`)).toEqual(['Design:done', 'Build:doing', 'x:todo']) // vide retiré, état inconnu = à faire
+    expect(d.events.some((e) => e.kind === 'todo')).toBe(false)
+  })
+  it('aperçu : chemin limité au projet, lecture par le propriétaire seulement, « watch » après lecture', async () => {
+    const { row } = await pairDevice(U1, 'Mac Prev')
+    const job = await S.createJob(U1, { kind: 'site', title: 'Prev', spec: {}, prompt: PROMPT })
+    await S.submitJob(U1, job.id)
+    await expect(S.bridgePreview(row, job.id, '../x', 'http://x')).rejects.toMatchObject({ status: 400 })
+    const up = await S.bridgePreview(row, job.id, 'site', 'http://x')
+    expect(up.path).toMatch(new RegExp(`^${row.user_id}/${job.id}/preview/site-\\d\\.jpg$`))
+    await expect(S.bridgePreviewDone(row, job.id, 'site', `${U2}/${job.id}/preview/site-1.jpg`, {})).rejects.toMatchObject({ status: 400 })
+    await S.bridgePreviewDone(row, job.id, 'site', up.path, { label: 'http://localhost:3000' })
+    await expect(S.getPreview(U2, job.id, 'http://x')).rejects.toMatchObject({ status: 404 })
+    expect(await S.isWatched(job.id)).toBe(false)
+    const seen = await S.getPreview(U1, job.id, 'http://x')
+    expect(seen.slots.site.label).toBe('http://localhost:3000')
+    expect(await S.isWatched(job.id)).toBe(true)
+    expect((await S.bridgePoll(row, { busyJob: job.id })).watch).toBe(true)
+  })
+})

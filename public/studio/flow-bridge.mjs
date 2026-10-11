@@ -3,6 +3,7 @@
 // les questions et les résultats, et applique pause / reprise / annulation / messages venant de Flow.
 // Aucune dépendance : Node 20+ seulement.  Usage :  node flow-bridge.mjs connect | start | status | install | uninstall | logs
 import { spawn, execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { chmodSync, createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, renameSync, appendFileSync, readdirSync, rmSync } from 'node:fs'
 import { homedir, hostname, platform } from 'node:os'
 import path from 'node:path'
@@ -10,7 +11,7 @@ import readline from 'node:readline'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.0.0'
+const VERSION = '1.1.0'
 const HOME = homedir()
 const DIR = process.env.FLOW_BRIDGE_HOME || path.join(HOME, '.flow-bridge')
 const CONFIG = path.join(DIR, 'config.json')
@@ -28,7 +29,7 @@ const DEFAULTS = {
   sitesRoot: path.join(HOME, 'Developer', 'sites'),
   claudeBin: 'claude',
   claudeArgsPrefix: [],
-  maxNudges: 8,
+  maxNudges: 12,
 }
 function resolveClaude(bin) {
   if (bin !== 'claude') return bin
@@ -76,18 +77,22 @@ const STEPS = {
   motion: ['receive', 'analyse', 'plan', 'build', 'compare', 'sound', 'render4k', 'verify'],
   site: ['interview', 'analyse', 'design', 'structure', 'build', 'data', 'deploy', 'qa', 'motion', 'deliver'],
 }
-function protocol(kind, dir) {
+function protocol(kind, dir, spec = {}) {
   const steps = STEPS[kind].join(' | ')
+  const noQ = spec?.noQuestions === true
   return `
 
 ---
 ## Protocole du pont Flow (obligatoire, en plus de tout ce qui précède)
 Le pont Flow lit ces fichiers dans \`${dir}\` pour tenir l'utilisateur au courant. Écris-les en JSON valide.
 1. **Avancement** : à CHAQUE changement d'étape (et au moins toutes les 5 minutes), écris \`progress.json\` : \`{"step":"<étape>","progress":<0-100>,"detail":"<une phrase simple>"}\`. Étapes dans l'ordre : ${steps}. « progress » est le pourcentage global honnête.
-2. **Question** : seulement pour un blocage réel (accès refusé, achat payant, décision juridique). Écris \`QUESTION.json\` : \`{"question":"…","choices":["…","…"]}\`, puis CONTINUE tout ce qui n'en dépend pas. La réponse arrive dans \`REPONSE.json\` et dans un message.
+2. **Question** : ${noQ ? "l'utilisateur a demandé de NE PAS être dérangé : ne pose AUCUNE question, quoi qu'il arrive. Décide toi-même (option la plus professionnelle), note l'hypothèse dans le rapport et continue." : "seulement pour un blocage réel (accès refusé, achat payant, décision juridique). Écris `QUESTION.json` : `{\"question\":\"…\",\"choices\":[\"…\",\"…\"]}`, puis CONTINUE tout ce qui n'en dépend pas. La réponse arrive dans `REPONSE.json` et dans un message. Sans réponse après 20 minutes, décide toi-même."}
 3. **Messages de l'utilisateur** : il peut t'écrire à tout moment. Lis-les, applique-les, puis reprends le plan.
 4. **Livraison** : ${kind === 'motion' ? '`rendu/final.mp4` + `rendu/rapport.json` (`{"statut":"ok",…}`) + `rendu/rapport.md`' : '`LIVRAISON.json` (`{"statut":"ok","url":"https://…"}`) + `LIVRAISON.md`'}. Le pont n'envoie le résultat que quand ces fichiers existent. Ne t'arrête jamais avant.
 5. Écris ces fichiers à la racine du projet ci-dessus (pas ailleurs).
+6. **Liste des tâches (affichée en direct à l'utilisateur)** : dès le début, écris \`todo.json\` : \`{"items":[{"text":"<tâche courte>","state":"todo"}]}\` avec TOUTES les tâches prévues (10 à 25). À chaque tâche commencée mets \`"doing"\`, terminée \`"done"\` (une seule « doing » à la fois). Ajoute les tâches nouvelles qui apparaissent.
+7. **Aperçu en direct** : ${kind === 'site' ? "dès que le serveur local du site tourne, écris `preview.json` : `{\"site\":\"http://localhost:<port>\"}` (adresse locale uniquement). Le pont l'ouvre dans une fenêtre et la montre à l'utilisateur en direct ; relance-la (même fichier) si le port change." : "garde le logiciel de motion (EffectCraft / After Effects) ouvert avec la composition visible pendant tout le travail : le pont la montre à l'utilisateur en direct."}
+8. **Ne t'arrête jamais** : tu ne finis ton tour qu'après la livraison. Une tâche longue (rendu, installation, build) : lance-la, puis surveille-la avec des attentes courtes (\`sleep 20\`) dans le même tour. N'attends jamais une réponse pour avancer : aucune réponse n'arrive sans que tu aies écrit QUESTION.json.
 `
 }
 
@@ -163,9 +168,9 @@ async function startRun(job, { firstMessage, resume = false } = {}) {
   writeProjectSettings(dir)
   if (!resume) {
     for (const f of job.inputs) { try { await download(f.url, path.join(dir, 'entrees', safe(f.name))) } catch (e) { log('input', f.name, e.message) } }
-    writeFileSync(path.join(dir, 'PROMPT.md'), job.prompt + protocol(job.kind, dir))
+    writeFileSync(path.join(dir, 'PROMPT.md'), job.prompt + protocol(job.kind, dir, job.spec))
   }
-  const prompt = firstMessage ?? (job.prompt + protocol(job.kind, dir) + (job.inputs.length ? `\n\nLes fichiers fournis sont déjà copiés dans \`${path.join(dir, 'entrees')}\`.` : ''))
+  const prompt = firstMessage ?? (job.prompt + protocol(job.kind, dir, job.spec) + (job.inputs.length ? `\n\nLes fichiers fournis sont déjà copiés dans \`${path.join(dir, 'entrees')}\`.` : ''))
   const child = spawn(c.claudeBin, claudeArgs(c, resume ? st.sessionId : null), {
     cwd: dir, detached: true, stdio: ['pipe', 'pipe', 'pipe'],
     env: childEnv(job, dir),
@@ -180,6 +185,9 @@ async function startRun(job, { firstMessage, resume = false } = {}) {
   child.stdin.on('error', () => {})
   send(run, prompt)
   run.watch = setInterval(() => watchFiles(run), 2000)
+  if (cfg().autoStudio !== false) openStudio(job.id) // ouvre la fenêtre Flow Studio (discussion, tâches, aperçus) à côté du travail
+  setTimeout(() => tileWindows(run), 3500)
+  void previewLoop(run)
   await emit(job.id, { type: 'status', status: 'starting', title: resume ? 'Claude reprend la session' : 'Claude démarre sur ton Mac', body: dir })
   await emit(job.id, { type: 'status', status: 'running', progress: job.status === 'draft' ? 0 : undefined })
   log('start', job.id, job.kind, dir)
@@ -221,11 +229,30 @@ function watchFiles(run) {
       if (p?.step) void emit(id, { type: 'step', step: String(p.step), progress: typeof p.progress === 'number' ? p.progress : undefined, detail: p.detail ? short(p.detail, 300) : undefined })
     }
   } catch { /* pas encore écrit */ }
+  const tf = path.join(run.dir, 'todo.json')
+  try {
+    const mt = statSync(tf).mtimeMs
+    if (mt !== run.todoMtime) {
+      run.todoMtime = mt
+      const t = jsonFile(tf); const items = Array.isArray(t) ? t : t?.items
+      if (Array.isArray(items)) void emit(id, { type: 'todo', items: items.map((i) => (typeof i === 'string' ? { text: i, state: 'todo' } : { text: String(i?.text ?? i?.task ?? ''), state: ['todo', 'doing', 'done'].includes(i?.state) ? i.state : i?.done ? 'done' : 'todo' })) })
+    }
+  } catch { /* pas encore écrit */ }
+  const pv = path.join(run.dir, 'preview.json')
+  try {
+    const mt = statSync(pv).mtimeMs
+    if (mt !== run.previewMtime) { run.previewMtime = mt; const u = jsonFile(pv)?.site; if (typeof u === 'string') setPreviewUrl(run, u) }
+  } catch { /* pas encore écrit */ }
   const qf = path.join(run.dir, 'QUESTION.json')
   if (existsSync(qf)) {
     const q = jsonFile(qf)
     try { renameSync(qf, path.join(run.dir, `QUESTION.${Date.now()}.sent.json`)) } catch {}
-    if (q?.question) { run.waitingAnswer = true; void emit(id, { type: 'question', text: String(q.question), choices: Array.isArray(q.choices) ? q.choices.map(String) : undefined }) }
+    if (run.job.spec?.noQuestions === true) send(run, 'L\'utilisateur ne veut AUCUNE question. Décide toi-même (option la plus professionnelle), note l\'hypothèse dans le rapport et continue.')
+    else if (q?.question) {
+      run.waitingAnswer = true; void emit(id, { type: 'question', text: String(q.question), choices: Array.isArray(q.choices) ? q.choices.map(String) : undefined })
+      clearTimeout(run.questionTimer) // personne ne répond : Claude décide seul et continue, le projet ne reste jamais bloqué
+      run.questionTimer = setTimeout(() => { if (run.waitingAnswer && !run.exited && !run.cancelled) { run.waitingAnswer = false; void emit(id, { type: 'status', status: 'running', title: 'Pas de réponse : Claude décide seul' }); send(run, 'Aucune réponse de l\'utilisateur après 20 minutes. Décide toi-même (option la plus professionnelle), note l\'hypothèse dans le rapport et continue jusqu\'à la livraison.') } }, 20 * 60_000)
+    }
   }
 }
 
@@ -256,6 +283,7 @@ async function onTurnEnd(run, result) {
     return
   }
   if (run.waitingAnswer) { await emit(id, { type: 'status', status: 'needs_answer' }); return }
+  if ((run.progressMtime ?? 0) !== (st.nudgeProgressMtime ?? 0)) { st.nudges = 0; st.nudgeProgressMtime = run.progressMtime } // il a avancé depuis la dernière relance : on repart à zéro
   st.nudges = (st.nudges ?? 0) + 1; saveState()
   if (st.nudges > cfg().maxNudges) { await fail(run, `Claude s'est arrêté ${st.nudges - 1} fois sans livrer. Dernière réponse : ${short(result.result, 300)}`); return }
   await emit(id, { type: 'log', level: 'warning', title: 'Relance automatique', body: 'Claude s\'est arrêté avant la livraison : le pont lui demande de continuer.' })
@@ -313,12 +341,130 @@ function onExit(run, code, sig) {
   log('exit', run.job.id, code, sig)
   if (run.cancelled || run.delivered || run.finalizing || run.restarting) return
   if (state.jobs[run.job.id]?.status === 'failed') return
+  const st = state.jobs[run.job.id]
+  if (st?.sessionId && (st.crashes ?? 0) < 3 && !run.paused) { // arrêt inattendu : on reprend la même session (jusqu'à 3 fois)
+    st.crashes = (st.crashes ?? 0) + 1; saveState()
+    void emit(run.job.id, { type: 'log', level: 'warning', title: 'Claude s\'est arrêté : reprise automatique', body: `Reprise ${st.crashes}/3 de la même session.` })
+    setTimeout(async () => { try { const { job } = await api('GET', `bridge/job?id=${run.job.id}`); await startRun(job, { resume: true, firstMessage: 'Tu as été interrompu. Reprends exactement où tu t\'étais arrêté (progress.json, todo.json) et termine jusqu\'à la livraison.' }) } catch (e) { await fail(run, `Claude Code s'est arrêté (code ${code ?? sig}).`) } }, 3000)
+    return
+  }
   void fail(run, `Claude Code s'est arrêté (code ${code ?? sig}).`)
 }
 
 function killGroup(run, signal) {
   if (signal === 'SIGTERM' || signal === 'SIGKILL') clearTimeout(run.limitTimer)
   try { process.kill(-run.child.pid, signal) } catch { try { run.child.kill(signal) } catch {} } }
+
+/* ───────── Flow Studio : fenêtres bien rangées + aperçu en direct ───────── */
+const NO_WINDOWS = process.env.FLOW_BRIDGE_NO_WINDOWS === '1' || FAKE_ENV()
+function FAKE_ENV() { return process.env.FLOW_BRIDGE_FAKE === '1' }
+const CHROME = '/Applications/Google Chrome.app'
+const LOCAL_URL = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?(\/[^\s"'<>\\]*)?$/
+const osa = (args, timeout = 8000) => { try { return execFileSync('/usr/bin/osascript', args, { stdio: 'pipe', timeout }).toString().trim() } catch { return null } }
+const JXA_WINDOWS = `ObjC.import('CoreGraphics');const a=ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(17,0)));JSON.stringify(a.filter(w=>w.kCGWindowLayer===0&&w.kCGWindowBounds.Width>200&&w.kCGWindowBounds.Height>150).map(w=>({id:w.kCGWindowNumber,app:w.kCGWindowOwnerName,title:w.kCGWindowName||'',w:w.kCGWindowBounds.Width,h:w.kCGWindowBounds.Height})))`
+function listWindows() { const o = osa(['-l', 'JavaScript', '-e', JXA_WINDOWS]); try { return JSON.parse(o ?? '[]') } catch { return [] } }
+const JXA_SCREEN = `ObjC.import('AppKit');const s=$.NSScreen.mainScreen;const f=s.frame,v=s.visibleFrame;JSON.stringify({x:v.origin.x,y:f.size.height-v.origin.y-v.size.height,w:v.size.width,h:v.size.height})`
+function screenFrame() { try { return JSON.parse(osa(['-l', 'JavaScript', '-e', JXA_SCREEN]) ?? '') } catch { return { x: 0, y: 25, w: 1440, h: 875 } } }
+const EDITOR_RE = /^(EffectCraft|Adobe After Effects)/i
+const studioUrl = (jobId) => `${cfg().server}/studio/live${jobId ? `?job=${jobId}` : ''}`
+
+function openStudio(jobId) {
+  if (NO_WINDOWS || platform() !== 'darwin') return false
+  const url = studioUrl(jobId)
+  try {
+    if (existsSync(CHROME)) execFileSync('/usr/bin/open', ['-na', 'Google Chrome', '--args', `--app=${url}`], { stdio: 'ignore' })
+    else execFileSync('/usr/bin/open', [url], { stdio: 'ignore' })
+    return true
+  } catch (e) { log('open-studio', e.message); return false }
+}
+
+/** Range les fenêtres : Flow Studio à gauche (35 %), à droite le logiciel de montage et/ou la page locale, chacun à sa place. */
+function tileWindows(run) {
+  if (NO_WINDOWS || platform() !== 'darwin') return
+  const F = screenFrame()
+  const wins = listWindows()
+  const editor = wins.find((w) => EDITOR_RE.test(w.app))
+  const hasSite = !!run?.siteUrl
+  const lw = Math.round(F.w * 0.35)
+  const R = { x: F.x + lw, y: F.y, w: F.w - lw, h: F.h }
+  const boxes = { panel: [F.x, F.y, F.x + lw, F.y + F.h] }
+  if (editor && hasSite) { boxes.editor = [R.x, R.y, R.x + R.w, R.y + Math.round(R.h / 2)]; boxes.site = [R.x, R.y + Math.round(R.h / 2), R.x + R.w, R.y + R.h] }
+  else if (editor) boxes.editor = [R.x, R.y, R.x + R.w, R.y + R.h]
+  else if (hasSite) boxes.site = [R.x, R.y, R.x + R.w, R.y + R.h]
+  const b = (k) => `{${boxes[k].join(', ')}}`
+  if (existsSync(CHROME)) {
+    const siteHost = hasSite ? new URL(run.siteUrl).host : '__none__'
+    osa(['-e', `tell application "Google Chrome"
+repeat with w in windows
+try
+set u to URL of active tab of w
+if u contains "/studio/live" then set bounds of w to ${b('panel')}
+${boxes.site ? `if u contains "${siteHost}" and u does not contain "/studio/live" then set bounds of w to ${b('site')}` : ''}
+end try
+end repeat
+end tell`])
+  }
+  if (editor && boxes.editor) { // demande l'accès « Accessibilité » une fois ; sans lui, la fenêtre reste où elle est
+    const [x1, y1, x2, y2] = boxes.editor
+    osa(['-e', `tell application "System Events" to tell (first process whose name is "${editor.app}") to try
+set position of window 1 to {${x1}, ${y1}}
+set size of window 1 to {${x2 - x1}, ${y2 - y1}}
+end try`])
+  }
+}
+
+/** Page locale du site : on l'ouvre dans sa propre fenêtre (adresse locale uniquement) puis on range les fenêtres. */
+function setPreviewUrl(run, url) {
+  if (!LOCAL_URL.test(url) || run.siteUrl === url) return
+  run.siteUrl = url
+  void emit(run.job.id, { type: 'log', title: 'Aperçu du site', body: url })
+  if (NO_WINDOWS || platform() !== 'darwin') return
+  try {
+    if (existsSync(CHROME)) osa(['-e', `tell application "Google Chrome" to make new window\ntell application "Google Chrome" to set URL of active tab of front window to "${url}"`])
+    else execFileSync('/usr/bin/open', [url], { stdio: 'ignore' })
+  } catch (e) { log('open-site', e.message) }
+  setTimeout(() => tileWindows(run), 2500)
+}
+
+/* Captures : le pont envoie une image réduite toutes les 3 s si quelqu'un regarde Flow, sinon toutes les 15 s. */
+const sleepMs = (n) => new Promise((r) => setTimeout(r, n))
+let lastHash = {}
+function captureWindow(id, dest) { try { execFileSync('/usr/sbin/screencapture', ['-x', '-o', '-l', String(id), '-t', 'jpg', dest], { stdio: 'ignore', timeout: 8000 }); execFileSync('/usr/bin/sips', ['-Z', '1100', '-s', 'format', 'jpeg', '-s', 'formatOptions', '55', dest], { stdio: 'ignore', timeout: 8000 }); return statSync(dest).size > 1000 } catch { return false } }
+function captureUrl(url, dest) {
+  if (!existsSync(CHROME)) return false
+  try {
+    const png = dest + '.png'
+    execFileSync(path.join(CHROME, 'Contents/MacOS/Google Chrome'), ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--window-size=1280,800', '--virtual-time-budget=2500', `--screenshot=${png}`, url], { stdio: 'ignore', timeout: 20000 })
+    execFileSync('/usr/bin/sips', ['-Z', '1100', '-s', 'format', 'jpeg', '-s', 'formatOptions', '55', png, '--out', dest], { stdio: 'ignore', timeout: 8000 })
+    try { rmSync(png) } catch {}
+    return statSync(dest).size > 1000
+  } catch { return false }
+}
+async function sendPreview(jobId, slot, file, label) {
+  const buf = readFileSync(file); const h = createHash('md5').update(buf).digest('hex')
+  if (lastHash[`${jobId}:${slot}`] === h) return // rien n'a bougé
+  lastHash[`${jobId}:${slot}`] = h
+  const r = await api('POST', 'bridge/preview', { jobId, slot })
+  await upload(r.upload, file, 'image/jpeg')
+  await api('POST', 'bridge/preview', { jobId, slot, path: r.path, label })
+}
+async function previewLoop(run) {
+  if (NO_WINDOWS && !process.env.FLOW_BRIDGE_PREVIEW_TEST) return
+  const tmp = path.join(DIR, 'preview'); mkdirSync(tmp, { recursive: true })
+  let tiled = ''
+  while (!run.exited && !run.cancelled && !run.delivered) {
+    try {
+      const wins = listWindows()
+      const editor = wins.filter((w) => EDITOR_RE.test(w.app)).sort((a, b) => b.w * b.h - a.w * a.h)[0]
+      const sig = `${editor?.id ?? ''}|${run.siteUrl ?? ''}`
+      if (sig !== tiled && sig !== '|') { tiled = sig; tileWindows(run) }
+      if (editor) { const f = path.join(tmp, 'editor.jpg'); if (captureWindow(editor.id, f)) await sendPreview(run.job.id, 'editor', f, editor.app) }
+      if (run.siteUrl) { const f = path.join(tmp, 'site.jpg'); if (captureUrl(run.siteUrl, f)) await sendPreview(run.job.id, 'site', f, run.siteUrl) }
+    } catch (e) { log('preview', e.message) }
+    await sleepMs(watching ? 3000 : 15000)
+  }
+}
+let watching = false
 
 /* ───────── Commandes venant de Flow ───────── */
 async function attach(jobId, files) {
@@ -393,6 +539,7 @@ async function handle(cmd) {
       run.cancelled = true; clearInterval(run.watch); killGroup(run, 'SIGCONT'); killGroup(run, 'SIGTERM'); setTimeout(() => killGroup(run, 'SIGKILL'), 4000)
       state.jobs[jobId].status = 'cancelled'; saveState(); await emit(jobId, { type: 'status', status: 'cancelled' })
     } else if (type === 'setup') {
+      if (payload?.action === 'open_studio') { const r = [...runs.values()].find((x) => !x.exited); openStudio(r?.job.id ?? payload.component); if (r) setTimeout(() => tileWindows(r), 3000); return }
       await doSetupCommand(payload ?? {})
     } else if (type === 'message') {
       await runMessage(jobId, payload.text, { eventId: payload.eventId, mode: payload.mode, files: payload.files })
@@ -406,6 +553,26 @@ async function handle(cmd) {
   } catch (e) { log('cmd-error', type, jobId, e.message); await emit(jobId, { type: 'log', level: 'error', title: 'Erreur du pont', body: `${type} : ${e.message}` }) }
 }
 
+/** Mise à jour automatique : le pont se met à jour tout seul depuis Flow (même adresse HTTPS que l'installation), jamais pendant un travail. */
+async function selfUpdate() {
+  const c = cfg()
+  if (c.autoUpdate === false || FAKE_ENV() || path.dirname(SELF) !== DIR || !urlOk(c.server) || busy()) return
+  try {
+    const res = await fetch(`${c.server}/studio/flow-bridge.mjs`, { signal: AbortSignal.timeout(30_000) })
+    if (!res.ok) return
+    const text = await res.text()
+    const v = /const VERSION = '([\d.]+)'/.exec(text)?.[1]
+    const num = (x) => x.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0)
+    if (!v || num(v) <= num(VERSION) || text.length < 20_000 || !text.includes('selfUpdate')) return
+    const tmp = path.join(DIR, 'flow-bridge.new.mjs')
+    writeFileSync(tmp, text, { mode: 0o600 })
+    execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe', timeout: 15000 }) // le fichier doit être valide avant de remplacer
+    renameSync(tmp, SELF)
+    log('mise à jour', VERSION, '->', v)
+    process.exit(0) // launchd relance la nouvelle version
+  } catch (e) { log('update', e.message) }
+}
+
 const pending = []
 async function loop() {
   const c = cfg()
@@ -413,6 +580,7 @@ async function loop() {
   log('bridge démarré', VERSION, c.server)
   void refreshScan()
   setInterval(() => { if (!setupState.installing) void refreshScan() }, 10 * 60_000)
+  setTimeout(() => void selfUpdate(), 20_000); setInterval(() => void selfUpdate(), 3 * 3600_000)
   // reprise après redémarrage : un projet « running » dont le processus a disparu est signalé
   for (const [id, st] of Object.entries(state.jobs)) {
     if (st.status === 'running') { st.status = 'failed'; await emit(id, { type: 'status', status: 'failed', error: 'Le pont a redémarré pendant le travail. Utilise « Relancer » pour reprendre la session.' }) }
@@ -425,6 +593,7 @@ async function loop() {
     try {
       const b = busy()
       const out = await api('POST', 'bridge/poll', { busyJob: b?.job.id ?? null, version: VERSION, claudeOk: claudeOk() })
+      watching = out.watch === true
       for (const cmd of [...pending.splice(0), ...out.commands]) await handle(cmd)
     } catch (e) {
       if (e.status === 401) { console.error('Jeton refusé : relie à nouveau ce Mac (connect).'); log('401'); await sleep(15000) }
@@ -480,6 +649,10 @@ function scan() {
   const vc = which('vercel')
   const vlog = vc ? sh('vercel', ['whoami'], 20000) : null
   add({ id: 'vercel', name: 'Vercel (mise en ligne des sites)', group: 'site', state: vc ? (vlog ? 'ok' : 'warn') : 'missing', version: vlog ?? undefined, detail: vc ? (vlog ? undefined : 'Installé mais pas connecté : lance « vercel login » dans le Terminal.') : 'Pour publier les sites.', installable: true })
+  const gh = which('gh'); const ghOk = gh ? sh('gh', ['auth', 'status']) !== null : false
+  add({ id: 'github', name: 'GitHub', group: 'site', state: ghOk ? 'ok' : 'warn', detail: ghOk ? undefined : (gh ? 'Pas connecté : bouton « Connecter » dans Paramètres > Studio.' : 'Facultatif : pour ranger le code dans ton compte.'), installable: false })
+  const sb = which('supabase'); const sbOk = sb ? sh('supabase', ['projects', 'list'], 20000) !== null : false
+  add({ id: 'supabase', name: 'Supabase', group: 'site', state: sbOk ? 'ok' : 'warn', detail: sbOk ? undefined : (sb ? 'Pas connecté : bouton « Connecter » dans Paramètres > Studio.' : 'Facultatif : pour les sites avec base de données.'), installable: false })
   add({ id: 'git', name: 'Git', group: 'site', state: which('git') ? 'ok' : 'missing', installable: false, detail: which('git') ? undefined : 'Installe les outils de développement Apple : xcode-select --install' })
   if (FAKE && process.env.FLOW_FAKE_MISSING) for (const id of process.env.FLOW_FAKE_MISSING.split(',')) { const x = out.find((c) => c.id === id); if (x && !fakeDone.has(id)) { x.state = 'missing'; x.version = undefined } }
   return out
@@ -662,8 +835,23 @@ async function loginClaude() {
   await refreshScan()
 }
 
+/** Connexion à un compte (Vercel, GitHub, Supabase) : une fenêtre Terminal s'ouvre sur le Mac avec la commande de connexion, l'utilisateur la suit dans son navigateur. */
+const LOGIN_CMD = {
+  vercel: '(command -v vercel >/dev/null || npm i -g vercel) && vercel login',
+  github: '(command -v gh >/dev/null || brew install gh) && gh auth login --web --git-protocol https',
+  supabase: '(command -v supabase >/dev/null || brew install supabase/tap/supabase) && supabase login',
+}
+function loginInTerminal(id) {
+  const cmd = LOGIN_CMD[id]
+  if (!cmd || platform() !== 'darwin' || FAKE) return false
+  const line = `export PATH="${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:$PATH"; clear; echo "Flow Studio — connexion ${id}"; ${cmd}; echo; echo "Terminé. Tu peux fermer cette fenêtre."`
+  osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(line)}\nend tell`])
+  for (const mins of [0.5, 1, 2, 4, 8]) setTimeout(() => { if (!setupState.installing) void refreshScan() }, mins * 60_000) // l'état se met à jour tout seul sur Flow
+  return true
+}
 async function doSetupCommand(p) {
   if (p.action === 'rescan') { await refreshScan(); return }
+  if (p.action === 'login' && LOGIN_CMD[p.component]) { loginInTerminal(p.component); return }
   if (p.action === 'login' && (p.component === 'claude' || !p.component)) { await loginClaude(); return }
   if (p.action === 'install' && p.component) {
     if (!setupState.components.length) await refreshScan({ post: false })
@@ -828,6 +1016,18 @@ function install() {
   try { execFileSync('launchctl', ['unload', PLIST], { stdio: 'ignore' }) } catch {}
   execFileSync('launchctl', ['load', '-w', PLIST])
   console.log('Service installé : le pont démarre avec le Mac et empêche la mise en veille tant qu\'il tourne.')
+  makeStudioApp()
+}
+/** Petite application « Flow Studio » (dossier Applications de l'utilisateur) : un double-clic ouvre la fenêtre de suivi. */
+function makeStudioApp() {
+  if (FAKE || platform() !== 'darwin') return
+  try {
+    const app = path.join(HOME, 'Applications', 'Flow Studio.app')
+    mkdirSync(path.dirname(app), { recursive: true })
+    rmSync(app, { recursive: true, force: true })
+    execFileSync('/usr/bin/osacompile', ['-o', app, '-e', `do shell script "'${process.execPath}' '${SELF}' open >/dev/null 2>&1 &"`], { stdio: 'ignore' })
+    console.log('Application « Flow Studio » ajoutée dans ton dossier Applications.')
+  } catch (e) { log('studio-app', e.message) }
 }
 function uninstall() { try { execFileSync('launchctl', ['unload', '-w', PLIST], { stdio: 'ignore' }) } catch {} try { rmSync(PLIST) } catch {} console.log('Service retiré.') }
 
@@ -845,6 +1045,7 @@ else if (cmd === 'status') await status()
 else if (cmd === 'doctor') { await refreshScan({ post: false }); printState() }
 else if (cmd === 'setup') { if (process.argv.includes('--gui')) await guiSetup(); else await wizard({ yes: process.argv.includes('--yes') }) }
 else if (cmd === 'install') install()
+else if (cmd === 'open') { if (!openStudio(process.argv[3])) openStudio() }
 else if (cmd === 'uninstall') uninstall()
 else if (cmd === 'logs') console.log(readdirSync(DIR).includes('bridge.log') ? readFileSync(LOG, 'utf8').split('\n').slice(-60).join('\n') : '(aucun journal)')
 else console.log('Usage : node flow-bridge.mjs setup | doctor | connect | start | status | install | uninstall | logs\nVariables : FLOW_SERVER (adresse de Flow), FLOW_DEVICE_NAME, FLOW_BRIDGE_HOME')

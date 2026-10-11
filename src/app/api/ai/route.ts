@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerDb } from '@/lib/supabase/server'
+import { sameOrigin } from '@/lib/security'
 
 export const runtime = 'nodejs'
 const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5-5'
@@ -16,6 +17,7 @@ function limited(id: string) {
 }
 
 export async function POST(req: Request) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   const key = process.env.ANTHROPIC_API_KEY
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 501 })
   const db = await getServerDb()

@@ -7,6 +7,7 @@ import { Building2, Mail, Phone, Plus, Search, Trash2, Users } from 'lucide-reac
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Avatar, Badge, EmptyState, PageHeader, Tabs } from '@/components/ui/misc'
+import { CsvMenu } from '@/components/common/csv-menu'
 import { Dialog } from '@/components/ui/overlay'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -34,7 +35,7 @@ function Stage({ id, children, count, total }: { id: string; children: React.Rea
   const t = useI18n().t
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
-    <div ref={setNodeRef} className={cn('flex w-[260px] shrink-0 flex-col rounded-2xl border bg-surface-2/50 transition-colors', isOver ? 'border-accent/60 bg-accent-soft/40' : 'border-border')}>
+    <div ref={setNodeRef} className={cn('flex w-[min(280px,82vw)] shrink-0 snap-start scroll-ml-3 flex-col rounded-2xl border bg-surface-2/50 transition-colors', isOver ? 'border-accent/60 bg-accent-soft/40' : 'border-border')}>
       <div className="flex items-center justify-between px-3 py-2.5"><span className="text-[13px] font-medium">{t(`crm.stage.${id}` as any)} <span className="text-xs font-normal text-text-3">{count}</span></span><span className="text-xs tabular-nums text-text-3">{total}</span></div>
       <div className="flex min-h-24 flex-col gap-2 px-2 pb-2">{children}</div>
     </div>
@@ -85,6 +86,7 @@ export default function CrmPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <HubTabs hub="crm" />
       <PageHeader title={t('crm.title')} icon={<Users className="size-[18px]" />} actions={<>
+        {tab === 'contacts' && <CsvMenu kind="contacts" onDone={() => contacts.refresh()} />}
         <Tabs value={tab} onChange={setTab} items={[{ value: 'pipeline', label: t('crm.pipeline') }, { value: 'contacts', label: t('crm.contacts') }]} />
         {canWrite && (tab === 'pipeline' ? <Button variant="primary" onClick={() => setDDraft({ title: '', stage: 'prospection', value: 0 })}><Plus className="size-4" />{t('crm.newDeal')}</Button>
           : <Button variant="primary" onClick={() => setCDraft({ name: '', status: 'lead' })}><Plus className="size-4" />{t('crm.newContact')}</Button>)}</>} />
@@ -93,7 +95,7 @@ export default function CrmPage() {
           <div className="mb-5 grid grid-cols-3 gap-3">{[[t('crm.total'), stats.total], [t('crm.weighted'), stats.weighted], [t('crm.won'), stats.won]].map(([l, v]) => (
             <div key={l as string} className="rounded-xl border border-border bg-surface p-4"><div className="text-xs text-text-3">{l}</div><div className="mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{fmt(v as number)}</div></div>))}</div>
           <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-            <div className="flex gap-3 overflow-x-auto pb-3">{STAGES.map((s) => {
+            <div className="flex snap-x snap-proximity gap-3 overflow-x-auto pb-3">{STAGES.map((s) => {
               const ds = deals.data.filter((d) => d.stage === s)
               return <Stage key={s} id={s} count={ds.length} total={fmt(ds.reduce((a, d) => a + d.value, 0))}>{ds.map((d) => <DealCard key={d.id} d={d} contact={contacts.data.find((c) => c.id === d.contact_id)} onOpen={() => setDDraft(d)} />)}</Stage>
             })}</div>

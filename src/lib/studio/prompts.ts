@@ -29,7 +29,25 @@ const ENGINES: Record<Exclude<Engine, 'auto'>, { check: string; build: string; r
   },
 }
 
-export function buildMotionPrompt(j: Pick<MotionJob, 'title' | 'brief' | 'ratio' | 'quality' | 'fps' | 'durationSec' | 'audio' | 'brand' | 'refs' | 'verify'> & { engine?: Engine }, id = '{{ID}}'): string {
+export type VoiceInput = { script: string; language: string; style: string }
+
+/** Prompt de la voix off : généré automatiquement, montré à l'utilisateur, modifiable avant l'envoi. Moteur gratuit et open source : VoiceStudio. */
+export function buildVoicePrompt(v: VoiceInput, durationSec: number, id = '{{ID}}'): string {
+  return `## Voix off (gratuite, 100 % locale : VoiceStudio)
+Texte à dire, mot pour mot :
+« ${v.script.trim() || '(à rédiger par toi : court, naturel, dans la langue demandée, qui tient dans ' + durationSec + ' s)'} »
+
+Langue : ${v.language.trim() || 'français'} · Voix / ton : ${v.style.trim() || 'chaleureuse, claire, rythme posé'}
+
+Marche à suivre :
+1. VoiceStudio (open source, https://github.com/debpalash/VoiceStudio) : s'il n'est pas installé sur ce Mac, installe l'application Electron (macOS) en suivant https://github.com/debpalash/VoiceStudio/blob/main/docs/install/agent.md. L'utilisateur autorise ici le téléchargement du modèle de voix par défaut : annonce sa taille et sa licence dans le rapport, mais n'attends aucune réponse.
+2. Lance VoiceStudio, vérifie \`http://localhost:3900/health\`, découvre l'API par \`/openapi.json\`, génère la voix avec le moteur par défaut (voix intégrée, ou conçue avec « voice design » selon le ton demandé). Ne clone jamais la voix d'une vraie personne.
+3. Enregistre \`~/Developer/mon-atelier/studio/${id}/sons/voix.wav\`. Vérifie à l'écoute (durée, absence de coupure, prononciation) et régénère si besoin. Durée maximale : ${durationSec} s ; sinon raccourcis le texte.
+4. Cale la voix sur l'image (début de chaque phrase sur l'événement visuel correspondant), mixe-la hors de l'application de motion (ffmpeg) : voix à −16 LUFS, musique et bruitages en dessous (ducking de 8 à 10 dB pendant la voix).
+5. Si VoiceStudio ne démarre pas malgré 2 tentatives, bascule sur la synthèse vocale du Mac (\`say -v Thomas -o voix.aiff\`, converti en WAV) et note-le dans le rapport.`
+}
+
+export function buildMotionPrompt(j: Pick<MotionJob, 'title' | 'brief' | 'ratio' | 'quality' | 'fps' | 'durationSec' | 'audio' | 'brand' | 'refs' | 'verify'> & { engine?: Engine; voicePrompt?: string; noQuestions?: boolean }, id = '{{ID}}'): string {
   const eng = ENGINES[j.engine && j.engine !== 'auto' ? j.engine : 'effectcraft']
   const d = dimensions(j.ratio, j.quality)
   const r = RATIOS.find((x) => x.id === j.ratio)!
@@ -78,10 +96,12 @@ ${hasVideo ? `1. **Lire le format de la vidéo de référence avec \`ffprobe\`**
 7. ${j.audio === 'none' ? 'Pas de son.' : 'Mixer le son hors de l\'application de motion (ffmpeg, `mixer_sons.py`) : pic de chaque son sur l\'image de l\'événement, loudnorm −18 LUFS puis −2,5 dB. Vérifier les pics et la sonie.'}
 8. **Rendu final** en ${d.w} × ${d.h} (${j.quality === '4k' ? 'vrai 4K : facteur K = 2, pas d\'agrandissement du 1080p' : q.labelFr}), débit élevé, H.264, ${j.fps} i/s.
 
+${j.voicePrompt?.trim() ? `\n${j.voicePrompt.trim()}\n` : ''}
 ## 6. Règles d'autonomie
 - Ne pose JAMAIS de question et n'attends JAMAIS une réponse. Si un point est ambigu, choisis l'option la plus probable, applique-la et note l'hypothèse dans \`rapport.md\`.
 - Si une commande échoue, diagnostique, corrige et recommence. Si un outil manque, trouve une alternative. Un échec n'est jamais une raison de t'arrêter.
 - Pas d'attente passive : lance les tâches longues en arrière-plan et avance sur le reste.
+${j.noQuestions ? '- L\'utilisateur a demandé de ne JAMAIS être dérangé : même en cas de blocage, décide seul et note-le.\n' : ''}- Tiens à jour \`todo.json\` (liste des tâches) : l'utilisateur la voit cocher en direct.
 - ${eng.rule} Aucune dépense payante (API, génération) sans qu'elle soit explicitement demandée ici.
 - Ne publie rien sur Internet. Ne place aucune clé ni aucun mot de passe dans les fichiers du projet.
 
@@ -142,7 +162,7 @@ Règles :
 6. Termine par un résumé en 8 lignes maximum et demande une seule confirmation : « Je lance ? ».
 7. Après la confirmation, le projet part en autonomie complète : aucune autre question ne sera posée, sauf blocage réel (accès, paiement, choix légal) via une notification.`
 
-export function buildSitePrompt(j: Pick<SiteJob, 'title' | 'siteKind' | 'brief' | 'refs' | 'withFigma' | 'withSupabase' | 'withMotion' | 'motionBrief' | 'languages' | 'domain' | 'qa'>, id = '{{ID}}'): string {
+export function buildSitePrompt(j: Pick<SiteJob, 'title' | 'siteKind' | 'brief' | 'refs' | 'withFigma' | 'withSupabase' | 'withMotion' | 'motionBrief' | 'languages' | 'domain' | 'qa'> & { noQuestions?: boolean }, id = '{{ID}}'): string {
   const kindFr: Record<SiteKind, string> = { showcase: 'Site vitrine', shop: 'Boutique en ligne', landing: 'Landing page', other: 'Autre projet web' }
   const inbox = `~/Developer/sites/${id}/entrees`
   const refs = j.refs.length ? j.refs.map((x) => refLine(x, inbox)).join('\n') : '- Aucun exemple fourni.'
@@ -180,7 +200,8 @@ ${refs}
 
 ## 5. Règles d'autonomie
 - Ne demande jamais rien. Ambiguïté : choisis l'option la plus professionnelle et note l'hypothèse dans \`HYPOTHESES.md\`.
-- **Seuls blocages réels autorisés** (accès refusé, achat payant, décision juridique) : écris la question dans \`QUESTION.json\` (\`{"question":"…","choix":[…]}\`), continue tout le reste du projet en attendant, puis intègre la réponse quand elle arrive dans \`REPONSE.json\`.
+${j.noQuestions ? '- **L\'utilisateur a choisi de ne PAS être dérangé** : aucune question, même en cas de blocage (accès, paiement, légal) : décide seul, prends l\'option la plus sûre et note-la dans `HYPOTHESES.md`.' : '- **Seuls blocages réels autorisés** (accès refusé, achat payant, décision juridique) : écris la question dans `QUESTION.json` (`{"question":"…","choices":[…]}`), continue tout le reste du projet en attendant, puis intègre la réponse quand elle arrive dans `REPONSE.json`. Sans réponse après 20 minutes, décide seul.'}
+- Tiens à jour \`todo.json\` (liste des tâches) : l'utilisateur la voit cocher en direct. Écris \`preview.json\` dès que le serveur local tourne.
 - Échec d'une commande : diagnostique, corrige, recommence. Jamais d'arrêt.
 - Ne dépense rien sans autorisation écrite ici. Aucune clé dans le code ni dans Git. Production seulement après vérification complète.
 - Contenu : aucune marque, personne réelle ou contenu protégé sans l'accord de l'utilisateur.
@@ -191,4 +212,34 @@ ${refs}
 - [ ] Aucun texte factice (« lorem ipsum »), aucune image cassée, aucun lien mort.
 - [ ] Livraison écrite (\`LIVRAISON.json\` + \`LIVRAISON.md\`), connaissances notées dans les skills.
 `
+}
+
+/* ───────── Déplacer un site terminé vers les comptes de l'utilisateur ───────── */
+export type MoveTarget = 'vercel' | 'github' | 'supabase'
+export function buildMovePrompt(targets: MoveTarget[], siteUrl?: string): string {
+  const has = (t: MoveTarget) => targets.includes(t)
+  return `# Déplacement du projet vers mes comptes
+
+Le site est terminé${siteUrl ? ` (${siteUrl})` : ''}. Je veux qu'il vive entièrement dans MES comptes (plus de lien ou compte de test). Fais-le toi-même, en autonomie, sans rien me demander, puis mets à jour la livraison (\`LIVRAISON.json\` avec la nouvelle URL, \`LIVRAISON.md\`).
+
+Comptes concernés : ${targets.map((t) => ({ vercel: 'Vercel', github: 'GitHub', supabase: 'Supabase' })[t]).join(', ')}.
+
+Avant tout : vérifie quel compte est connecté sur ce Mac pour chaque service (\`vercel whoami\`, \`gh auth status\`, \`supabase projects list\`). Si un service n'est pas connecté, note-le dans \`MIGRATION.md\` et traite les autres ; ne tente jamais de te connecter avec un autre compte.
+${has('github') ? `
+## GitHub
+1. Crée un dépôt PRIVÉ dans mon compte (\`gh repo create <nom-du-projet> --private --source=. --push\`), avec un \`.gitignore\` correct. Aucune clé ni fichier \`.env\` dans l'historique (vérifie ; sinon réécris l'historique avant de pousser).
+2. Mets l'adresse du dépôt dans \`MIGRATION.md\`.` : ''}${has('supabase') ? `
+## Supabase
+1. Crée un NOUVEAU projet Supabase dans mon compte (\`supabase projects create\`), région proche de mes visiteurs.
+2. Rejoue les migrations / le schéma, les politiques de sécurité (RLS), les fonctions et le stockage ; copie les données de contenu utiles (jamais de données personnelles de test).
+3. Mets à jour les variables d'environnement du site avec la nouvelle base. Teste les formulaires et la connexion de bout en bout.` : ''}${has('vercel') ? `
+## Vercel
+1. Crée ou lie le projet dans MON compte Vercel ${has('github') ? '(relié au nouveau dépôt GitHub, déploiement automatique à chaque envoi)' : ''}.
+2. Recopie les variables d'environnement (valeurs de mon compte Supabase si migré). Redéploie en production.
+3. Vérifie que la nouvelle adresse répond en 200 sur toutes les pages. Ajoute mon domaine si je l'ai fourni.` : ''}
+
+## Terminé quand
+- [ ] Le site fonctionne depuis mes comptes uniquement, toutes les pages et tous les formulaires testés.
+- [ ] \`MIGRATION.md\` liste : nouvelles adresses, ce qui a été copié, ce que je dois encore faire moi-même (ex. domaine), et ce qui peut être supprimé de l'ancien emplacement (ne supprime RIEN toi-même).
+- [ ] \`LIVRAISON.json\` contient la nouvelle URL.`
 }
