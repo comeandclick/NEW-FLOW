@@ -9,7 +9,28 @@ const refLine = (r: RefItem, inbox: string) => {
   return r.kind === 'note' ? `- Note : ${r.note ?? r.name}` : `- ${label[r.kind]} : ${where}${extra}`
 }
 
-export function buildMotionPrompt(j: Pick<MotionJob, 'title' | 'brief' | 'ratio' | 'quality' | 'fps' | 'durationSec' | 'audio' | 'brand' | 'refs' | 'verify'>, id = '{{ID}}'): string {
+export type Engine = 'auto' | 'effectcraft' | 'aftereffects' | 'remotion'
+
+const ENGINES: Record<Exclude<Engine, 'auto'>, { check: string; build: string; rule: string }> = {
+  effectcraft: {
+    check: "Vérifie qu'EffectCraft répond (`python3 ~/.claude/skills/effectcraft/scripts/ec.py`). S'il n'est pas lancé, lance-le. S'il est introuvable, utilise Remotion (`~/Developer/mon-atelier/remotion-base`).",
+    build: '**Construire par script** dans EffectCraft (skill `effectcraft`) à partir du modèle `motion-reference-clone/modeles/` quand il convient. Polices calées sur des largeurs mesurées. Un facteur K pour le 4K (tout est redessiné, jamais agrandi).',
+    rule: "N'utilise pas After Effects (EffectCraft est le moteur choisi).",
+  },
+  aftereffects: {
+    check: "Vérifie qu'Adobe After Effects est installé (`/Applications/Adobe After Effects *`) et qu'une licence est active (abonnement ou essai) : ouvre-le et lance un script d'essai. Si la licence est absente, bascule sur EffectCraft ou Remotion et note-le dans le rapport.",
+    build: "**Construire par script ExtendScript** (`.jsx`) lancé dans After Effects par AppleScript (`osascript … DoScriptFile`), journal écrit par le script (After Effects répond toujours 0). Pièges connus : interface éventuellement en français (viser les effets par **matchName**, jamais par nom affiché), valeur hors limite = fenêtre d'erreur modale qui bloque tout, activer « Autoriser les scripts à écrire des fichiers » dans les réglages, finir par `comp.openInViewer()` et enregistrer le projet, mixer le son hors d'After Effects (ffmpeg). Rendre par la file d'attente (`renderQueue.render()`).",
+    rule: "After Effects est le moteur choisi : une licence active est obligatoire ; ne dépense rien pour l'obtenir.",
+  },
+  remotion: {
+    check: "Vérifie le projet Remotion : `~/Developer/mon-atelier/remotion-base` (`npx remotion --version`). S'il manque, crée-le (`npx create-video@latest --yes --blank remotion-base`).",
+    build: "**Construire en code** avec Remotion (React) : une composition par vidéo, cadence et dimensions de la demande, positions et tailles copiées des mesures, rendu `npx remotion render` en H.264 à la définition demandée (4K : `--scale` ou composition 3840×2160 dessinée en 4K, jamais agrandie). `npx remotion ffmpeg` n'a pas les filtres fps/tile : utilise le ffmpeg du système pour les planches.",
+    rule: "N'utilise pas After Effects (Remotion est le moteur choisi).",
+  },
+}
+
+export function buildMotionPrompt(j: Pick<MotionJob, 'title' | 'brief' | 'ratio' | 'quality' | 'fps' | 'durationSec' | 'audio' | 'brand' | 'refs' | 'verify'> & { engine?: Engine }, id = '{{ID}}'): string {
+  const eng = ENGINES[j.engine && j.engine !== 'auto' ? j.engine : 'effectcraft']
   const d = dimensions(j.ratio, j.quality)
   const r = RATIOS.find((x) => x.id === j.ratio)!
   const q = QUALITIES.find((x) => x.id === j.quality)!
@@ -25,7 +46,7 @@ Tu es Claude Code, lancé automatiquement par Flow sur ce Mac. Tu travailles SEU
 ## 1. Avant tout
 1. Lis \`~/Developer/mon-atelier/CLAUDE.md\`, \`atelier.md\` et le dossier \`connaissances/\`. Charge les skills \`motion-reference-clone\`, \`effectcraft\`, \`analyse-image\` et \`decoupage-reference\`.
 2. Crée un NOUVEAU projet : \`~/Developer/mon-atelier/studio/${id}/\` (sous-dossiers \`entrees/\`, \`analyse/\`, \`scripts/\`, \`sons/\`, \`rendu/\`). Copie-y tous les fichiers fournis. Ne touche pas aux autres projets.
-3. Vérifie qu'EffectCraft répond (\`python3 ~/.claude/skills/effectcraft/scripts/ec.py\`). S'il n'est pas lancé, lance-le.
+3. ${eng.check}
 
 ## 2. Demande de l'utilisateur
 ${j.brief.trim() || '(vide)'}
@@ -40,6 +61,7 @@ Marque / charte : ${j.brand.trim() || 'non précisée : déduis-la des fichiers 
 | Cadence | ${j.fps} images par seconde |
 | Durée | ${j.durationSec} s = ${frames} images |
 | Son | ${audio} |
+| Moteur | ${j.engine && j.engine !== 'auto' ? j.engine : 'automatique (EffectCraft, sinon Remotion)'} |
 | Fond / style | Respecte les exemples et la charte ; si l'utilisateur demande un fond précis (ex. blanc), c'est prioritaire sur la référence. |
 
 ## 4. Fichiers et exemples fournis
@@ -51,7 +73,7 @@ ${hasVideo ? `1. **Lire le format de la vidéo de référence avec \`ffprobe\`**
 3. **Mesurer, ne pas deviner** : \`motion-reference-clone/scripts/mesure.py\` (tailles, positions, couleurs, lignes de base, poussée de caméra éventuelle, fond).
 4. Écris la table des événements (image de début / fin, objet, courbe) dans \`analyse/\`.` : `1. Il n'y a pas de vidéo de référence : définis un storyboard court (images clés, timing, courbes) cohérent avec la demande et la charte, et écris-le dans \`analyse/storyboard.md\` avant de construire.
 2. Si des captures ou images de style sont fournies, mesure leurs couleurs, polices et espacements au lieu de les estimer.`}
-5. **Construire par script** dans EffectCraft (skill \`effectcraft\`) à partir du modèle \`motion-reference-clone/modeles/\` quand il convient. Polices calées sur des largeurs mesurées. Un facteur K pour le 4K (tout est redessiné, jamais agrandi).
+5. ${eng.build}
 6. ${j.verify ? '**Comparer image par image** à la référence (`analyse-image/scripts/comparer.sh`), lire TOUTES les planches, corriger chaque écart (position, moment, vitesse, taille, couleur), recommencer jusqu\'à ce que les deux se superposent.' : 'Contrôler visuellement des planches d\'images à intervalles réguliers et corriger les défauts.'}
 7. ${j.audio === 'none' ? 'Pas de son.' : 'Mixer le son hors de l\'application de motion (ffmpeg, `mixer_sons.py`) : pic de chaque son sur l\'image de l\'événement, loudnorm −18 LUFS puis −2,5 dB. Vérifier les pics et la sonie.'}
 8. **Rendu final** en ${d.w} × ${d.h} (${j.quality === '4k' ? 'vrai 4K : facteur K = 2, pas d\'agrandissement du 1080p' : q.labelFr}), débit élevé, H.264, ${j.fps} i/s.
@@ -60,7 +82,7 @@ ${hasVideo ? `1. **Lire le format de la vidéo de référence avec \`ffprobe\`**
 - Ne pose JAMAIS de question et n'attends JAMAIS une réponse. Si un point est ambigu, choisis l'option la plus probable, applique-la et note l'hypothèse dans \`rapport.md\`.
 - Si une commande échoue, diagnostique, corrige et recommence. Si un outil manque, trouve une alternative. Un échec n'est jamais une raison de t'arrêter.
 - Pas d'attente passive : lance les tâches longues en arrière-plan et avance sur le reste.
-- N'utilise jamais After Effects. Aucune dépense payante (API, génération) sans qu'elle soit explicitement demandée ici.
+- ${eng.rule} Aucune dépense payante (API, génération) sans qu'elle soit explicitement demandée ici.
 - Ne publie rien sur Internet. Ne place aucune clé ni aucun mot de passe dans les fichiers du projet.
 
 ## 7. Définition de « terminé » (tout doit être vrai)

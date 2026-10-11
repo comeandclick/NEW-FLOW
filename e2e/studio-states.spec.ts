@@ -29,5 +29,19 @@ for (const theme of ['light', 'dark'] as const) test(`studio ${theme} : tous les
   expect(over).toBeLessThanOrEqual(1)
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(r.violations.map((v) => `${v.id} ${v.nodes[0]?.target?.join(' ')} :: ${(v.nodes[0]?.any?.[0]?.message ?? '').slice(0, 120)}`)).toEqual([])
+  // panneau « Logiciels du Mac » : états variés + installation en cours
+  await bridge('setup', { components: [
+    { id: 'claude', name: 'Claude Code', group: 'ia', state: 'warn', cost: 'paid', detail: 'Installé mais pas connecté.', installable: true },
+    { id: 'effectcraft', name: 'EffectCraft', group: 'motion', state: 'installing', cost: 'free', detail: 'Téléchargement', installable: true },
+    { id: 'aftereffects', name: 'After Effects', group: 'motion', state: 'waiting', cost: 'paid', detail: 'Termine dans Creative Cloud.', installable: true },
+    { id: 'remotion', name: 'Remotion', group: 'motion', state: 'error', cost: 'free', detail: 'Échec', installable: true },
+    { id: 'ffmpeg', name: 'ffmpeg', group: 'outils', state: 'ok', installable: true },
+  ], installing: { id: 'effectcraft', label: 'EffectCraft', step: 'Téléchargement effectcraft.dmg', pct: 42, log: ['Recherche', 'Téléchargement'] }, engine: null })
+  await page.goto('/app/demo/site?tab=connect'); await page.waitForTimeout(3500)
+  expect(await page.getByText('Téléchargement effectcraft.dmg').count()).toBeGreaterThan(0)
+  const over2 = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+  expect(over2).toBeLessThanOrEqual(1)
+  const r2 = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+  expect(r2.violations.map((v) => `connect ${v.id} ${v.nodes[0]?.target?.join(' ')} :: ${(v.nodes[0]?.any?.[0]?.message ?? '').slice(0, 120)}`)).toEqual([])
   for (const id of [a, b, c, d]) await page.request.delete(`/api/studio/jobs/${id}`)
 })

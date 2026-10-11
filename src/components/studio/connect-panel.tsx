@@ -10,6 +10,7 @@ import { studioCopy } from '@/lib/studio/copy'
 import { useStudio } from '@/lib/studio/store'
 import { studioApi, usePoll, type LiveDevice } from '@/lib/studio/api'
 import { CopyBox } from '@/app/studio/install/copy-box'
+import { SetupPanel } from './setup-panel'
 
 const SAMPLE = 'FLOW-7K3Q-9XM2'
 const CODE_RE = /^FLOW-[A-Z0-9]{4}-[A-Z0-9]{4}$/
@@ -43,6 +44,8 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
   }
 
   return (
+    <div className="space-y-5">
+      {live && (devices as LiveDevice[]).slice(0, 2).map((d) => <SetupPanel key={d.id} device={d} onChanged={() => void polled.refresh()} />)}
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
       <div className="min-w-0 space-y-5">
         <Card className="p-5 max-md:p-4">
@@ -119,6 +122,7 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
           <ul className="space-y-1.5 text-[13px] text-text-2">{[c.connect.sec1, c.connect.sec2, c.connect.sec3].map((x) => <li key={x} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-text-3" />{x}</li>)}</ul>
         </Card>
       </div>
+    </div>
     </div>
   )
 }

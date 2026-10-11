@@ -52,7 +52,7 @@ export async function pairConfirm(userId: string, rawCode: string) {
   return publicDevice(dev)
 }
 
-const publicDevice = (d: Row) => ({ id: d.id, name: d.name, os: d.os, pairedAt: d.paired_at, lastSeen: d.last_seen, online: Date.now() - new Date(d.last_seen).getTime() < ONLINE_MS, busyJob: d.busy_job ?? null, version: d.bridge_version ?? null, claudeOk: d.claude_ok ?? null })
+const publicDevice = (d: Row) => ({ id: d.id, name: d.name, os: d.os, pairedAt: d.paired_at, lastSeen: d.last_seen, online: Date.now() - new Date(d.last_seen).getTime() < ONLINE_MS, busyJob: d.busy_job ?? null, version: d.bridge_version ?? null, claudeOk: d.claude_ok ?? null, setup: d.setup ?? null })
 export async function listDevices(userId: string) { return (await db().select('studio_devices', { user_id: userId }, { order: ['paired_at', false] })).map(publicDevice) }
 export async function removeDevice(userId: string, id: string) { await db().remove('studio_devices', { id, user_id: userId }) }
 
@@ -225,12 +225,26 @@ export async function library(userId: string, origin: string) {
 }
 
 /* ───────── Pont (côté Mac) ───────── */
+/** État des logiciels du Mac (envoyé par le pont) : composants, installation en cours, journal. */
+export async function bridgeSetup(dev: Row, setup: Record<string, unknown>) {
+  try { await db().update('studio_devices', { id: dev.id }, { setup: { ...setup, at: now() } }) } catch { /* colonne absente : migration 2 non exécutée */ }
+}
+export type SetupAction = { action: 'install' | 'login' | 'rescan'; component?: string; choice?: string }
+export async function requestSetup(userId: string, deviceId: string, a: SetupAction) {
+  const [dev] = await db().select('studio_devices', { id: deviceId, user_id: userId })
+  if (!dev) throw new StudioError(404, 'device')
+  if (!['install', 'login', 'rescan'].includes(a.action)) throw new StudioError(400, 'invalid')
+  try {
+    await db().insert('studio_commands', { job_id: null, device_id: dev.id, type: 'setup', payload: { action: a.action, component: a.component ?? null, choice: a.choice ?? null }, created_at: now() })
+  } catch { throw new StudioError(409, 'migration_required') }
+}
+
 export async function bridgePoll(dev: Row, info: { busyJob?: string | null; version?: string; claudeOk?: boolean }) {
   await db().update('studio_devices', { id: dev.id }, { last_seen: now(), busy_job: info.busyJob ?? null, ...(info.claudeOk !== undefined ? { claude_ok: info.claudeOk } : {}), ...(info.version ? { bridge_version: info.version } : {}) })
   await assignWaiting(dev.user_id, dev.id)
   const cmds = await db().select('studio_commands', { device_id: dev.id, delivered_at: null }, { order: ['id', true], limit: 50 })
   for (const c of cmds) await db().update('studio_commands', { id: c.id }, { delivered_at: now() })
-  return { commands: cmds.map((c) => ({ id: c.id, jobId: c.job_id, type: c.type, payload: c.payload })), serverTime: Date.now() }
+  return { commands: cmds.map((c) => ({ id: c.id, jobId: c.job_id ?? null, type: c.type, payload: c.payload })), serverTime: Date.now() }
 }
 
 export async function bridgeJob(dev: Row, jobId: string, origin: string) {

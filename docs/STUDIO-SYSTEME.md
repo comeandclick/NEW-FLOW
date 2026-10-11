@@ -51,3 +51,11 @@ Les types TypeScript de `src/lib/studio/types.ts` suivent déjà ce modèle.
 - Où stocker les gros fichiers (4K ≈ 8 Mo pour 3 s ; 100 Mo+ pour une minute) : Supabase Storage (quota) ou lien depuis le Mac.
 - Facturation / quotas des utilisateurs (le Mac de l'utilisateur fait le travail, mais l'abonnement Claude est à lui).
 - Windows : EffectCraft existe aussi sur Windows ; le pont peut être multi-OS.
+
+## Installation des logiciels du Mac (ajouté le 2026-10-11)
+`node flow-bridge.mjs setup` (lancé par l'installateur) vérifie le Mac, montre l'état dans le Terminal et installe ce qui manque ; le même état est envoyé à Flow (Création de site > Connexion du Mac > « Logiciels du Mac ») où chaque installation peut aussi être lancée et suivie (barre de progression, journal).
+- **Moteur de motion design** (au moins un) : EffectCraft (gratuit, téléchargé depuis les Releases GitHub puis copié dans Applications), After Effects (abonnement Adobe payant : détecté s'il est installé ; sinon installation guidée via Creative Cloud, l'abonnement ne peut pas être vérifié automatiquement), Remotion (gratuit, projet `remotion-base` créé dans l'atelier).
+- **Claude Code** (installation npm ou installateur officiel, puis connexion `claude auth login` suivie jusqu'au bout), ffmpeg, Python (numpy, Pillow), Node, Git, CLI Vercel, méthodes de motion (skills, tarballs servis par `/studio/skills/`).
+- Le choix du moteur est mémorisé et injecté dans le prompt du motion (`buildMotionPrompt`, paramètre `engine`).
+- Base : exécuter la « Migration 2 » de `supabase/studio.sql` (colonne `studio_devices.setup`, commandes sans projet, type `setup`).
+- Test : `node bridge/e2e.mjs` (mode `FLOW_BRIDGE_FAKE=1` : installations simulées).

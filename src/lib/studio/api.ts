@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type Mode = 'loading' | 'live' | 'demo' | 'setup' | 'anon'
-export type LiveDevice = { id: string; name: string; os: string; pairedAt: string; lastSeen: string; online: boolean; busyJob: string | null; version: string | null; claudeOk: boolean | null }
+export type SetupComponent = { id: string; name: string; group: 'ia' | 'motion' | 'outils' | 'site'; state: 'ok' | 'missing' | 'warn' | 'installing' | 'error' | 'waiting'; detail?: string; version?: string; required?: boolean; cost?: 'free' | 'paid'; installable?: boolean; note?: string }
+export type SetupState = { at: string; components: SetupComponent[]; installing?: { id: string; label: string; step: string; pct: number; log: string[] } | null; engine?: string | null; platform?: string }
+export type LiveDevice = { setup?: SetupState | null; id: string; name: string; os: string; pairedAt: string; lastSeen: string; online: boolean; busyJob: string | null; version: string | null; claudeOk: boolean | null }
 export type LiveEvent = { id: number; at: string; level: 'info' | 'success' | 'warning' | 'error' | 'question'; kind: string; title: string; body: string | null; data: { from?: string; mode?: string; state?: string; files?: { name: string; kind: string }[]; step?: string; progress?: number; questionId?: string } | null }
 export type LiveQuestion = { id: string; text: string; choices: string[] | null; askedAt: string; answer: string | null; answeredAt: string | null }
 export type LiveAsset = { id: string; direction: 'in' | 'out'; kind: string; name: string; size: number | null; mime: string | null; uploaded: boolean; createdAt: string; link: string | null; url: string | null }
@@ -38,6 +40,7 @@ export const studioApi = {
   answer: (id: string, questionId: string, answer: string) => post<{ ok: true }>(`jobs/${id}/answer`, { questionId, answer }),
   remove: (id: string) => sf<{ ok: true }>(`jobs/${id}`, { method: 'DELETE' }),
   devices: () => sf<{ devices: LiveDevice[] }>('devices'),
+  setup: (deviceId: string, b: { action: 'install' | 'login' | 'rescan'; component?: string; choice?: string }) => post<{ ok: true }>(`devices/${deviceId}/setup`, b),
   removeDevice: (id: string) => sf<{ ok: true }>(`devices?id=${id}`, { method: 'DELETE' }),
   confirm: (code: string) => post<{ device: LiveDevice }>('pair/confirm', { code }),
   library: () => sf<{ items: LibraryRow[] }>('library'),

@@ -7,9 +7,9 @@ import { Field, Input, Textarea } from '@/components/ui/input'
 import { Card, EmptyState, PageHeader, Switch } from '@/components/ui/misc'
 import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
-import { buildMotionPrompt } from '@/lib/studio/prompts'
+import { buildMotionPrompt, type Engine } from '@/lib/studio/prompts'
 import { useStudio, useStudioReady } from '@/lib/studio/store'
-import { useStudioMode } from '@/lib/studio/api'
+import { useStudioMode, usePoll, studioApi } from '@/lib/studio/api'
 import { createAndSubmit } from '@/lib/studio/launch'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { LiveJobsList } from '@/components/studio/live-jobs'
@@ -47,11 +47,14 @@ export default function MotionPage() {
   const [duration, setDuration] = useState(15)
   const [audio, setAudio] = useState<AudioMode>('sfx')
   const [verify, setVerify] = useState(true)
+  const [engine, setEngine] = useState<Engine>('auto')
+  const devs = usePoll(studioApi.devices, 6000, mode === 'live')
+  const ready_ = (id: string) => (devs.data?.devices ?? []).some((d) => d.setup?.components.some((x) => x.id === id && x.state === 'ok'))
   const [busy, setBusy] = useState(false)
 
   const dim = dimensions(ratio, quality)
   const frames = Math.round(duration * fps)
-  const prompt = useMemo(() => buildMotionPrompt({ title, brief, ratio, quality, fps, durationSec: duration, audio, brand, refs, verify }), [title, brief, ratio, quality, fps, duration, audio, brand, refs, verify])
+  const prompt = useMemo(() => buildMotionPrompt({ title, brief, ratio, quality, fps, durationSec: duration, audio, brand, refs, verify, engine }), [title, brief, ratio, quality, fps, duration, audio, brand, refs, verify, engine])
   const ok = brief.trim().length >= 10
 
   const launch = async () => {
@@ -60,7 +63,7 @@ export default function MotionPage() {
     setBusy(true)
     if (mode === 'live') {
       try {
-        const id = await createAndSubmit({ kind: 'motion', title: title.trim() || brief.trim().slice(0, 40), spec: { ratio, quality, fps, durationSec: duration, audio, brand, verify, brief: brief.trim(), wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
+        const id = await createAndSubmit({ kind: 'motion', title: title.trim() || brief.trim().slice(0, 40), spec: { ratio, quality, fps, durationSec: duration, audio, brand, verify, engine, brief: brief.trim(), wsSlug: ws.slug }, prompt, refs, workspaceId: ws.id })
         toast.success(c.motion.sent)
         setTitle(''); setBrief(''); setRefs([])
         requestAnimationFrame(() => document.getElementById(`job-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
@@ -123,7 +126,16 @@ export default function MotionPage() {
               <ChoiceGrid value={audio} onChange={setAudio} label={c.motion.secAudio} cols="sm:grid-cols-1"
                 items={[{ value: 'none', title: c.motion.audioNone }, { value: 'sfx', title: c.motion.audioSfx }, { value: 'music_sfx', title: c.motion.audioMusic }]} />
             </Section>
-            <Section step={7} title={c.motion.secVerify}>
+            <Section step={7} title={c.setup.engineTitle} hint={c.setup.engineHint}>
+              <ChoiceGrid value={engine} onChange={setEngine} label={c.setup.engineChoose} cols="sm:grid-cols-1"
+                items={([
+                  ['auto', c.setup.engineAuto, undefined],
+                  ['effectcraft', `EffectCraft · ${c.setup.free}`, ready_('effectcraft')],
+                  ['aftereffects', `After Effects · ${c.setup.paid}`, ready_('aftereffects')],
+                  ['remotion', `Remotion · ${c.setup.free}`, ready_('remotion')],
+                ] as const).map(([v, t, ok]) => ({ value: v as Engine, title: t, hint: mode === 'live' && ok !== undefined ? (ok ? c.setup.states.ok : c.setup.states.missing) : undefined }))} />
+            </Section>
+            <Section step={8} title={c.motion.secVerify}>
               <div className="flex items-start gap-3">
                 <Switch checked={verify} onChange={setVerify} label={c.motion.verifyLabel} />
                 <div><p className="text-[13px] font-medium text-text">{c.motion.verifyLabel}</p><p className="text-xs text-text-3">{c.motion.verifyHint}</p></div>

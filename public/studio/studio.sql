@@ -117,3 +117,9 @@ alter table public.studio_assets enable row level security;
 -- Stockage privé des fichiers envoyés et des rendus (liens signés). 2 Go max par fichier (plan Pro requis au-delà de 50 Mo).
 insert into storage.buckets (id, name, public, file_size_limit) values ('studio', 'studio', false, 2147483648)
 on conflict (id) do nothing;
+
+-- ── Migration 2 : installation des logiciels du Mac (état affiché dans Flow, installation lancée depuis Flow) ──
+alter table public.studio_devices add column if not exists setup jsonb;
+alter table public.studio_commands alter column job_id drop not null;
+alter table public.studio_commands drop constraint if exists studio_commands_type_check;
+alter table public.studio_commands add constraint studio_commands_type_check check (type in ('start','pause','resume','cancel','message','answer','setup'));

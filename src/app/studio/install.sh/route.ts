@@ -25,15 +25,11 @@ mkdir -p "$DIR"
 curl -fsSL "$ORIGIN/studio/flow-bridge.mjs" -o "$DIR/flow-bridge.mjs"
 FLOW_SERVER_URL="$ORIGIN" node -e "const fs=require('fs'),p=process.env.HOME+'/.flow-bridge/config.json';let c={};try{c=JSON.parse(fs.readFileSync(p,'utf8'))}catch{};c.server=process.env.FLOW_SERVER_URL;fs.writeFileSync(p,JSON.stringify(c,null,2),{mode:384})"
 
-# 3. Claude Code, connecté à ton compte
-if ! command -v claude >/dev/null 2>&1; then
-  say "Installation de Claude Code…"
-  npm install -g @anthropic-ai/claude-code || { echo "Installation impossible automatiquement. Installe Claude Code (https://claude.com/claude-code) puis relance cette commande."; exit 1; }
-fi
-if ! claude auth status 2>/dev/null | grep -q '"loggedIn": true'; then
-  say "Connexion à ton compte Claude (une page s'ouvre dans le navigateur)…"
-  claude auth login || { echo "Connexion non terminée. Lance « claude » une fois, tape /login, puis relance cette commande."; exit 1; }
-fi
+# 3. Assistant de configuration : vérifie ce Mac et installe ce qui manque (moteur de motion design au choix :
+#    EffectCraft gratuit, After Effects avec abonnement Adobe payant, Remotion ; puis Claude Code, ffmpeg, méthodes de motion…).
+#    L'état de chaque étape s'affiche ici et sur Flow.
+say "Vérification des logiciels"
+node "$DIR/flow-bridge.mjs" setup
 
 # 4. Liaison avec Flow : un code s'affiche, tu l'entres sur Flow
 say "Liaison avec Flow"

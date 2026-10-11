@@ -132,3 +132,22 @@ describe('demandes', () => {
     expect((await S.library(U1, 'http://x')).some((i) => i.jobTitle === 'Site L')).toBe(false)
   })
 })
+
+describe('logiciels du Mac', () => {
+  it('le pont envoie son état, Flow demande une installation, le pont la reçoit', async () => {
+    const { dev, row } = await pairDevice(U1, 'Mac setup')
+    await S.bridgeSetup(row, { components: [{ id: 'effectcraft', name: 'EffectCraft', group: 'motion', state: 'missing' }], installing: null, engine: null })
+    const listed = (await S.listDevices(U1)).find((d) => d.id === dev.id)!
+    expect(listed.setup?.components[0].state).toBe('missing')
+    await S.bridgePoll(row, {}) // vide la file
+    await S.requestSetup(U1, dev.id, { action: 'install', component: 'effectcraft', choice: 'effectcraft' })
+    const cmd = (await S.bridgePoll(row, {})).commands.find((c) => c.type === 'setup')!
+    expect(cmd.jobId).toBeNull()
+    expect(cmd.payload).toMatchObject({ action: 'install', component: 'effectcraft' })
+  })
+  it('refuse une action inconnue et un autre utilisateur', async () => {
+    const { dev } = await pairDevice(U1, 'Mac setup 2')
+    await expect(S.requestSetup(U1, dev.id, { action: 'format' as never })).rejects.toMatchObject({ status: 400 })
+    await expect(S.requestSetup(U2, dev.id, { action: 'rescan' })).rejects.toMatchObject({ status: 404 })
+  })
+})

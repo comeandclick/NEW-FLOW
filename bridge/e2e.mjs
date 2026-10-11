@@ -102,6 +102,20 @@ const failed = await until('échec explicite', async () => { const j = (await ap
 check('message clair', /pas connecté/.test(failed.error ?? ''), failed.error)
 bridge2.kill()
 
+console.log('8c. installation des logiciels depuis Flow')
+bridge2.kill(); await sleep(500)
+const bridge3 = spawn('node', [path.join(HERE, '..', 'public', 'studio', 'flow-bridge.mjs'), 'start'], { env: { ...env, FLOW_BRIDGE_FAKE: '1', FLOW_FAKE_MISSING: 'effectcraft,remotion,ffmpeg' }, stdio: 'ignore' })
+const dev0 = await until('état des logiciels reçu', async () => { const d = (await api('GET', 'devices')).devices?.[0]; return d?.setup?.components?.find((c) => c.id === 'effectcraft')?.state === 'missing' ? d : null })
+check('EffectCraft vu comme manquant', dev0.setup.components.find((c) => c.id === 'effectcraft')?.state === 'missing')
+check('composants regroupés (motion, ia, outils, site)', ['motion', 'ia', 'outils', 'site'].every((g) => dev0.setup.components.some((c) => c.group === g)))
+const sreq = await api('POST', `devices/${dev0.id}/setup`, { action: 'install', component: 'effectcraft', choice: 'effectcraft' }); check('installation demandée depuis Flow', sreq.status === 202, JSON.stringify(sreq))
+let sawProgress = false
+const dev1 = await until('EffectCraft installé', async () => { const d = (await api('GET', 'devices')).devices?.[0]; if (d?.setup?.installing?.pct > 0) sawProgress = true; return d?.setup?.components.find((c) => c.id === 'effectcraft')?.state === 'ok' ? d : null }, 30000)
+check('progression visible pendant l\'installation', sawProgress)
+check('moteur mémorisé', dev1.setup.engine === 'effectcraft')
+const badAct = await api('POST', `devices/${dev0.id}/setup`, { action: 'format-disk' }); check('action inconnue refusée', badAct.status === 400)
+bridge3.kill()
+
 console.log('9. sécurité')
 const noAuth = await fetch(`${BASE}/api/studio/jobs`); check('API refuse sans session', noAuth.status === 401)
 const badTok = await fetch(`${BASE}/api/studio/bridge/poll`, { method: 'POST', headers: { authorization: 'Bearer faux' } }); check('pont refuse un faux jeton', badTok.status === 401)
