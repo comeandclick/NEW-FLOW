@@ -9,7 +9,9 @@ const d = RUN ? describe : describe.skip
 
 d('studio sur Supabase (réel)', () => {
   type Svc = typeof import('@/lib/studio/server/service')
-  let S: Svc, admin: ReturnType<typeof createClient>, userId: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let admin: any
+  let S: Svc, userId: string
   const jobs: string[] = [], paths: string[] = []
 
   beforeAll(async () => {
