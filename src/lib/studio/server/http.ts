@@ -5,7 +5,7 @@ import { getServerDb } from '@/lib/supabase/server'
 import { DEMO_COOKIE, DEMO_USER_ID } from '@/lib/demo/constants'
 import { rateLimited, sameOrigin } from '@/lib/security'
 import { deviceFromToken, StudioError } from './service'
-import { studioDb } from './db'
+import { fileModeAllowed, studioDb } from './db'
 
 export const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { 'Cache-Control': 'no-store' } })
 export const originOf = (req: Request) => {
@@ -22,7 +22,7 @@ export async function studioUser(): Promise<StudioUser | null> {
     if (user) return { id: user.id, demo: false }
   } catch { /* pas de session */ }
   const demo = (await cookies()).get(DEMO_COOKIE)?.value === '1'
-  if (demo && process.env.STUDIO_STORE === 'file') return { id: DEMO_USER_ID, demo: true }
+  if (demo && fileModeAllowed()) return { id: DEMO_USER_ID, demo: true }
   return null
 }
 
@@ -32,7 +32,7 @@ type UserHandler = (req: Request, user: StudioUser, ctx: Ctx) => Promise<Respons
 /** Route réservée à un utilisateur Flow connecté (cookie) : origine contrôlée sur les écritures, limite de débit. */
 export const asUser = (h: UserHandler, opts: { write?: boolean; limit?: number } = {}) => async (req: Request, ctx: Ctx) => {
   try {
-    if (opts.write !== false && req.method !== 'GET' && !sameOrigin(req)) return json({ error: 'origin' }, 403)
+    if (opts.write !== false && req.method !== 'GET' && crossSite(req)) return json({ error: 'origin' }, 403)
     const user = await studioUser()
     if (!user) return json({ error: 'unauthorized' }, 401)
     if (rateLimited(`studio:${user.id}`, opts.limit ?? 240)) return json({ error: 'rate_limited' }, 429)
@@ -59,4 +59,16 @@ export const asDevice = (h: DeviceHandler) => async (req: Request, ctx: Ctx) => 
   }
 }
 
-export const storeInfo = async () => { const r = await studioDb().ready(); return { store: studioDb().kind, ready: r.ok, reason: r.reason ?? null } }
+let readyCache: { at: number; v: { ok: boolean; reason?: string } } | null = null
+/** L'état de la base est mis en cache 20 s (l'endpoint est public : pas d'accès base à chaque appel). */
+export const storeInfo = async () => {
+  if (!readyCache || Date.now() - readyCache.at > 20_000 || !readyCache.v.ok) readyCache = { at: Date.now(), v: await studioDb().ready() }
+  return { store: studioDb().kind, ready: readyCache.v.ok, reason: readyCache.v.reason ?? null }
+}
+
+/** Protection contre les requêtes envoyées depuis un autre site : le navigateur indique toujours Sec-Fetch-Site ; Origin est aussi contrôlé. */
+export const crossSite = (req: Request) => {
+  const sfs = req.headers.get('sec-fetch-site')
+  if (sfs && sfs !== 'same-origin' && sfs !== 'none') return true
+  return !sameOrigin(req)
+}

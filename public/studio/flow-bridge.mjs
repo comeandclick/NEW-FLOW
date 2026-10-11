@@ -3,7 +3,7 @@
 // les questions et les résultats, et applique pause / reprise / annulation / messages venant de Flow.
 // Aucune dépendance : Node 20+ seulement.  Usage :  node flow-bridge.mjs connect | start | status | install | uninstall | logs
 import { spawn, execFileSync } from 'node:child_process'
-import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, renameSync, appendFileSync, readdirSync, rmSync } from 'node:fs'
+import { chmodSync, createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, renameSync, appendFileSync, readdirSync, rmSync } from 'node:fs'
 import { homedir, hostname, platform } from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
@@ -17,7 +17,8 @@ const CONFIG = path.join(DIR, 'config.json')
 const STATE = path.join(DIR, 'state.json')
 const LOG = path.join(DIR, 'bridge.log')
 const SELF = fileURLToPath(import.meta.url)
-mkdirSync(DIR, { recursive: true })
+mkdirSync(DIR, { recursive: true, mode: 0o700 })
+try { chmodSync(DIR, 0o700) } catch {}
 
 const DEFAULTS = {
   server: 'https://new-flow-dashboard.vercel.app',
@@ -37,8 +38,10 @@ function resolveClaude(bin) {
 }
 const readJson = (f, d) => { try { return JSON.parse(readFileSync(f, 'utf8')) } catch { return d } }
 let claudeResolved = null
+const isLocalUrl = (u) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(u)
+const urlOk = (u) => { try { const x = new URL(u); return x.protocol === 'https:' || isLocalUrl(u) } catch { return false } }
 const cfg = () => { const c = { ...DEFAULTS, ...readJson(CONFIG, {}), ...(process.env.FLOW_SERVER ? { server: process.env.FLOW_SERVER } : {}) }; if (c.claudeBin === 'claude') c.claudeBin = (claudeResolved ??= resolveClaude('claude')); return c }
-const saveCfg = (c) => writeFileSync(CONFIG, JSON.stringify(c, null, 2), { mode: 0o600 })
+const saveCfg = (c) => { writeFileSync(CONFIG, JSON.stringify(c, null, 2), { mode: 0o600 }); try { chmodSync(CONFIG, 0o600) } catch {} }
 const log = (...a) => { try { if (statSync(LOG).size > 5_000_000) renameSync(LOG, LOG + '.1') } catch {}
    const l = `${new Date().toISOString()} ${a.join(' ')}\n`; try { appendFileSync(LOG, l) } catch {} if (process.stdout.isTTY || process.env.FLOW_BRIDGE_VERBOSE) process.stdout.write(l) }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -46,6 +49,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 /* ───────── Réseau ───────── */
 async function api(method, route, body, { auth = true, raw = false } = {}) {
   const c = cfg()
+  if (!urlOk(c.server)) throw new Error('adresse du serveur refusée : HTTPS obligatoire')
   const res = await fetch(`${c.server}/api/studio/${route}`, {
     method,
     headers: { 'content-type': 'application/json', ...(auth && c.deviceToken ? { authorization: `Bearer ${c.deviceToken}` } : {}) },
@@ -64,7 +68,7 @@ async function emit(jobId, event) {
 
 /* ───────── État persistant ───────── */
 const state = readJson(STATE, { jobs: {} })
-const saveState = () => writeFileSync(STATE, JSON.stringify(state))
+const saveState = () => { writeFileSync(STATE, JSON.stringify(state), { mode: 0o600 }) }
 const runs = new Map() // jobId -> processus en cours
 
 /* ───────── Protocole donné à Claude (ajouté au prompt de Flow) ───────── */
@@ -102,6 +106,7 @@ function claudeOk(force = false) {
 /* ───────── Aide fichiers ───────── */
 const safe = (n) => n.replace(/[^\w.\- ()]+/g, '_').slice(0, 120) || 'fichier'
 async function download(url, dest) {
+  if (!urlOk(url)) throw new Error('adresse de téléchargement refusée')
   const res = await fetch(url, { signal: AbortSignal.timeout(10 * 60_000) })
   if (!res.ok) throw new Error(`download ${res.status}`)
   writeFileSync(dest, Buffer.from(await res.arrayBuffer()))
@@ -120,15 +125,31 @@ async function upload(up, file, mime) {
 const jsonFile = (f) => { try { return JSON.parse(readFileSync(f, 'utf8')) } catch { return null } }
 
 /* ───────── Exécution d'un projet ───────── */
-const jobDir = (c, job) => path.join(job.kind === 'motion' ? c.motionRoot : c.sitesRoot, job.id)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const jobDir = (c, job) => { if (!UUID_RE.test(String(job.id))) throw new Error('identifiant de projet invalide'); return jobDirUnsafe(c, job) }
+const jobDirUnsafe = (c, job) => path.join(job.kind === 'motion' ? c.motionRoot : c.sitesRoot, job.id)
 const busy = () => [...runs.values()].find((r) => !r.exited)
 
 function userLine(text) { return JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n' }
 function send(run, text) { if (run.exited || !run.child.stdin.writable) return false; run.child.stdin.write(userLine(text)); return true }
 
+/** Environnement donné à Claude : sans aucun secret du pont ni variable sensible. */
+function childEnv(job, dir) {
+  const env = {}
+  for (const [k, v] of Object.entries(process.env)) if (!/^FLOW_BRIDGE|^FLOW_SERVER$|SECRET|PASSWORD|PRIVATE_KEY|DEVICE_TOKEN/i.test(k)) env[k] = v
+  return { ...env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}`, FLOW_JOB_ID: job.id, FLOW_JOB_DIR: dir }
+}
+/** Réglages de sécurité du projet : Claude ne lit pas les secrets du Mac (clés SSH, jeton du pont, trousseau…) et ne fait pas d'actions destructrices évidentes. */
+const DENY = ['Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.config/gh/**)', 'Read(~/.gnupg/**)', 'Read(~/.flow-bridge/**)', 'Read(~/Library/Keychains/**)', 'Read(~/Library/Application Support/Google/Chrome/**)', 'Edit(~/.flow-bridge/**)', 'Edit(~/.ssh/**)', 'Edit(~/.zshrc)', 'Edit(~/.zprofile)', 'Bash(sudo:*)', 'Bash(rm -rf /:*)', 'Bash(rm -rf ~:*)', 'Bash(rm -rf $HOME:*)', 'Bash(cat ~/.flow-bridge/*:*)']
+function writeProjectSettings(dir) {
+  const d = path.join(dir, '.claude'); mkdirSync(d, { recursive: true })
+  writeFileSync(path.join(d, 'settings.json'), JSON.stringify({ permissions: { deny: DENY } }, null, 2))
+}
+
 function claudeArgs(c, sessionId) {
   const a = [...c.claudeArgsPrefix, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'bypassPermissions', '--add-dir', c.atelier]
   if (sessionId) a.push('--resume', sessionId)
+  a.push('--disallowedTools', 'Bash(sudo:*)')
   return a
 }
 
@@ -139,6 +160,7 @@ async function startRun(job, { firstMessage, resume = false } = {}) {
   st.dir = dir
   mkdirSync(path.join(dir, 'entrees'), { recursive: true })
   for (const sub of job.kind === 'motion' ? ['analyse', 'scripts', 'sons', 'rendu'] : ['rendu']) mkdirSync(path.join(dir, sub), { recursive: true })
+  writeProjectSettings(dir)
   if (!resume) {
     for (const f of job.inputs) { try { await download(f.url, path.join(dir, 'entrees', safe(f.name))) } catch (e) { log('input', f.name, e.message) } }
     writeFileSync(path.join(dir, 'PROMPT.md'), job.prompt + protocol(job.kind, dir))
@@ -146,7 +168,7 @@ async function startRun(job, { firstMessage, resume = false } = {}) {
   const prompt = firstMessage ?? (job.prompt + protocol(job.kind, dir) + (job.inputs.length ? `\n\nLes fichiers fournis sont déjà copiés dans \`${path.join(dir, 'entrees')}\`.` : ''))
   const child = spawn(c.claudeBin, claudeArgs(c, resume ? st.sessionId : null), {
     cwd: dir, detached: true, stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}`, FLOW_JOB_ID: job.id, FLOW_JOB_DIR: dir },
+    env: childEnv(job, dir),
   })
   const run = { job, child, dir, exited: false, paused: false, cancelled: false, delivered: false, finalizing: false, stderr: '', lastLog: 0, appliedIds: [], interrupting: false, waitingAnswer: false, progressMtime: 0, startedAt: Date.now() }
   runs.set(job.id, run)
@@ -509,6 +531,7 @@ function run(cmd, args, { cwd, onLine, timeout = 20 * 60_000 } = {}) {
   })
 }
 async function downloadTo(url, dest, onPct) {
+  if (!urlOk(url)) throw new Error('adresse de téléchargement refusée')
   const res = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'flow-bridge' }, signal: AbortSignal.timeout(30 * 60_000) })
   if (!res.ok) throw new Error(`téléchargement ${res.status}`)
   const total = Number(res.headers.get('content-length') ?? 0)
@@ -527,6 +550,14 @@ const INSTALLERS = {
     const dl = path.join(DIR, 'downloads'); mkdirSync(dl, { recursive: true })
     const dmg = path.join(dl, asset.name)
     await downloadTo(asset.browser_download_url, dmg, (f) => rp(`Téléchargement ${asset.name}`, 8 + f * 70))
+    rp('Vérification de la somme de contrôle', 78)
+    const sums = (rel.assets ?? []).find((a) => /^SHA256SUMS(\.txt)?$/i.test(a.name))
+    if (sums) {
+      const txt = await (await fetch(sums.browser_download_url, { headers: { 'user-agent': 'flow-bridge' } })).text()
+      const want = txt.split('\n').map((l) => l.trim().split(/\s+/)).find((p) => p[1]?.replace(/^\*/, '') === asset.name)?.[0]
+      const got = (await import('node:crypto')).createHash('sha256').update(readFileSync(dmg)).digest('hex')
+      if (want && want.toLowerCase() !== got) { try { rmSync(dmg) } catch {}; throw new Error('Somme de contrôle incorrecte : fichier refusé.') }
+    }
     rp('Ouverture de l\'image disque', 80)
     const mount = path.join(DIR, 'mnt'); mkdirSync(mount, { recursive: true })
     await run('/usr/bin/hdiutil', ['attach', dmg, '-nobrowse', '-readonly', '-mountpoint', mount])
@@ -574,6 +605,8 @@ const INSTALLERS = {
       const f = path.join(dl, `${name}.tgz`)
       rp(`Téléchargement de ${name}`, 15 + (i / man.skills.length) * 75)
       await downloadTo(`${c.server}/studio/skills/${name}.tgz`, f)
+      const listing = (sh('/usr/bin/tar', ['-tzf', f]) ?? '').split('\n').map((x) => x.trim()).filter(Boolean)
+      if (!/^[a-z0-9-]+$/i.test(name) || listing.some((x) => x.startsWith('/') || x.split('/').includes('..') || !(x === `${name}/` || x.startsWith(`${name}/`)))) throw new Error(`archive ${name} refusée (chemins suspects)`)
       await run('/usr/bin/tar', ['-xzf', f, '-C', dest]); try { rmSync(f) } catch {}
       i++
     }

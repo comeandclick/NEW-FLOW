@@ -59,3 +59,11 @@ Les types TypeScript de `src/lib/studio/types.ts` suivent déjà ce modèle.
 - Le choix du moteur est mémorisé et injecté dans le prompt du motion (`buildMotionPrompt`, paramètre `engine`).
 - Base : exécuter la « Migration 2 » de `supabase/studio.sql` (colonne `studio_devices.setup`, commandes sans projet, type `setup`).
 - Test : `node bridge/e2e.mjs` (mode `FLOW_BRIDGE_FAKE=1` : installations simulées).
+
+## Sécurité (revue du 2026-10-11)
+- **Accès** : toutes les routes utilisateur exigent une session Flow ; les écritures refusent les requêtes venant d'un autre site (Sec-Fetch-Site + Origin) ; le pont s'authentifie par un jeton d'appareil (stocké haché, révocable en « Dissocier »). Chaque requête vérifie que le projet / fichier / appareil appartient à l'utilisateur (testé : isolation entre utilisateurs, un appareil ne peut pas agir sur le projet d'un autre).
+- **Appairage** : code à usage unique, 10 min, 8 essais / 10 min / utilisateur, plafond global de codes en attente, jeton remis une seule fois.
+- **Entrées** : identifiants UUID obligatoires, tailles plafonnées (spécification 100 Ko, message 8 000 car., prompt 120 000), noms de fichiers assainis, liens de livraison en https seulement, quota de stockage par utilisateur (10 Go, `STUDIO_QUOTA_BYTES`), 8 projets actifs et 300 projets au plus (`STUDIO_MAX_ACTIVE`, `STUDIO_MAX_JOBS`).
+- **Site** : l'adresse injectée dans les scripts est validée (pas de Host piégé) ou fixée par `STUDIO_PUBLIC_URL` ; installateur en HTTPS forcé ; le mode fichier (développement) est impossible en production ; `/api/studio/status` ne révèle rien aux visiteurs.
+- **Pont sur le Mac** : HTTPS obligatoire (sauf localhost), dossier `~/.flow-bridge` en 700 et fichiers en 600, identifiants de projet validés avant tout chemin, environnement de Claude nettoyé (aucun secret du pont), règles `deny` par projet (clés SSH, jeton du pont, trousseau, `sudo`, `rm -rf` évidents), téléchargements en https, somme de contrôle SHA-256 d'EffectCraft vérifiée, archives de méthodes refusées si leurs chemins sont suspects.
+- **Limite connue** : Claude Code tourne en mode « permissions contournées » pour travailler sans s'arrêter ; les règles `deny` réduisent le risque mais ne l'éliminent pas. Un projet est créé uniquement par l'utilisateur connecté, donc le prompt vient de lui.

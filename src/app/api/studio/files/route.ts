@@ -2,13 +2,14 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { filePath, verifyPath } from '@/lib/studio/server/db'
 import { json } from '@/lib/studio/server/http'
+import { fileModeAllowed } from '@/lib/studio/server/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /** Stockage de fichiers du mode développement (STUDIO_STORE=file) : liens signés, comme Supabase Storage. */
 const check = (req: Request) => {
-  if (process.env.STUDIO_STORE !== 'file') return null
+  if (!fileModeAllowed()) return null
   const q = new URL(req.url).searchParams
   const p = q.get('path') ?? '', exp = Number(q.get('exp')), sig = q.get('sig') ?? ''
   return verifyPath(p, exp, sig) ? p : null

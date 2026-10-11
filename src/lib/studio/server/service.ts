@@ -17,10 +17,19 @@ export const normalizeCode = (c: string) => {
 const newCode = () => { const b = randomBytes(8); const s = Array.from(b, (x) => CODE_ALPHA[x % CODE_ALPHA.length]).join(''); return `FLOW-${s.slice(0, 4)}-${s.slice(4)}` }
 const safeName = (n: string) => n.replace(/[^\w.\- ()]+/g, '_').slice(0, 120) || 'fichier'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const uuid = (x: unknown): string => { if (typeof x !== 'string' || !UUID_RE.test(x)) throw new StudioError(400, 'invalid_id'); return x }
+/** Limites anti-abus (modifiables par variables d'environnement). */
+const LIMITS = { jobsPerUser: Number(process.env.STUDIO_MAX_JOBS ?? 300), activeJobs: Number(process.env.STUDIO_MAX_ACTIVE ?? 8), assetsPerJob: 200, quotaBytes: Number(process.env.STUDIO_QUOTA_BYTES ?? 10 * 1024 ** 3), pendingPairings: 300, specBytes: 100_000 }
+
 export class StudioError extends Error { constructor(public status: number, public code: string, msg?: string) { super(msg ?? code) } }
 
 /* ───────── Appairage ───────── */
 export async function pairStart(info: { deviceName?: string; os?: string; version?: string }) {
+  const pend = await db().select('studio_pairings', { status: 'pending' }, { limit: LIMITS.pendingPairings + 1 })
+  const fresh = pend.filter((p) => new Date(p.expires_at) > new Date())
+  for (const p of pend) if (new Date(p.expires_at) <= new Date()) await db().update('studio_pairings', { id: p.id }, { status: 'expired' })
+  if (fresh.length > LIMITS.pendingPairings) throw new StudioError(429, 'busy')
   const code = newCode(), poll = token(24)
   await db().insert('studio_pairings', {
     code_hash: sha(code), poll_hash: sha(poll), device_name: (info.deviceName || 'Mac').slice(0, 80), os: (info.os || 'macOS').slice(0, 30), bridge_version: info.version?.slice(0, 20) ?? null,
@@ -54,7 +63,10 @@ export async function pairConfirm(userId: string, rawCode: string) {
 
 const publicDevice = (d: Row) => ({ id: d.id, name: d.name, os: d.os, pairedAt: d.paired_at, lastSeen: d.last_seen, online: Date.now() - new Date(d.last_seen).getTime() < ONLINE_MS, busyJob: d.busy_job ?? null, version: d.bridge_version ?? null, claudeOk: d.claude_ok ?? null, setup: d.setup ?? null })
 export async function listDevices(userId: string) { return (await db().select('studio_devices', { user_id: userId }, { order: ['paired_at', false] })).map(publicDevice) }
-export async function removeDevice(userId: string, id: string) { await db().remove('studio_devices', { id, user_id: userId }) }
+export async function removeDevice(userId: string, id: string) {
+  uuid(id)
+  await db().remove('studio_devices', { id, user_id: userId })
+}
 
 export async function deviceFromToken(tok: string | null) {
   if (!tok) throw new StudioError(401, 'no_token')
@@ -64,8 +76,9 @@ export async function deviceFromToken(tok: string | null) {
 }
 
 async function bestDevice(userId: string) {
-  const devs = await db().select('studio_devices', { user_id: userId }, { order: ['last_seen', false] })
-  return devs[0] ?? null
+  const devs = await db().select('studio_devices', { user_id: userId })
+  // le Mac vu le plus récemment ; à égalité, le dernier relié
+  return devs.map((d, i) => ({ d, i })).sort((a, b) => (a.d.last_seen < b.d.last_seen ? 1 : a.d.last_seen > b.d.last_seen ? -1 : a.d.paired_at < b.d.paired_at ? 1 : a.d.paired_at > b.d.paired_at ? -1 : b.i - a.i))[0]?.d ?? null
 }
 
 async function event(jobId: string, e: { level?: string; kind?: string; title: string; body?: string | null; data?: unknown }) {
@@ -91,6 +104,10 @@ async function assignWaiting(userId: string, deviceId: string) {
 /* ───────── Jobs (côté utilisateur) ───────── */
 export type JobInput = { kind: 'motion' | 'site'; title: string; spec: Record<string, unknown>; prompt: string; workspaceId?: string | null }
 export async function createJob(userId: string, input: JobInput) {
+  if (JSON.stringify(input.spec ?? {}).length > LIMITS.specBytes) throw new StudioError(413, 'spec_too_large')
+  const mine = await db().select('studio_jobs', { user_id: userId }, { limit: LIMITS.jobsPerUser + 1 })
+  if (mine.length > LIMITS.jobsPerUser) throw new StudioError(429, 'too_many_jobs')
+  if (mine.filter((j) => ['draft', 'queued', 'starting', 'running', 'paused', 'needs_answer'].includes(j.status)).length >= LIMITS.activeJobs) throw new StudioError(429, 'too_many_active')
   const id = randomUUID()
   const job = await db().insert('studio_jobs', {
     id, user_id: userId, workspace_id: input.workspaceId ?? null, kind: input.kind, title: input.title.slice(0, 160) || 'Sans titre', spec: input.spec, prompt: input.prompt.replaceAll('{{ID}}', id).slice(0, 120_000),
@@ -100,16 +117,22 @@ export async function createJob(userId: string, input: JobInput) {
 }
 
 export async function registerAsset(userId: string, jobId: string, a: { name: string; size?: number; mime?: string; kind?: string }, origin: string) {
+  uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
   if (!job) throw new StudioError(404, 'job')
+  const owned = await db().select('studio_assets', { user_id: userId }, { limit: 5000 })
+  if (owned.filter((x) => x.job_id === jobId).length >= LIMITS.assetsPerJob) throw new StudioError(429, 'too_many_files')
+  if (owned.reduce((n, x) => n + Number(x.size ?? 0), 0) + Number(a.size ?? 0) > LIMITS.quotaBytes) throw new StudioError(413, 'quota')
   const id = randomUUID()
   const storage_path = `${userId}/${jobId}/in/${id.slice(0, 8)}-${safeName(a.name)}`
   const asset = await db().insert('studio_assets', { id, job_id: jobId, user_id: userId, direction: 'in', kind: a.kind ?? 'file', name: safeName(a.name), size: a.size ?? null, mime: a.mime ?? null, storage_path, uploaded: false, created_at: now() })
   return { asset, upload: await db().signedUpload(storage_path, origin) }
 }
-export async function assetUploaded(userId: string, assetId: string) { await db().update('studio_assets', { id: assetId, user_id: userId }, { uploaded: true }) }
+export async function assetUploaded(userId: string, assetId: string) {
+  uuid(assetId); await db().update('studio_assets', { id: assetId, user_id: userId }, { uploaded: true }) }
 
 export async function submitJob(userId: string, jobId: string) {
+  uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
   if (!job) throw new StudioError(404, 'job')
   if (job.status !== 'draft') throw new StudioError(409, 'already_submitted')
@@ -132,6 +155,7 @@ export async function listJobs(userId: string) {
 }
 
 export async function getJob(userId: string, jobId: string, origin = '') {
+  uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
   if (!job) throw new StudioError(404, 'job')
   const [events, questions, assets, devs] = await Promise.all([
@@ -153,6 +177,7 @@ export async function getJob(userId: string, jobId: string, origin = '') {
 }
 
 export async function controlJob(userId: string, jobId: string, action: 'pause' | 'resume' | 'cancel' | 'retry') {
+  uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
   if (!job) throw new StudioError(404, 'job')
   const active = ['starting', 'running', 'needs_answer'].includes(job.status)
@@ -180,6 +205,7 @@ export async function controlJob(userId: string, jobId: string, action: 'pause' 
 
 /** mode : now = interrompt l'étape en cours · next = après l'étape en cours · after = à la fin (ou tout de suite si c'est déjà fini). */
 export async function sendMessage(userId: string, jobId: string, text: string, mode: 'now' | 'next' | 'after', assetIds: string[] = [], origin = '') {
+  uuid(jobId)
   const msg = text.trim().slice(0, 8000)
   if (!msg && !assetIds.length) throw new StudioError(400, 'empty')
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
@@ -198,6 +224,7 @@ export async function sendMessage(userId: string, jobId: string, text: string, m
 }
 
 export async function answerQuestion(userId: string, jobId: string, questionId: string, answer: string) {
+  uuid(jobId); uuid(questionId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: userId })
   const [q] = await db().select('studio_questions', { id: questionId, job_id: jobId })
   if (!job || !q) throw new StudioError(404, 'question')
@@ -211,7 +238,8 @@ export async function answerQuestion(userId: string, jobId: string, questionId: 
   if (job.device_id) await db().insert('studio_commands', { job_id: jobId, device_id: job.device_id, type: 'answer', payload: { questionId, text: a, question: q.text }, created_at: now() })
 }
 
-export async function removeJob(userId: string, jobId: string) { await db().remove('studio_jobs', { id: jobId, user_id: userId }) }
+export async function removeJob(userId: string, jobId: string) {
+  uuid(jobId); await db().remove('studio_jobs', { id: jobId, user_id: userId }) }
 
 export async function library(userId: string, origin: string) {
   const [assets, jobs] = await Promise.all([db().select('studio_assets', { user_id: userId }, { order: ['created_at', false], limit: 300 }), db().select('studio_jobs', { user_id: userId }, { order: ['created_at', false], limit: 100 })])
@@ -231,6 +259,7 @@ export async function bridgeSetup(dev: Row, setup: Record<string, unknown>) {
 }
 export type SetupAction = { action: 'install' | 'login' | 'rescan'; component?: string; choice?: string }
 export async function requestSetup(userId: string, deviceId: string, a: SetupAction) {
+  uuid(deviceId)
   const [dev] = await db().select('studio_devices', { id: deviceId, user_id: userId })
   if (!dev) throw new StudioError(404, 'device')
   if (!['install', 'login', 'rescan'].includes(a.action)) throw new StudioError(400, 'invalid')
@@ -248,6 +277,7 @@ export async function bridgePoll(dev: Row, info: { busyJob?: string | null; vers
 }
 
 export async function bridgeJob(dev: Row, jobId: string, origin: string) {
+  uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })
   if (!job) throw new StudioError(404, 'job')
   const assets = (await db().select('studio_assets', { job_id: jobId, direction: 'in' })).filter((a) => a.uploaded && a.storage_path)
@@ -266,6 +296,7 @@ export type BridgeEvent =
   | { type: 'delivered'; deliver?: Record<string, unknown>; summary?: string }
 
 export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
+  uuid(jobId)
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })
   if (!job) throw new StudioError(404, 'job')
   const patch: Row = { updated_at: now() }
@@ -311,6 +342,8 @@ export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
 }
 
 export async function bridgeAsset(dev: Row, jobId: string, a: { name: string; size?: number; mime?: string; kind?: string; link?: string }, origin: string) {
+  uuid(jobId)
+  if (a.link && !/^https:\/\/[^\s]+$/i.test(a.link)) throw new StudioError(400, 'bad_link')
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })
   if (!job) throw new StudioError(404, 'job')
   const id = randomUUID()
@@ -319,4 +352,5 @@ export async function bridgeAsset(dev: Row, jobId: string, a: { name: string; si
   await db().insert('studio_assets', { id, job_id: jobId, user_id: dev.user_id, direction: 'out', kind: a.kind ?? 'render', name: safeName(a.name), size: a.size ?? null, mime: a.mime ?? null, storage_path, uploaded: false, created_at: now() })
   return { id, upload: await db().signedUpload(storage_path, origin) }
 }
-export async function bridgeAssetDone(dev: Row, assetId: string) { await db().update('studio_assets', { id: assetId, user_id: dev.user_id }, { uploaded: true }) }
+export async function bridgeAssetDone(dev: Row, assetId: string) {
+  uuid(assetId); await db().update('studio_assets', { id: assetId, user_id: dev.user_id }, { uploaded: true }) }

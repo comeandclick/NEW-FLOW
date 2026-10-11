@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { CheckCircle2, KeyRound, Laptop, ShieldCheck, Smartphone, Terminal, Unplug } from 'lucide-react'
+import { CheckCircle2, Download, KeyRound, Laptop, ShieldCheck, Smartphone, Terminal, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Card } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
   const polled = usePoll(studioApi.devices, 3000, live)
   const devices: Dev[] = live ? ((polled.data?.devices ?? []) as LiveDevice[]) : simDevices
   const origin = typeof window === 'undefined' ? '' : window.location.origin
+  const isMac = typeof navigator === 'undefined' ? true : /Mac/i.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/i.test(navigator.userAgent)
   const cmd = `bash <(curl -fsSL ${origin}/studio/install.sh)`
   const [code, setCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -71,7 +72,10 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
         <Card className="space-y-3 p-5 max-md:p-4">
           <h3 className="text-sm font-semibold text-text">{l.install}</h3>
           <p className="text-[13px] text-text-3">{l.installIntro}</p>
-          <CopyBox text={cmd} label={c.common.copy} copied={c.common.copied} />
+          <a href="/studio/Flow-Studio-Installer.zip" download className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text shadow-sm transition-colors hover:bg-accent-hover"><Download className="size-4" />{l.downloadInstaller}</a>
+          {!isMac && <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-2">{l.notMac}</p>}
+          <ol className="list-decimal space-y-1 pl-5 text-[13px] text-text-2">{l.downloadSteps.map((x) => <li key={x}>{x}</li>)}</ol>
+          <details className="text-[13px] text-text-2"><summary className="cursor-pointer select-none text-xs text-text-3">{l.terminalAdvanced}</summary><div className="mt-2"><CopyBox text={cmd} label={c.common.copy} copied={c.common.copied} /></div></details>
           <p className="pt-1 text-[13px] font-medium text-text-2">{l.installLink}</p>
           <CopyBox text={`${origin}/studio/install`} label={c.common.copy} copied={c.common.copied} share={{ title: l.installShare, url: `${origin}/studio/install` }} />
           <a href="/studio/install" target="_blank" rel="noreferrer" className="inline-block text-xs text-text-3 underline-offset-2 hover:text-text hover:underline">{l.installOpen}</a>

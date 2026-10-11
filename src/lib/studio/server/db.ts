@@ -134,4 +134,6 @@ export const supabaseDb: Db = {
   },
 }
 
-export const studioDb = (): Db => (process.env.STUDIO_STORE === 'file' ? fileDb : supabaseDb)
+/** Le mode fichier (tests, développement) est refusé en production : impossible de l'activer par erreur sur le site en ligne. */
+export const fileModeAllowed = () => process.env.STUDIO_STORE === 'file' && process.env.NODE_ENV !== 'production'
+export const studioDb = (): Db => (fileModeAllowed() ? fileDb : supabaseDb)

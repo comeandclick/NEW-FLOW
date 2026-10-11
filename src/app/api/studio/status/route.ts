@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const [info, user] = await Promise.all([storeInfo(), studioUser()])
   const demoCookie = (await cookies()).get(DEMO_COOKIE)?.value === '1'
-  if (!user) return json({ mode: demoCookie ? 'demo' : 'anon', ...info })
+  if (!user) return json({ mode: demoCookie ? 'demo' : 'anon' }) // rien sur la configuration pour les visiteurs non connectés
   if (!info.ready) return json({ mode: 'setup', ...info })
   return json({ mode: 'live', ...info })
 }
