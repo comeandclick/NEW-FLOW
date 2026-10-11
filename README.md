@@ -38,3 +38,20 @@ npx playwright test e2e/audit.spec.ts      # accessibilité (axe) clair + sombre
 E2E_REAL=1 npx playwright test e2e/real.spec.ts e2e/security.spec.ts   # vrai backend : 2 utilisateurs, chat, vocal, appel WebRTC, RLS
 ```
 Les tests « réels » créent puis suppriment leurs propres utilisateurs.
+
+## API publique (v1)
+
+Clés créées dans **Paramètres → API** (propriétaires/admins). Chaque clé a des permissions (`tasks:read`, `tasks:write`, `notes:*`, `events:*`, `goals:*`, `projects:*`, `crm:*`, `messages:*`, `files:*`, `notifications:write`), une expiration optionnelle et agit comme un membre « bot » (tout ce qu'elle écrit lui est attribué). Seul le hash SHA-256 est stocké (`workspaces.settings.api_keys`).
+
+`Authorization: Bearer flw_…` sur `https://<domaine>/api/v1` :
+
+| Endpoint | Méthodes |
+|---|---|
+| `/me`, `/` | GET |
+| `/tasks`, `/projects`, `/notes`, `/events`, `/goals`, `/key-results`, `/contacts`, `/deals` | GET (liste, `?q=&limit=&offset=&updated_since=` + filtres), POST, GET/PATCH/DELETE `/:id` |
+| `/channels` | GET |
+| `/messages?channel=general` | GET, POST `{channel,text,file_ids?,reply_to?,notify?}`, PATCH/DELETE `/:id` (ses propres messages) |
+| `/files` | GET, POST (JSON `{name,text\|base64}` ou multipart, ≤ 4 Mo), `/files/upload-url` + PUT + `/files/register` (≤ 25 Mo), GET `/:id?content=1`, DELETE `/:id` |
+| `/notifications` | POST `{title,body?,url?,to?: "creator"\|"all"\|id}` |
+
+Notes : `markdown` accepté en écriture et renvoyé en lecture. Les suppressions vont à la corbeille. 120 requêtes/min/clé. Erreurs : `{"error":{"code","message"}}`.
