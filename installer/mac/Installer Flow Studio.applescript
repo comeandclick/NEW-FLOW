@@ -34,7 +34,14 @@ on run
 			try
 				set progress completed steps to (pctText as integer)
 			end try
-			if stepText is not "" then set progress additional description to stepText
+			set codeNow to my valueFor("code", g)
+			if stepText is not "" then
+				if ph is "pair" and codeNow is not "" then
+					set progress additional description to stepText & "  Code : " & codeNow & " (Flow > Création de site > Connexion du Mac)"
+				else
+					set progress additional description to stepText
+				end if
+			end if
 			
 			set askText to my valueFor("ask", g)
 			if askText is not "" and askText is not lastAsk then
@@ -47,17 +54,15 @@ on run
 			if codeText is not "" and urlText is not "" and codeText is not lastCode then
 				set lastCode to codeText
 				open location urlText
-				try
-					set r to display dialog "Une page Flow vient de s'ouvrir pour relier ton Mac. Connecte-toi si besoin : le reste est automatique." & return & return & "Si elle ne s'est pas ouverte : Flow > Création de site > Connexion du Mac, puis entre ce code :" & return & codeText with title "Flow Studio" buttons {"Ouvrir la page", "OK"} default button "OK" giving up after 45
-					if button returned of r is "Ouvrir la page" then open location urlText
-				end try
 			end if
 			
 			if ph is "done" then
+				activate
 				set progress completed steps to 100
 				display dialog stepText & return & return & "Retourne sur Flow : ton Mac est relié. Tu peux fermer cette fenêtre." with title "Flow Studio" buttons {"OK"} default button "OK" with icon note
 				exit repeat
 			else if ph is "error" then
+				activate
 				set errText to my valueFor("error", g)
 				try
 					set r to display dialog "L'installation n'a pas pu se terminer." & return & return & errText with title "Flow Studio" buttons {"Voir le journal", "Fermer"} default button "Fermer" with icon caution
@@ -107,6 +112,7 @@ on answerQuestion(askText)
 		set end of labels to item 1 of kv
 		set end of values to item 2 of kv
 	end repeat
+	activate
 	set picked to choose from list labels with prompt qtext with title "Flow Studio" default items {item 1 of labels} OK button name "Continuer" cancel button name "Annuler l'installation"
 	if picked is false then
 		do shell script "pkill -f flow-bridge.mjs; pkill -f runner.sh; true"
