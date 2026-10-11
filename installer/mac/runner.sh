@@ -6,6 +6,10 @@ RES="$(cd "$(dirname "$0")" && pwd)"
 DIR="$HOME/.flow-bridge"
 mkdir -p "$DIR" && chmod 700 "$DIR"
 exec >>"$DIR/installer.log" 2>&1
+# une seule installation à la fois
+LOCK="$DIR/runner.lock"
+if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then echo "déjà en cours"; exit 0; fi
+echo $$ > "$LOCK"; trap 'rm -f "$LOCK"' EXIT
 echo "=== $(date) — installation ==="
 GUI="$DIR/gui.txt"
 status() { printf 'phase=%s\nstep=%s\npct=%s\n' "$1" "$2" "$3" > "$GUI"; }

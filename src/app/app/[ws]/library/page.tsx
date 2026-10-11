@@ -46,7 +46,7 @@ export default function LibraryPage() {
           {mode !== 'live' && items.length > 0 && <Button size="sm" variant="ghost" onClick={clear}><Trash2 className="size-3.5" />{c.library.clear}</Button>}
         </>} />
       <ModeBanner mode={mode} reason={reason} />
-      {mode !== 'live' && <p className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-2"><Info className="mt-0.5 size-4 shrink-0 text-text-3" />{c.library.storageNote}</p>}
+      {mode !== 'live' && c.library.storageNote && <p className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-2"><Info className="mt-0.5 size-4 shrink-0 text-text-3" />{c.library.storageNote}</p>}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Tabs<Filter> value={filter} onChange={setFilter} items={[

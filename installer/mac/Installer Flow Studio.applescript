@@ -47,6 +47,10 @@ on run
 			if codeText is not "" and urlText is not "" and codeText is not lastCode then
 				set lastCode to codeText
 				open location urlText
+				try
+					set r to display dialog "Une page Flow vient de s'ouvrir pour relier ton Mac. Connecte-toi si besoin : le reste est automatique." & return & return & "Si elle ne s'est pas ouverte : Flow > Création de site > Connexion du Mac, puis entre ce code :" & return & codeText with title "Flow Studio" buttons {"Ouvrir la page", "OK"} default button "OK" giving up after 45
+					if button returned of r is "Ouvrir la page" then open location urlText
+				end try
 			end if
 			
 			if ph is "done" then

@@ -72,7 +72,7 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
 
         <Card className="space-y-3 p-5 max-md:p-4">
           <h3 className="text-sm font-semibold text-text">{l.install}</h3>
-          <p className="text-[13px] text-text-3">{l.installIntro}</p>
+          {l.installIntro && <p className="text-[13px] text-text-3">{l.installIntro}</p>}
           {plat === 'windows' ? <p className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">{l.windowsSoon}</p> : <a href="/studio/Flow-Studio-Installer.dmg" download className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text shadow-sm transition-colors hover:bg-accent-hover"><Download className="size-4" />{l.downloadInstaller}</a>}
           {plat === 'other' && <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-2">{l.notMac}</p>}
           <ol className="list-decimal space-y-1 pl-5 text-[13px] text-text-2">{l.downloadSteps.map((x) => <li key={x}>{x}</li>)}</ol>
