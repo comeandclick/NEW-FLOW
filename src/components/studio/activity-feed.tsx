@@ -17,7 +17,8 @@ export function ActivityFeed({ events, labels }: { events: LiveEvent[]; labels: 
   const time = (e: LiveEvent) => new Date(e.at).toLocaleTimeString(locale, { timeStyle: 'short' })
   const stateLabel = (s?: string) => (s === 'applied' ? c.msgApplied : s === 'delivered' ? c.msgDelivered : c.msgSent)
   return (
-    <ol className="max-h-[360px] space-y-2 overflow-y-auto pr-1" aria-live="polite" tabIndex={0}>
+    <div className="max-h-[360px] overflow-y-auto pr-1" aria-live="polite" tabIndex={0}>
+    <ol className="space-y-2">
       {events.map((e) => {
         if (e.kind === 'message') {
           const files = e.data?.files ?? []
@@ -44,7 +45,8 @@ export function ActivityFeed({ events, labels }: { events: LiveEvent[]; labels: 
           </li>
         )
       })}
-      <div ref={end} />
     </ol>
+      <div ref={end} />
+    </div>
   )
 }

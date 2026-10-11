@@ -65,6 +65,7 @@ rl.on('line', (l) => {
   if (m.type === 'control_request' && m.request?.subtype === 'interrupt') { aborted = true; out({ type: 'control_response', response: { subtype: 'success', request_id: m.request_id } }); setTimeout(() => result({ subtype: 'error_during_execution', is_error: true }), 50); return }
   if (m.type !== 'user') return
   const text = (m.message?.content ?? []).map((c) => c.text ?? '').join('')
+  if (!started && process.env.FAKE_FAIL === 'login') { started = true; say('Not logged in · Please run /login'); result({ is_error: true, result: 'Not logged in · Please run /login' }); return }
   if (!started) {
     started = true; if (/site/i.test(process.env.FLOW_JOB_DIR ?? '') || /Mission : (Site vitrine|Boutique|Landing|Autre projet)/.test(text)) kind = 'site'
     if (resumed) { stepIdx = STEPS[kind].length; say(`Message reçu après livraison : ${text.slice(0, 80)}`); deliver(); result(); return }

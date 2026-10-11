@@ -13,6 +13,7 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { useUnread } from '@/lib/hooks/use-unread'
 import { exitDemo } from '@/lib/demo/runtime'
+import { useStudioActivity } from '@/lib/studio/activity'
 import { useI18n, useT } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import { HUBS, MOBILE_TABS, NAV, NAV_FOOTER, type NavItem } from './nav-items'
@@ -33,6 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { ws, me } = useWorkspace()
   const { userId, isDemo, signOut } = useSession()
   const unread = useUnread(ws.id, userId)
+  const studio = useStudioActivity()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [palette, setPalette] = useState(false)
@@ -111,7 +113,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ul className="space-y-0.5">
               {g.items.map((it) => {
                 const active = isActive(it.href)
-                const badge = it.badge === 'messages' ? unread.count : 0
+                const badge = it.badge === 'messages' ? unread.count : it.badge === 'motion' || it.badge === 'site' ? studio[it.badge].active : 0
+                const ask = it.badge === 'motion' || it.badge === 'site' ? studio[it.badge].ask > 0 : false
                 return (
                   <li key={it.href}>
                     <Link href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
@@ -120,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       {active && <motion.span layoutId={compact ? 'nav-pill-c' : 'nav-pill'} className="absolute left-0 h-4 w-0.5 rounded-full bg-accent" />}
                       <it.icon className={cn('size-4 shrink-0', active ? 'text-accent-ink' : 'text-text-3 group-hover:text-text-2')} />
                       {!compact && <span className="flex-1 truncate">{t(it.label)}</span>}
-                      {badge > 0 && <span className={cn('rounded-full bg-accent px-1.5 text-[10px] font-semibold leading-4 text-white', compact && 'absolute right-1 top-0.5 px-1')}>{badge > 99 ? '99+' : badge}</span>}
+                      {badge > 0 && <span className={cn('rounded-full px-1.5 text-[10px] font-semibold leading-4 text-white', ask ? 'bg-[#c2410c]' : 'bg-accent', compact && 'absolute right-1 top-0.5 px-1')} title={ask ? '1 question' : undefined}>{badge > 99 ? '99+' : badge}</span>}
                     </Link>
                   </li>
                 )
@@ -206,7 +209,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main id="main" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[72px] md:pb-0">{children}</main>
+        <main id="main" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">{children}</main>
 
         <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-bg/90 backdrop-blur-xl safe-bottom md:hidden" aria-label="Mobile">
           {MOBILE_TABS.map((href) => {

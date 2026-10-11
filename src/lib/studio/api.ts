@@ -77,6 +77,8 @@ export function usePoll<T>(fn: () => Promise<T>, ms: number, enabled = true): { 
 
 export function useStudioMode() {
   const [state, setState] = useState<{ mode: Mode; reason: string | null; store: string | null }>({ mode: 'loading', reason: null, store: null })
-  useEffect(() => { studioApi.status().then((s) => setState({ mode: s.mode, reason: s.reason, store: s.store })).catch(() => setState({ mode: 'demo', reason: null, store: null })) }, [])
+  useEffect(() => {
+    studioApi.status().then((s) => { setState({ mode: s.mode, reason: s.reason, store: s.store }); if (s.mode === 'live') { try { localStorage.setItem('flow_studio_used', '1') } catch {} } }).catch(() => setState({ mode: 'demo', reason: null, store: null }))
+  }, [])
   return state
 }

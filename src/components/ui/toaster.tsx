@@ -8,6 +8,7 @@ export function Toaster() {
     <Sonner
       theme={resolved}
       position="bottom-right"
+      mobileOffset={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
       closeButton
       toastOptions={{
         style: {

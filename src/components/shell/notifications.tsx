@@ -11,12 +11,15 @@ import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
 import { useI18n } from '@/i18n/provider'
 import { getDb } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils'
+import { cn, safePath } from '@/lib/utils'
 import type { Notification } from '@/lib/types'
 import { enablePush, pushPermission, showSystemNotification } from '@/lib/push'
+import { usePrefs } from '@/lib/hooks/use-prefs'
+import { shouldAlert } from '@/lib/prefs'
 
 export function NotificationsMenu() {
-  const { userId, isDemo } = useSession()
+  const { userId, isDemo, profile } = useSession()
+  const { prefs } = usePrefs()
   const { t, locale } = useI18n()
   const router = useRouter()
   const { data, setData } = useLive<Notification>('notifications', { eq: { user_id: userId ?? undefined }, order: ['created_at', false], limit: 30, enabled: !!userId, channelFilter: userId ? `user_id=eq.${userId}` : undefined })
@@ -33,9 +36,9 @@ export function NotificationsMenu() {
     for (const n of data) {
       if (seen.current.has(n.id)) continue
       seen.current.add(n.id)
-      if (!n.is_read) showSystemNotification(n.title, n.body ?? '', n.url ?? undefined)
+      if (!n.is_read && prefs.notif.system && shouldAlert(prefs, n.type, profile?.timezone ?? 'Europe/Paris')) showSystemNotification(n.title, n.body ?? '', n.url ? safePath(n.url) : undefined)
     }
-  }, [data])
+  }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function markAll() {
     setData((d) => d.map((n) => ({ ...n, is_read: true })))
@@ -47,7 +50,7 @@ export function NotificationsMenu() {
       setData((d) => d.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)))
       await getDb().from('notifications').update({ is_read: true }).eq('id', n.id)
     }
-    if (n.url) router.push(n.url)
+    if (n.url) router.push(safePath(n.url))
   }
 
   return (

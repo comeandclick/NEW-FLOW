@@ -72,6 +72,12 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                   </Command.Group>
                 )}
 
+                {q.trim().length >= 2 && (
+                  <Command.Group heading={t('search.title')}>
+                    <Command.Item className={item} value={`everywhere ${q}`} forceMount onSelect={() => go(`/search?q=${encodeURIComponent(q.trim())}`)}><Search className="size-4" />{t('search.everywhere')} « {q.trim()} »</Command.Item>
+                  </Command.Group>
+                )}
+
                 <Command.Group heading={t('shell.actions')}>
                   <Command.Item className={item} value="new task nouvelle tâche" onSelect={() => go('/tasks?new=1')}><Plus className="size-4" />{t('shell.newTask')}</Command.Item>
                   <Command.Item className={item} value="new note nouvelle note" onSelect={() => go('/notes?new=1')}><Plus className="size-4" />{t('shell.newNote')}</Command.Item>
@@ -82,7 +88,7 @@ export function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: 
                 </Command.Group>
 
                 <Command.Group heading={t('shell.goTo')}>
-                  {[...new Map([...NAV.flatMap((g) => g.items), ...NAV_FOOTER, ...Object.values(HUBS).flat(), { href: '/ai', label: 'nav.ai' as const }].map((n) => [n.href, n])).values()].map((n) => (
+                  {[...new Map([...NAV.flatMap((g) => g.items), ...NAV_FOOTER, ...Object.values(HUBS).flat(), { href: '/ai', label: 'nav.ai' as const }, { href: '/search', label: 'search.title' as const }].map((n) => [n.href, n])).values()].map((n) => (
                     <Command.Item key={n.href} className={item} value={`go ${t(n.label)} ${n.href}`} onSelect={() => go(n.href)}><Search className="size-4" />{t(n.label)}</Command.Item>
                   ))}
                 </Command.Group>

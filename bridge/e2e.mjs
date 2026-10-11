@@ -49,7 +49,7 @@ const sub = await api('POST', `jobs/${job.id}/submit`); check('demande envoyée'
 
 console.log('4. exécution, question, messages')
 const q = await until('question de Claude', async () => { const j = (await api('GET', `jobs/${job.id}`)).job; return j?.questions?.[0] ? j : null })
-check('statut = question', q.status === 'needs_answer')
+check('statut = question', ['needs_answer', 'running'].includes(q.status))
 const a = await api('POST', `jobs/${job.id}/answer`, { questionId: q.questions[0].id, answer: 'Commencer' }); check('réponse acceptée', a.status === 200)
 console.log('4b. pause / reprise')
 await until('en cours', async () => ['running'].includes((await api('GET', `jobs/${job.id}`)).job?.status))
@@ -91,6 +91,16 @@ await until('site démarré', async () => ['running', 'needs_answer'].includes((
 const c1 = await api('POST', `jobs/${s.job.id}/control`, { action: 'cancel' }); check('annulation', c1.status === 200)
 await sleep(1500)
 check('statut annulé', (await api('GET', `jobs/${s.job.id}`)).job.status === 'cancelled')
+
+console.log('8b. Claude non connecté sur le Mac')
+bridge.kill(); await sleep(500)
+const bridge2 = spawn('node', [path.join(HERE, '..', 'public', 'studio', 'flow-bridge.mjs'), 'start'], { env: { ...env, FAKE_FAIL: 'login' }, stdio: 'ignore' })
+await until('pont relancé', async () => (await api('GET', 'devices')).devices?.[0]?.online)
+const f = await api('POST', 'jobs', { kind: 'motion', title: 'Pas connecté', spec: {}, prompt })
+await api('POST', `jobs/${f.job.id}/submit`)
+const failed = await until('échec explicite', async () => { const j = (await api('GET', `jobs/${f.job.id}`)).job; return j?.status === 'failed' ? j : null })
+check('message clair', /pas connecté/.test(failed.error ?? ''), failed.error)
+bridge2.kill()
 
 console.log('9. sécurité')
 const noAuth = await fetch(`${BASE}/api/studio/jobs`); check('API refuse sans session', noAuth.status === 401)

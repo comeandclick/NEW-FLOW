@@ -13,7 +13,7 @@ export function HubTabs({ hub, className }: { hub: keyof typeof HUBS; className?
   const { ws } = useWorkspace()
   const base = `/app/${ws.slug}`
   return (
-    <nav className={cn('mb-4 flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]', className)} aria-label="Sections">
+    <nav className={cn('mb-4 flex gap-1 max-md:mb-3 overflow-x-auto border-b border-border [scrollbar-width:none]', className)} aria-label="Sections">
       {HUBS[hub].map((it) => {
         const active = pathname === base + it.href || pathname.startsWith(base + it.href + '/')
         return (

@@ -85,7 +85,7 @@ export function Sheet({ open, onClose, side = 'left', children, className }: { o
           <motion.aside
             initial={{ x: side === 'left' ? '-100%' : '100%' }} animate={{ x: 0 }} exit={{ x: side === 'left' ? '-100%' : '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 40 }}
-            className={cn('absolute top-0 h-full w-[300px] max-w-[85vw] border-border bg-surface shadow-lg', side === 'left' ? 'left-0 border-r' : 'right-0 border-l', className)}>
+            className={cn('absolute top-0 h-full w-[300px] max-w-[85vw] border-border bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-lg', side === 'left' ? 'left-0 border-r' : 'right-0 border-l', className)}>
             {children}
           </motion.aside>
         </motion.div>

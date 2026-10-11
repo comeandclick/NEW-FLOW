@@ -29,10 +29,18 @@ const DEFAULTS = {
   claudeArgsPrefix: [],
   maxNudges: 8,
 }
+function resolveClaude(bin) {
+  if (bin !== 'claude') return bin
+  const cands = ['claude', path.join(HOME, '.claude', 'local', 'claude'), path.join(HOME, '.local', 'bin', 'claude'), '/opt/homebrew/bin/claude', '/usr/local/bin/claude']
+  for (const c of cands) { try { execFileSync(c, ['--version'], { stdio: 'pipe', timeout: 10000, env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}` } }); return c } catch {} }
+  return bin
+}
 const readJson = (f, d) => { try { return JSON.parse(readFileSync(f, 'utf8')) } catch { return d } }
-const cfg = () => ({ ...DEFAULTS, ...readJson(CONFIG, {}), ...(process.env.FLOW_SERVER ? { server: process.env.FLOW_SERVER } : {}) })
+let claudeResolved = null
+const cfg = () => { const c = { ...DEFAULTS, ...readJson(CONFIG, {}), ...(process.env.FLOW_SERVER ? { server: process.env.FLOW_SERVER } : {}) }; if (c.claudeBin === 'claude') c.claudeBin = (claudeResolved ??= resolveClaude('claude')); return c }
 const saveCfg = (c) => writeFileSync(CONFIG, JSON.stringify(c, null, 2), { mode: 0o600 })
-const log = (...a) => { const l = `${new Date().toISOString()} ${a.join(' ')}\n`; try { appendFileSync(LOG, l) } catch {} if (process.stdout.isTTY || process.env.FLOW_BRIDGE_VERBOSE) process.stdout.write(l) }
+const log = (...a) => { try { if (statSync(LOG).size > 5_000_000) renameSync(LOG, LOG + '.1') } catch {}
+   const l = `${new Date().toISOString()} ${a.join(' ')}\n`; try { appendFileSync(LOG, l) } catch {} if (process.stdout.isTTY || process.env.FLOW_BRIDGE_VERBOSE) process.stdout.write(l) }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /* ───────── Réseau ───────── */
@@ -85,8 +93,8 @@ function claudeOk(force = false) {
   if (!force && Date.now() - claudeCache.at < 60_000) return claudeCache.ok
   const c = cfg()
   let ok = false
-  if (c.claudeBin !== 'claude') ok = true // faux Claude de test
-  else { try { ok = JSON.parse(execFileSync('claude', ['auth', 'status'], { stdio: 'pipe', timeout: 15000, env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}` } }).toString()).loggedIn === true } catch { ok = false } }
+  if (c.claudeBin === 'node') ok = true // faux Claude de test
+  else { try { ok = JSON.parse(execFileSync(c.claudeBin, ['auth', 'status'], { stdio: 'pipe', timeout: 15000, env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}` } }).toString()).loggedIn === true } catch { ok = false } }
   claudeCache = { at: Date.now(), ok }
   return ok
 }
@@ -217,6 +225,14 @@ async function onTurnEnd(run, result) {
   watchFiles(run)
   const d = delivery(run)
   if (d) { await finalize(run, d); return }
+  const txt = String(result.result ?? '')
+  if (result.is_error && /not logged in|please run \/login|invalid api key/i.test(txt)) { await fail(run, 'Claude Code n\'est pas connecté sur ce Mac. Dans le Terminal : claude auth login, puis « Relancer ».'); return }
+  if (result.is_error && /usage limit|limit reached|rate limit|resets? at/i.test(txt)) { // limite d'utilisation du forfait Claude : on attend puis on reprend (sans compter comme un arrêt)
+    const mins = 15
+    await emit(id, { type: 'log', level: 'warning', title: 'Limite d\'utilisation Claude atteinte', body: `${short(txt, 160)} — reprise automatique dans ${mins} min.` })
+    run.limitTimer = setTimeout(() => { if (!run.exited && !run.cancelled) send(run, 'Continue exactement où tu t\'étais arrêté (progress.json) et termine jusqu\'à la livraison.') }, mins * 60_000)
+    return
+  }
   if (run.waitingAnswer) { await emit(id, { type: 'status', status: 'needs_answer' }); return }
   st.nudges = (st.nudges ?? 0) + 1; saveState()
   if (st.nudges > cfg().maxNudges) { await fail(run, `Claude s'est arrêté ${st.nudges - 1} fois sans livrer. Dernière réponse : ${short(result.result, 300)}`); return }
@@ -278,7 +294,9 @@ function onExit(run, code, sig) {
   void fail(run, `Claude Code s'est arrêté (code ${code ?? sig}).`)
 }
 
-function killGroup(run, signal) { try { process.kill(-run.child.pid, signal) } catch { try { run.child.kill(signal) } catch {} } }
+function killGroup(run, signal) {
+  if (signal === 'SIGTERM' || signal === 'SIGKILL') clearTimeout(run.limitTimer)
+  try { process.kill(-run.child.pid, signal) } catch { try { run.child.kill(signal) } catch {} } }
 
 /* ───────── Commandes venant de Flow ───────── */
 async function attach(jobId, files) {

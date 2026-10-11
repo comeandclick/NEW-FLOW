@@ -1,7 +1,7 @@
 import { Archive, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Target, Users, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
-export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages'; /** other routes that keep this item highlighted */ also?: string[] }
+export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages' | 'motion' | 'site'; /** other routes that keep this item highlighted */ also?: string[] }
 export type NavGroup = { label?: Key; items: NavItem[] }
 
 export const NAV: NavGroup[] = [
@@ -30,8 +30,8 @@ export const NAV: NavGroup[] = [
   {
     label: 'nav.group.studio',
     items: [
-      { href: '/motion', label: 'nav.motion', icon: Clapperboard },
-      { href: '/site', label: 'nav.site', icon: Globe },
+      { href: '/motion', label: 'nav.motion', icon: Clapperboard, badge: 'motion' },
+      { href: '/site', label: 'nav.site', icon: Globe, badge: 'site' },
       { href: '/library', label: 'nav.library', icon: Archive },
     ],
   },

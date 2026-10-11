@@ -92,7 +92,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
       </header>
 
       <div className="px-4 pb-4">
-        <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-valuenow={cur.progress} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label={cp.common.statusLabel} aria-valuenow={cur.progress} aria-valuemin={0} aria-valuemax={100}>
           <div className={cn('h-full rounded-full transition-[width] duration-700', cur.status === 'paused' ? 'bg-[#a16207]' : cur.status === 'failed' ? 'bg-danger' : 'bg-accent')} style={{ width: `${cur.progress}%` }} />
         </div>
         <div className="mt-1.5 flex items-center justify-between text-xs text-text-3"><span className="truncate">{cur.step ? `${c.stepProgress} : ${labels[cur.step]?.t ?? cur.step}` : ' '}</span><span>{cur.progress}%</span></div>

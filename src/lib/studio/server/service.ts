@@ -226,7 +226,7 @@ export async function library(userId: string, origin: string) {
 
 /* ───────── Pont (côté Mac) ───────── */
 export async function bridgePoll(dev: Row, info: { busyJob?: string | null; version?: string; claudeOk?: boolean }) {
-  await db().update('studio_devices', { id: dev.id }, { last_seen: now(), busy_job: info.busyJob ?? null, claude_ok: info.claudeOk ?? null, ...(info.version ? { bridge_version: info.version } : {}) })
+  await db().update('studio_devices', { id: dev.id }, { last_seen: now(), busy_job: info.busyJob ?? null, ...(info.claudeOk !== undefined ? { claude_ok: info.claudeOk } : {}), ...(info.version ? { bridge_version: info.version } : {}) })
   await assignWaiting(dev.user_id, dev.id)
   const cmds = await db().select('studio_commands', { device_id: dev.id, delivered_at: null }, { order: ['id', true], limit: 50 })
   for (const c of cmds) await db().update('studio_commands', { id: c.id }, { delivered_at: now() })
@@ -276,8 +276,9 @@ export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
   } else if (ev.type === 'log') {
     await event(jobId, { kind: 'log', level: ev.level ?? 'info', title: ev.title, body: ev.body })
   } else if (ev.type === 'question') {
-    const q = await db().insert('studio_questions', { id: randomUUID(), job_id: jobId, text: ev.text.slice(0, 2000), choices: ev.choices ?? null, asked_at: now() })
     patch.status = 'needs_answer'
+    const q = { id: randomUUID() }
+    await db().insert('studio_questions', { id: q.id, job_id: jobId, text: ev.text.slice(0, 2000), choices: ev.choices ?? null, asked_at: now() })
     await db().update('studio_jobs', { id: jobId }, patch)
     await event(jobId, { kind: 'question', level: 'question', title: 'Claude te pose une question', body: ev.text, data: { questionId: q.id } })
     await notify(job, 'Claude te pose une question', ev.text, 'question')
