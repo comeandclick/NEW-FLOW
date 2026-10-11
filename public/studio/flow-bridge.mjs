@@ -366,7 +366,7 @@ function listWindows() { const o = osa(['-l', 'JavaScript', '-e', JXA_WINDOWS]);
 const JXA_SCREEN = `ObjC.import('AppKit');const s=$.NSScreen.mainScreen;const f=s.frame,v=s.visibleFrame;JSON.stringify({x:v.origin.x,y:f.size.height-v.origin.y-v.size.height,w:v.size.width,h:v.size.height})`
 function screenFrame() { try { return JSON.parse(osa(['-l', 'JavaScript', '-e', JXA_SCREEN]) ?? '') } catch { return { x: 0, y: 25, w: 1440, h: 875 } } }
 const EDITOR_RE = /^(EffectCraft|Adobe After Effects)/i
-const studioUrl = (jobId) => `${cfg().server}/studio/live${jobId ? `?job=${jobId}` : ''}`
+const studioUrl = (jobId) => `${cfg().server}/studio/live${UUID_RE.test(String(jobId ?? '')) ? `?job=${jobId}` : ''}` // seul un identifiant valide entre dans l'adresse
 
 function openStudio(jobId) {
   if (NO_WINDOWS || platform() !== 'darwin') return false
@@ -842,7 +842,7 @@ const LOGIN_CMD = {
   supabase: '(command -v supabase >/dev/null || brew install supabase/tap/supabase) && supabase login',
 }
 function loginInTerminal(id) {
-  const cmd = LOGIN_CMD[id]
+  const cmd = Object.hasOwn(LOGIN_CMD, id) ? LOGIN_CMD[id] : null
   if (!cmd || platform() !== 'darwin' || FAKE) return false
   const line = `export PATH="${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:$PATH"; clear; echo "Flow Studio — connexion ${id}"; ${cmd}; echo; echo "Terminé. Tu peux fermer cette fenêtre."`
   osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(line)}\nend tell`])
@@ -851,7 +851,7 @@ function loginInTerminal(id) {
 }
 async function doSetupCommand(p) {
   if (p.action === 'rescan') { await refreshScan(); return }
-  if (p.action === 'login' && LOGIN_CMD[p.component]) { loginInTerminal(p.component); return }
+  if (p.action === 'login' && typeof p.component === 'string' && Object.hasOwn(LOGIN_CMD, p.component)) { loginInTerminal(p.component); return }
   if (p.action === 'login' && (p.component === 'claude' || !p.component)) { await loginClaude(); return }
   if (p.action === 'install' && p.component) {
     if (!setupState.components.length) await refreshScan({ post: false })

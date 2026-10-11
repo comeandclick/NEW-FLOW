@@ -384,7 +384,7 @@ export async function bridgePreview(dev: Row, jobId: string, slot: string, origi
 }
 export async function bridgePreviewDone(dev: Row, jobId: string, slot: string, path: string, size: { w?: number; h?: number; label?: string }) {
   uuid(jobId)
-  if (!SLOTS.includes(slot as PreviewSlot) || !path.startsWith(`${dev.user_id}/${jobId}/preview/`)) throw new StudioError(400, 'slot')
+  if (!SLOTS.includes(slot as PreviewSlot) || path.includes('..') || !/^[\w./-]+$/.test(path) || !path.startsWith(`${dev.user_id}/${jobId}/preview/`)) throw new StudioError(400, 'slot')
   const [job] = await db().select('studio_jobs', { id: jobId, user_id: dev.user_id })
   if (!job) throw new StudioError(404, 'job')
   const row = await previewRow(jobId)
