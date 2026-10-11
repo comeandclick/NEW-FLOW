@@ -77,7 +77,7 @@ d('studio sur Supabase (réel)', () => {
     expect((await fetch(out.upload!.url, { method: out.upload!.method, headers: out.upload!.headers, body: fd2 })).ok).toBe(true)
     await S.bridgeAssetDone(row, out.id)
     const { data: rec } = await admin.from('studio_assets').select('storage_path').eq('id', out.id).single()
-    paths.push(rec!.storage_path as string)
+    paths.push((rec as { storage_path: string }).storage_path)
     await S.bridgeEvent(row, job.id, { type: 'delivered', deliver: { files: [{ name: 'final it.mp4' }] }, summary: 'IT ok' })
 
     g = await S.getJob(userId, job.id, 'http://x')
