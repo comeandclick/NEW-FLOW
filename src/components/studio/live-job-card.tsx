@@ -17,6 +17,7 @@ import { Pipeline } from './pipeline'
 import { QuestionBox } from './question-box'
 import { TodoList } from './todo-list'
 import { LivePreview } from './live-preview'
+import { MiniMarkdown } from './mini-markdown'
 
 const COLORS: Record<LiveStatus, string | undefined> = {
   draft: undefined, queued: '#0369a1', starting: '#4d59c7', running: '#4d59c7', paused: '#a16207', needs_answer: '#c2410c', done: '#15803d', failed: '#c4262f', cancelled: undefined,
@@ -110,6 +111,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
           <CheckCircle2 className="size-4 text-success" />
           <div className="min-w-0 flex-1"><p className="text-xs text-text-3">{cp.site.liveLink}</p><p className="truncate text-[13px] font-medium text-text">{cur.deliver.url}</p></div>
           <a href={cur.deliver.url} target="_blank" rel="noreferrer"><Button size="sm" variant="primary"><ExternalLink className="size-3.5" />{c.openSite}</Button></a>
+          {cur.deliver.summary && <div className="w-full border-t border-success/20 pt-3"><MiniMarkdown text={cur.deliver.summary} /></div>}
         </div>
       )}
       {cur.status === 'done' && cur.kind === 'motion' && (
@@ -121,6 +123,7 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
             {finalVideo?.url && <a href={finalVideo.url} download={finalVideo.name}><Button size="sm" variant="primary"><Download className="size-3.5" />{c.download}</Button></a>}
             {report?.url && <a href={report.url} target="_blank" rel="noreferrer"><Button size="sm" variant="glass">{c.report}</Button></a>}
           </div>
+          {cur.deliver?.summary && <MiniMarkdown text={cur.deliver.summary} />}
         </div>
       )}
 
@@ -138,28 +141,28 @@ export function LiveJobCard({ job, defaultOpen = false, onChanged }: { job: Live
       {open && (
         <div className="space-y-5 border-t border-border p-4">
           <div className="grid gap-5 md:grid-cols-2">
-            <div className="space-y-4">
-              <Pipeline steps={steps} labels={labels} />
-              <div><h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-3">{c.todo}</h4><TodoList items={detail?.todo ?? []} compact /></div>
-              {detail && detail.assets.length > 0 && (
-                <div>
-                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-3">{c.files}</h4>
-                  <ul className="space-y-1">
-                    {detail.assets.map((a) => (
-                      <li key={a.id} className="flex items-center gap-2 text-xs text-text-2"><Badge>{a.direction === 'in' ? c.sentFiles : c.deliveredFiles}</Badge>
-                        {a.url || a.link ? <a href={a.url ?? a.link ?? '#'} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate underline-offset-2 hover:underline">{a.name}</a> : <span className="min-w-0 flex-1 truncate">{a.name}</span>}
-                        {a.size ? <span className="text-text-3">{formatBytes(a.size)}</span> : null}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.stepProgress}</h4><Pipeline steps={steps} labels={labels} /></div>
+            <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.todo}</h4><TodoList items={detail?.todo ?? []} compact /></div>
+          </div>
+          {(active || cur.status === 'done') && <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.previewTitle}</h4><LivePreview jobId={job.id} active={active} /></div>}
+          <div className="grid gap-5 md:grid-cols-2">
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.activity}</h4>
               <ActivityFeed events={detail?.events ?? []} labels={labels} />
             </div>
+            {detail && detail.assets.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.files}</h4>
+                <ul className="space-y-1">
+                  {detail.assets.map((a) => (
+                    <li key={a.id} className="flex items-center gap-2 text-xs text-text-2"><Badge>{a.direction === 'in' ? c.sentFiles : c.deliveredFiles}</Badge>
+                      {a.url || a.link ? <a href={a.url ?? a.link ?? '#'} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate underline-offset-2 hover:underline">{a.name}</a> : <span className="min-w-0 flex-1 truncate">{a.name}</span>}
+                      {a.size ? <span className="text-text-3">{formatBytes(a.size)}</span> : null}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-          {(active || cur.status === 'done') && <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.previewTitle}</h4><LivePreview jobId={job.id} active={active} /></div>}
           {cur.status !== 'draft' && cur.status !== 'cancelled' && <MessageComposer jobId={job.id} status={cur.status} onSent={() => void refresh()} />}
         </div>
       )}

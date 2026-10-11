@@ -297,6 +297,7 @@ export type BridgeEvent =
   | { type: 'session'; sessionId: string }
   | { type: 'msgstate'; eventId: number; state: 'delivered' | 'applied' }
   | { type: 'delivered'; deliver?: Record<string, unknown>; summary?: string }
+  | { type: 'answered'; text: string }
   | { type: 'todo'; items: { text: string; state: 'todo' | 'doing' | 'done' }[] }
 
 export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
@@ -342,10 +343,14 @@ export async function bridgeEvent(dev: Row, jobId: string, ev: BridgeEvent) {
     const [cur] = await db().select('studio_events', { job_id: jobId, kind: 'todo' }, { limit: 1 })
     if (cur) await db().update('studio_events', { id: cur.id }, { data: { items }, at: now() })
     else await event(jobId, { kind: 'todo', title: 'Liste des tâches', data: { items } })
+  } else if (ev.type === 'answered') {
+    const text = String(ev.text ?? '').slice(0, 4000)
+    for (const q of (await db().select('studio_questions', { job_id: jobId })).filter((x) => !x.answer)) await db().update('studio_questions', { id: q.id }, { answer: text, answered_at: now() })
+    if (job.status === 'needs_answer') await db().update('studio_jobs', { id: jobId }, { status: 'running', updated_at: now() })
   } else if (ev.type === 'delivered') {
-    patch.status = 'done'; patch.progress = 100; patch.finished_at = now(); patch.deliver = ev.deliver ?? null
+    patch.status = 'done'; patch.progress = 100; patch.finished_at = now(); patch.deliver = ev.deliver ? { ...ev.deliver, ...(ev.summary ? { summary: String(ev.summary).slice(0, 9000) } : {}) } : (ev.summary ? { summary: String(ev.summary).slice(0, 9000) } : null)
     await db().update('studio_jobs', { id: jobId }, patch)
-    await event(jobId, { kind: 'result', level: 'success', title: job.kind === 'site' ? 'Ton site est en ligne' : 'Ton motion design est prêt', body: ev.summary ?? (ev.deliver?.url as string | undefined) })
+    await event(jobId, { kind: 'result', level: 'success', title: job.kind === 'site' ? 'Ton site est en ligne' : 'Ton motion design est prêt', body: ev.summary ? String(ev.summary).slice(0, 500) : (ev.deliver?.url as string | undefined) })
     await notify(job, job.kind === 'site' ? 'Ton site est en ligne' : 'Ton motion design est prêt', job.title, 'done')
   }
 }

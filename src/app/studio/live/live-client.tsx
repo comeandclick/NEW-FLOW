@@ -11,6 +11,7 @@ import { studioCopy } from '@/lib/studio/copy'
 import { studioApi, usePoll, useStudioMode, type LiveStatus } from '@/lib/studio/api'
 import { ActivityFeed } from '@/components/studio/activity-feed'
 import { LivePreview } from '@/components/studio/live-preview'
+import { MiniMarkdown } from '@/components/studio/mini-markdown'
 import { MessageComposer } from '@/components/studio/message-composer'
 import { QuestionBox } from '@/components/studio/question-box'
 import { TodoList } from '@/components/studio/todo-list'
@@ -94,7 +95,8 @@ export function LiveClient() {
               <h2 className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-3">{c.todo}</h2>
               <div className="h-[calc(100%-2.25rem)] overflow-y-auto p-3"><TodoList items={detail?.todo ?? []} /></div>
             </section>
-            <section className="min-h-0 overflow-y-auto rounded-xl border border-border bg-surface p-3" aria-label={c.previewTitle}>
+            <section className="min-h-0 space-y-3 overflow-y-auto rounded-xl border border-border bg-surface p-3" aria-label={c.previewTitle}>
+              {cur.status === 'done' && cur.deliver?.summary && <div className="rounded-lg border border-success/30 bg-success/5 p-3"><MiniMarkdown text={cur.deliver.summary} /></div>}
               <LivePreview jobId={cur.id} active={active} />
             </section>
           </div>

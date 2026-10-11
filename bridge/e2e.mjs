@@ -2,6 +2,7 @@
 // Test de bout en bout du système Studio : serveur Flow (STUDIO_STORE=file) + pont + faux Claude.
 //   STUDIO_STORE=file npm run dev -- -p 3100   puis   node bridge/e2e.mjs
 import { spawn } from 'node:child_process'
+import { request as httpRequest } from 'node:http'
 import { mkdtempSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs'
 const require_ls = (d) => readdirSync(d)
 import { tmpdir } from 'node:os'
@@ -55,6 +56,26 @@ console.log('4a. tâches en direct')
 const withTodo = await until('liste des tâches', async () => { const j = (await api('GET', `jobs/${job.id}`)).job; return j.todo?.length ? j : null })
 check('tâches : une en cours', withTodo.todo.some((t) => t.state === 'doing'))
 check('tâches : absentes du fil d\'activité', !withTodo.events.some((e) => e.kind === 'todo' || e.kind === 'preview'))
+console.log('4a1. fenêtre locale Flow Studio')
+const ui = await until('fenêtre locale prête', () => { try { return JSON.parse(readFileSync(path.join(home, 'ui.json'), 'utf8')) } catch { return null } })
+const base = ui.url
+const lget = async (r) => { const x = await fetch(base + r); return { status: x.status, body: await x.json().catch(() => ({})) } }
+const lpost = (r, b, h = {}) => fetch(base + r, { method: 'POST', headers: { 'x-flow': '1', 'content-type': 'application/json', ...h }, body: JSON.stringify(b) }).then(async (x) => ({ status: x.status, ...(await x.json().catch(() => ({}))) }))
+check('local : mauvais jeton refusé', (await fetch(base.replace(/\/t\/[^/]+\//, '/t/faux/') + 'state')).status === 404)
+const badHost = await new Promise((resolve) => { const u = new URL(base + 'state'); const rq = httpRequest({ host: u.hostname, port: u.port, path: u.pathname, headers: { host: 'evil.example' } }, (r) => { r.resume(); resolve(r.statusCode) }); rq.on('error', () => resolve(0)); rq.end() })
+check('local : mauvais hôte refusé (protection DNS rebinding)', badHost === 403, String(badHost))
+check('local : POST sans en-tête refusé', (await fetch(base + 'message', { method: 'POST', body: '{}' })).status === 403)
+check('local : POST d\'un autre site refusé', (await lpost('message', {}, { origin: 'https://evil.example' })).status === 403)
+const ls = await lget('state'); check('local : projet listé', ls.body.jobs?.some((j) => j.id === job.id))
+const lj = (await lget(`job/${job.id}`)).body
+check('local : conversation complète de Claude', lj.transcript?.some((e) => e.k === 'tool') && lj.transcript?.length > 1)
+check('local : étapes avec libellés', lj.steps?.length === 8 && !!lj.steps[0].label)
+check('local : tâches', lj.todo?.length > 0)
+check('local : question visible', lj.questions?.length === 0 || lj.questions?.[0]?.text.includes('Bouton'))
+const lm = await lpost('message', { jobId: job.id, text: 'Message depuis la fenêtre', mode: 'next' }); check('local : message envoyé à Claude', lm.ok === true)
+await until('local : message dans la conversation', async () => (await lget(`job/${job.id}`)).body.transcript?.some((e) => e.k === 'user' && /fenêtre/.test(e.text)))
+check('local : action inconnue refusée', (await lpost('control', { jobId: job.id, action: 'format' })).error === 'action')
+check('local : projet inconnu refusé', (await lpost('message', { jobId: '00000000-0000-4000-8000-000000000000', text: 'x' })).error === 'job')
 console.log('4a2. aperçu en direct')
 const devTok = JSON.parse(readFileSync(path.join(home, 'config.json'), 'utf8')).deviceToken
 const bapi = (b) => fetch(`${BASE}/api/studio/bridge/preview`, { method: 'POST', headers: { authorization: `Bearer ${devTok}`, 'content-type': 'application/json' }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, ...(await r.json().catch(() => ({}))) }))

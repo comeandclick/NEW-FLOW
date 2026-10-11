@@ -2,7 +2,7 @@
 // Flow Bridge : relie ce Mac à Flow. Reçoit les demandes (motion design, sites), lance Claude Code dessus, envoie l'état,
 // les questions et les résultats, et applique pause / reprise / annulation / messages venant de Flow.
 // Aucune dépendance : Node 20+ seulement.  Usage :  node flow-bridge.mjs connect | start | status | install | uninstall | logs
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn, execFile, execFileSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { createServer } from 'node:http'
 import { chmodSync, createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, renameSync, appendFileSync, readdirSync, rmSync } from 'node:fs'
@@ -65,6 +65,7 @@ async function api(method, route, body, { auth = true, raw = false } = {}) {
 }
 /** Envoie un événement ; réessaie quelques fois (réseau instable) sans jamais bloquer le travail. */
 async function emit(jobId, event) {
+  try { localApply(jobId, event) } catch { /* l'affichage local ne doit jamais bloquer */ }
   for (let i = 0; i < 4; i++) { try { await api('POST', 'bridge/event', { jobId, event }); return } catch (e) { if (e.status === 401 || e.status === 404) return; await sleep(1000 * (i + 1)) } }
 }
 
@@ -76,9 +77,9 @@ const runs = new Map() // jobId -> processus en cours
 /* ───────── Protocole donné à Claude (ajouté au prompt de Flow) ───────── */
 const STEPS = {
   motion: ['receive', 'analyse', 'plan', 'build', 'compare', 'sound', 'render4k', 'verify'],
-  site: ['interview', 'analyse', 'design', 'structure', 'build', 'data', 'deploy', 'qa', 'motion', 'deliver'],
+  site: ['interview', 'analyse', 'design', 'structure', 'build', 'data', 'polish', 'deploy', 'qa', 'motion', 'deliver'],
 }
-function protocol(kind, dir, spec = {}) {
+function protocol(kind, dir, spec = {}, extra = '') {
   const steps = STEPS[kind].join(' | ')
   const noQ = spec?.noQuestions === true
   return `
@@ -91,10 +92,10 @@ Le pont Flow lit ces fichiers dans \`${dir}\` pour tenir l'utilisateur au couran
 3. **Messages de l'utilisateur** : il peut t'écrire à tout moment. Lis-les, applique-les, puis reprends le plan.
 4. **Livraison** : ${kind === 'motion' ? '`rendu/final.mp4` + `rendu/rapport.json` (`{"statut":"ok",…}`) + `rendu/rapport.md`' : '`LIVRAISON.json` (`{"statut":"ok","url":"https://…"}`) + `LIVRAISON.md`'}. Le pont n'envoie le résultat que quand ces fichiers existent. Ne t'arrête jamais avant.
 5. Écris ces fichiers à la racine du projet ci-dessus (pas ailleurs).
-6. **Liste des tâches (affichée en direct à l'utilisateur)** : dès le début, écris \`todo.json\` : \`{"items":[{"text":"<tâche courte>","state":"todo"}]}\` avec TOUTES les tâches prévues (10 à 25). À chaque tâche commencée mets \`"doing"\`, terminée \`"done"\` (une seule « doing » à la fois). Ajoute les tâches nouvelles qui apparaissent.
+6. **Liste des tâches (affichée en direct à l'utilisateur)** : dès le début, écris \`todo.json\` : \`{"items":[{"text":"<tâche courte>","state":"todo"}]}\` avec TOUTES les tâches prévues (10 à 25). À chaque tâche commencée mets \`"doing"\`, terminée \`"done"\` (une seule « doing » à la fois), tout de suite, sans regrouper : l'avancement affiché est calculé sur ces cases. Ajoute les tâches nouvelles qui apparaissent.
 7. **Aperçu en direct** : ${kind === 'site' ? "dès que le serveur local du site tourne, écris `preview.json` : `{\"site\":\"http://localhost:<port>\"}` (adresse locale uniquement). Le pont l'ouvre dans une fenêtre et la montre à l'utilisateur en direct ; relance-la (même fichier) si le port change." : "garde le logiciel de motion (EffectCraft / After Effects) ouvert avec la composition visible pendant tout le travail : le pont la montre à l'utilisateur en direct."}
 8. **Ne t'arrête jamais** : tu ne finis ton tour qu'après la livraison. Une tâche longue (rendu, installation, build) : lance-la, puis surveille-la avec des attentes courtes (\`sleep 20\`) dans le même tour. N'attends jamais une réponse pour avancer : aucune réponse n'arrive sans que tu aies écrit QUESTION.json.
-`
+${extra}`
 }
 
 /* ───────── Claude Code connecté ? ───────── */
@@ -146,7 +147,7 @@ function childEnv(job, dir) {
   return { ...env, PATH: `${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ''}`, FLOW_JOB_ID: job.id, FLOW_JOB_DIR: dir }
 }
 /** Réglages de sécurité du projet : Claude ne lit pas les secrets du Mac (clés SSH, jeton du pont, trousseau…) et ne fait pas d'actions destructrices évidentes. */
-const DENY = ['Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.config/gh/**)', 'Read(~/.gnupg/**)', 'Read(~/.flow-bridge/**)', 'Read(~/Library/Keychains/**)', 'Read(~/Library/Application Support/Google/Chrome/**)', 'Edit(~/.flow-bridge/**)', 'Edit(~/.ssh/**)', 'Edit(~/.zshrc)', 'Edit(~/.zprofile)', 'Bash(sudo:*)', 'Bash(rm -rf /:*)', 'Bash(rm -rf ~:*)', 'Bash(rm -rf $HOME:*)', 'Bash(cat ~/.flow-bridge/*:*)']
+const DENY = ['Read(~/.ssh/**)', 'Read(~/.aws/**)', 'Read(~/.config/gh/**)', 'Read(~/.gnupg/**)', 'Read(~/.flow-bridge/**)', 'Read(~/Library/Keychains/**)', 'Read(~/Library/Application Support/Google/Chrome/**)', 'Edit(~/.flow-bridge/**)', 'Edit(~/.ssh/**)', 'Edit(~/.zshrc)', 'Edit(~/.zprofile)', 'Bash(sudo:*)', 'Bash(vercel remove:*)', 'Bash(vercel rm:*)', 'Bash(vercel project rm:*)', 'Bash(vercel project remove:*)', 'Bash(vercel domains rm:*)', 'Bash(vercel domains remove:*)', 'Bash(vercel env rm:*)', 'Bash(vercel deploy --force:*)', 'Bash(vercel --force:*)', 'Bash(vercel alias set:*)', 'Bash(vercel promote:*)', 'Bash(vercel rollback:*)', 'Bash(supabase projects delete:*)', 'Bash(gh repo delete:*)', 'Bash(rm -rf /:*)', 'Bash(rm -rf ~:*)', 'Bash(rm -rf $HOME:*)', 'Bash(cat ~/.flow-bridge/*:*)']
 function writeProjectSettings(dir) {
   const d = path.join(dir, '.claude'); mkdirSync(d, { recursive: true })
   writeFileSync(path.join(d, 'settings.json'), JSON.stringify({ permissions: { deny: DENY } }, null, 2))
@@ -159,19 +160,34 @@ function claudeArgs(c, sessionId) {
   return a
 }
 
+/** Projets Vercel déjà présents dans le compte : la mission ne doit JAMAIS en toucher un (un site existant a déjà été écrasé par erreur). */
+async function vercelProjects() {
+  if (FAKE_ENV() || !which('vercel')) return []
+  const out = await execFileAsync('vercel', ['project', 'ls', '--json'], 30000)
+  try { return (JSON.parse(out.slice(out.indexOf('{'))).projects ?? []).map((p) => String(p.name)).filter((n) => /^[\w.-]{1,100}$/.test(n)) } catch { return [] }
+}
 async function startRun(job, { firstMessage, resume = false } = {}) {
   const c = cfg()
   const dir = jobDir(c, job)
   const st = (state.jobs[job.id] ??= { dir, sessionId: job.sessionId ?? null, nudges: 0, afterQueue: [] })
-  st.dir = dir
+  st.dir = dir; st.title = job.title; st.kind = job.kind
+  lj(job.id, { title: job.title, kind: job.kind, dir, status: 'running', sessionId: st.sessionId ?? '' })
   mkdirSync(path.join(dir, 'entrees'), { recursive: true })
   for (const sub of job.kind === 'motion' ? ['analyse', 'scripts', 'sons', 'rendu'] : ['rendu']) mkdirSync(path.join(dir, sub), { recursive: true })
   writeProjectSettings(dir)
+  let extra = ''
+  if (job.kind === 'site') {
+    const existing = await vercelProjects()
+    if (existing.length) {
+      extra = `\n9. **Projets Vercel EXISTANTS : INTERDITS** (ne jamais les modifier, redéployer, lier, ni réutiliser leur nom ; ton projet est NEUF) : ${existing.join(', ')}.\n`
+      try { writeFileSync(path.join(dir, 'PROJETS_VERCEL_EXISTANTS.md'), `# Projets Vercel existants (à ne jamais toucher)\n\n${existing.map((n) => `- ${n}`).join('\n')}\n`) } catch {}
+    }
+  }
   if (!resume) {
     for (const f of job.inputs) { try { await download(f.url, path.join(dir, 'entrees', safe(f.name))) } catch (e) { log('input', f.name, e.message) } }
-    writeFileSync(path.join(dir, 'PROMPT.md'), job.prompt + protocol(job.kind, dir, job.spec))
+    writeFileSync(path.join(dir, 'PROMPT.md'), job.prompt + protocol(job.kind, dir, job.spec, extra))
   }
-  const prompt = firstMessage ?? (job.prompt + protocol(job.kind, dir, job.spec) + (job.inputs.length ? `\n\nLes fichiers fournis sont déjà copiés dans \`${path.join(dir, 'entrees')}\`.` : ''))
+  const prompt = firstMessage ?? (job.prompt + protocol(job.kind, dir, job.spec, extra) + (job.inputs.length ? `\n\nLes fichiers fournis sont déjà copiés dans \`${path.join(dir, 'entrees')}\`.` : ''))
   const child = spawn(c.claudeBin, claudeArgs(c, resume ? st.sessionId : null), {
     cwd: dir, detached: true, stdio: ['pipe', 'pipe', 'pipe'],
     env: childEnv(job, dir),
@@ -202,6 +218,11 @@ function onLine(run, line) {
     state.jobs[id].sessionId = m.session_id; saveState(); void emit(id, { type: 'session', sessionId: m.session_id })
   } else if (m.type === 'assistant') {
     for (const eid of run.appliedIds.splice(0)) void emit(id, { type: 'msgstate', eventId: eid, state: 'applied' })
+    const lo = lj(id)
+    for (const part of m.message?.content ?? []) { // conversation complète, affichée dans la fenêtre (sans limite de débit)
+      if (part.type === 'text' && part.text?.trim()) lpush(lo, { k: 'claude', text: String(part.text).trim().slice(0, 6000) })
+      else if (part.type === 'tool_use') { const i = part.input ?? {}; lpush(lo, { k: 'tool', text: i.command ? short(i.command, 220) : i.file_path ? `${part.name} ${short(i.file_path, 160)}` : i.url ? `${part.name} ${short(i.url, 160)}` : i.pattern ? `${part.name} ${short(i.pattern, 120)}` : part.name }) }
+    }
     const now = Date.now()
     if (now - run.lastLog < 4000) return
     for (const part of m.message?.content ?? []) {
@@ -227,7 +248,7 @@ function watchFiles(run) {
     if (mt !== run.progressMtime) {
       run.progressMtime = mt
       const p = jsonFile(pf)
-      if (p?.step) void emit(id, { type: 'step', step: String(p.step), progress: typeof p.progress === 'number' ? p.progress : undefined, detail: p.detail ? short(p.detail, 300) : undefined })
+      if (p?.step) { const pct = typeof p.progress === 'number' ? Math.max(Math.min(99, Math.round(p.progress)), run.lastPct ?? 0) : undefined; if (pct != null) run.lastPct = pct; void emit(id, { type: 'step', step: String(p.step), progress: pct, detail: p.detail ? short(p.detail, 300) : undefined }) } // l'avancement ne recule jamais
     }
   } catch { /* pas encore écrit */ }
   const tf = path.join(run.dir, 'todo.json')
@@ -236,6 +257,7 @@ function watchFiles(run) {
     if (mt !== run.todoMtime) {
       run.todoMtime = mt
       const t = jsonFile(tf); const items = Array.isArray(t) ? t : t?.items
+      if (Array.isArray(items)) { const total = items.length, done = items.filter((i) => i?.state === 'done' || i?.done === true).length; const pct = total ? Math.min(96, Math.round(3 + (93 * done) / total)) : 0; if (pct > (run.lastPct ?? 0)) { run.lastPct = pct; void emit(id, { type: 'step', step: lj(id).step ?? STEPS[run.job.kind][0], progress: pct }) } } // l'avancement suit les tâches cochées : régulier, sans à-coups
       if (Array.isArray(items)) void emit(id, { type: 'todo', items: items.map((i) => (typeof i === 'string' ? { text: i, state: 'todo' } : { text: String(i?.text ?? i?.task ?? ''), state: ['todo', 'doing', 'done'].includes(i?.state) ? i.state : i?.done ? 'done' : 'todo' })) })
     }
   } catch { /* pas encore écrit */ }
@@ -308,7 +330,7 @@ async function finalize(run, d) {
     }
     if (d.url) await api('POST', 'bridge/asset', { jobId: id, name: run.job.title, kind: 'site', link: d.url })
     const rm2 = ['rendu/rapport.md', 'LIVRAISON.md'].map((f) => path.join(run.dir, f)).find((f) => existsSync(f))
-    const summary = rm2 ? short(readFileSync(rm2, 'utf8'), 500) : undefined
+    const summary = rm2 ? readFileSync(rm2, 'utf8').trim().slice(0, 9000) : undefined // le compte rendu complet (fonctionnalités, à savoir, accès)
     await api('POST', 'bridge/event', { jobId: id, event: { type: 'delivered', deliver: d.url ? { url: d.url } : { files }, summary } })
     run.delivered = true; state.jobs[id].status = 'done'; saveState()
     log('delivered', id)
@@ -387,53 +409,29 @@ function openWindow(url, { app = false } = {}) {
     return true
   } catch (e) { log('open-window', e.message); return false }
 }
-function openStudio(jobId) {
+function openStudio() {
   if (NO_WINDOWS || platform() !== 'darwin') return false
-  return openWindow(studioUrl(jobId), { app: true })
+  try {
+    const app = path.join(HOME, 'Applications', 'Flow Studio.app')
+    if (existsSync(app)) { execFileSync('/usr/bin/open', [app], { stdio: 'ignore' }); return true }
+    const u = readUiJson(); if (u) return openWindow(u.url, { app: true })
+  } catch (e) { log('open-studio', e.message) }
+  return false
 }
 
-/** Range les fenêtres : Flow Studio à gauche (35 %), à droite le logiciel de montage et/ou la page locale, chacun à sa place. */
-function tileWindows(run) {
+/** Range les fenêtres : Flow Studio (fenêtre native) à gauche, le logiciel de montage à droite s'il est ouvert ; sinon Flow Studio prend tout l'écran utile. La fenêtre native lit layout.json. */
+const LAYOUT_JSON = path.join(DIR, 'layout.json')
+function tileWindows() {
   if (NO_WINDOWS || platform() !== 'darwin') return
   const F = screenFrame()
-  const wins = listWindows()
-  const editor = wins.find((w) => EDITOR_RE.test(w.app))
-  const hasSite = !!run?.siteUrl
-  const lw = Math.round(F.w * 0.35)
-  const R = { x: F.x + lw, y: F.y, w: F.w - lw, h: F.h }
-  const boxes = { panel: [F.x, F.y, F.x + lw, F.y + F.h] }
-  if (editor && hasSite) { boxes.editor = [R.x, R.y, R.x + R.w, R.y + Math.round(R.h / 2)]; boxes.site = [R.x, R.y + Math.round(R.h / 2), R.x + R.w, R.y + R.h] }
-  else if (editor) boxes.editor = [R.x, R.y, R.x + R.w, R.y + R.h]
-  else if (hasSite) boxes.site = [R.x, R.y, R.x + R.w, R.y + R.h]
-  const b = (k) => `{${boxes[k].join(', ')}}`
-  if (defaultBrowser() === 'safari') {
-    const siteHost = hasSite ? new URL(run.siteUrl).host : '__none__'
-    osa(['-e', `tell application "Safari"
-repeat with w in windows
-try
-set u to URL of current tab of w
-if u contains "/studio/live" then set bounds of w to ${b('panel')}
-${boxes.site ? `if u contains "${siteHost}" and u does not contain "/studio/live" then set bounds of w to ${b('site')}` : ''}
-end try
-end repeat
-end tell`])
-  } else if (existsSync(CHROME)) {
-    const siteHost = hasSite ? new URL(run.siteUrl).host : '__none__'
-    osa(['-e', `tell application "Google Chrome"
-repeat with w in windows
-try
-set u to URL of active tab of w
-if u contains "/studio/live" then set bounds of w to ${b('panel')}
-${boxes.site ? `if u contains "${siteHost}" and u does not contain "/studio/live" then set bounds of w to ${b('site')}` : ''}
-end try
-end repeat
-end tell`])
-  }
-  if (editor && boxes.editor) { // demande l'accès « Accessibilité » une fois ; sans lui, la fenêtre reste où elle est
-    const [x1, y1, x2, y2] = boxes.editor
+  const editor = listWindows().find((w) => EDITOR_RE.test(w.app))
+  const lw = editor ? Math.round(F.w * 0.42) : F.w
+  try { writeFileSync(LAYOUT_JSON, JSON.stringify({ x: F.x, y: F.y, w: lw, h: F.h, t: Date.now() })) } catch {}
+  if (editor) { // demande l'accès « Accessibilité » une fois ; sans lui, la fenêtre du logiciel reste où elle est
+    const x1 = F.x + lw, y1 = F.y, w = F.w - lw, h = F.h
     osa(['-e', `tell application "System Events" to tell (first process whose name is "${editor.app}") to try
 set position of window 1 to {${x1}, ${y1}}
-set size of window 1 to {${x2 - x1}, ${y2 - y1}}
+set size of window 1 to {${w}, ${h}}
 end try`])
   }
 }
@@ -441,11 +439,8 @@ end try`])
 /** Page locale du site : on l'ouvre dans sa propre fenêtre (adresse locale uniquement) puis on range les fenêtres. */
 function setPreviewUrl(run, url) {
   if (!LOCAL_URL.test(url) || run.siteUrl === url) return
-  run.siteUrl = url
+  run.siteUrl = url; lj(run.job.id).siteUrl = url // la page est affichée, cliquable, dans la fenêtre Flow Studio
   void emit(run.job.id, { type: 'log', title: 'Aperçu du site', body: url })
-  if (NO_WINDOWS || platform() !== 'darwin') return
-  openWindow(url)
-  setTimeout(() => tileWindows(run), 2500)
 }
 
 /* Captures : le pont envoie une image réduite toutes les 3 s si quelqu'un regarde Flow, sinon toutes les 15 s. */
@@ -473,17 +468,24 @@ async function sendPreview(jobId, slot, file, label) {
 async function previewLoop(run) {
   if (NO_WINDOWS && !process.env.FLOW_BRIDGE_PREVIEW_TEST) return
   const tmp = path.join(DIR, 'preview'); mkdirSync(tmp, { recursive: true })
-  let tiled = ''
+  let tiled = '', lastFlow = 0
   while (!run.exited && !run.cancelled && !run.delivered) {
+    let wait = 15000
     try {
+      const local = Date.now() - LOCAL.uiSeen < 8000 // la fenêtre Flow Studio est ouverte : image du montage toutes les 2 s
       const wins = listWindows()
       const editor = wins.filter((w) => EDITOR_RE.test(w.app)).sort((a, b) => b.w * b.h - a.w * a.h)[0]
-      const sig = `${editor?.id ?? ''}|${run.siteUrl ?? ''}`
-      if (sig !== tiled && sig !== '|') { tiled = sig; tileWindows(run) }
-      if (editor) { const f = path.join(tmp, 'editor.jpg'); if (captureWindow(editor.id, f)) await sendPreview(run.job.id, 'editor', f, editor.app) }
-      if (run.siteUrl) { const f = path.join(tmp, 'site.jpg'); if (captureUrl(run.siteUrl, f)) await sendPreview(run.job.id, 'site', f, run.siteUrl) }
+      const sig = `${editor?.id ?? ''}`
+      if (sig !== tiled) { tiled = sig; tileWindows() }
+      const f = path.join(tmp, 'editor.jpg')
+      if (editor && captureWindow(editor.id, f)) {
+        LOCAL.editor = { buf: readFileSync(f), at: Date.now() }
+        if ((watching || Date.now() - lastFlow > 15000)) { lastFlow = Date.now(); await sendPreview(run.job.id, 'editor', f, editor.app) }
+      }
+      if (run.siteUrl && (watching || Date.now() - lastFlow > 15000)) { const g = path.join(tmp, 'site.jpg'); if (captureUrl(run.siteUrl, g)) await sendPreview(run.job.id, 'site', g, run.siteUrl) }
+      wait = local ? 2000 : watching ? 3000 : 15000
     } catch (e) { log('preview', e.message) }
-    await sleepMs(watching ? 3000 : 15000)
+    await sleepMs(wait)
   }
 }
 let watching = false
@@ -567,7 +569,7 @@ async function handle(cmd) {
       await runMessage(jobId, payload.text, { eventId: payload.eventId, mode: payload.mode, files: payload.files })
     } else if (type === 'answer') {
       if (!run || run.exited) return
-      run.waitingAnswer = false
+      run.waitingAnswer = false; localApply(jobId, { type: 'answered', text: payload.text })
       writeFileSync(path.join(run.dir, 'REPONSE.json'), JSON.stringify({ question: payload.question, reponse: payload.text }, null, 2))
       send(run, `Réponse de l'utilisateur à ta question « ${short(payload.question, 200)} » : ${payload.text}\nContinue.`)
       await emit(jobId, { type: 'status', status: 'running', title: 'Réponse transmise à Claude' })
@@ -600,8 +602,12 @@ async function loop() {
   const c = cfg()
   if (!c.deviceToken) { console.error('Ce Mac n\'est pas relié. Lance :  node flow-bridge.mjs connect'); process.exit(1) }
   log('bridge démarré', VERSION, c.server)
+  appState.paired = true
+  for (const [id, st] of Object.entries(state.jobs)) lj(id, { title: st.title ?? 'Projet', kind: st.kind ?? 'site', dir: st.dir ?? '', status: st.status === 'running' ? 'failed' : (st.status ?? 'done'), sessionId: st.sessionId ?? '' })
+  try { await startUiServer('service') } catch (e) { log('ui', e.message) }
   void refreshScan()
   setInterval(() => { if (!setupState.installing) void refreshScan() }, 10 * 60_000)
+  setTimeout(() => void refreshAccounts(), 3000); setInterval(() => void refreshAccounts(), 10 * 60_000)
   setTimeout(() => void selfUpdate(), 20_000); setInterval(() => void selfUpdate(), 3 * 3600_000)
   // reprise après redémarrage : un projet « running » dont le processus a disparu est signalé
   for (const [id, st] of Object.entries(state.jobs)) {
@@ -634,7 +640,7 @@ const which = (c) => sh('/bin/sh', ['-c', `command -v ${c}`])
 const APP_DIRS = [ '/Applications', path.join(HOME, 'Applications') ]
 const findApp = (re) => { for (const d of APP_DIRS) { try { const hit = readdirSync(d).filter((n) => re.test(n)).sort().pop(); if (hit) return path.join(d, hit) } catch {} } return null }
 const plistVersion = (app) => sh('/usr/bin/defaults', ['read', path.join(app, 'Contents', 'Info'), 'CFBundleShortVersionString'])
-const SKILLS = ['effectcraft', 'motion-reference-clone', 'analyse-image', 'decoupage-reference']
+const SKILLS = ['effectcraft', 'motion-reference-clone', 'analyse-image', 'decoupage-reference', 'site-creation']
 const fakeDone = new Set()
 
 function scan() {
@@ -669,12 +675,12 @@ function scan() {
   add({ id: 'skills', name: 'Méthodes de motion (skills)', group: 'ia', required: true, state: sk.length === SKILLS.length || fakeDone.has('skills') ? 'ok' : 'missing', detail: sk.length === SKILLS.length ? undefined : `${sk.length}/${SKILLS.length} installées`, installable: true })
   // Sites
   const vc = which('vercel')
-  const vlog = vc && !LIGHT_SCAN ? sh('vercel', ['whoami'], 20000) : null
+  const vlog = vc ? (ACCOUNTS.vercel ?? null) : null
   add({ id: 'vercel', name: 'Vercel (mise en ligne des sites)', group: 'site', state: vc ? (vlog ? 'ok' : 'warn') : 'missing', version: vlog ?? undefined, detail: vc ? (vlog ? undefined : 'Installé mais pas connecté : lance « vercel login » dans le Terminal.') : 'Pour publier les sites.', installable: true })
-  if (!LIGHT_SCAN) { // la fenêtre d'installation ne vérifie pas les comptes (lent) : seulement les logiciels
-  const gh = which('gh'); const ghOk = gh ? sh('gh', ['auth', 'status']) !== null : false
+  { // comptes : lus dans un cache rafraîchi sans bloquer (refreshAccounts)
+  const gh = which('gh'); const ghOk = gh ? ACCOUNTS.github === true : false
   add({ id: 'github', name: 'GitHub', group: 'site', state: ghOk ? 'ok' : 'warn', detail: ghOk ? undefined : (gh ? 'Pas connecté : bouton « Connecter » dans Paramètres > Studio.' : 'Facultatif : pour ranger le code dans ton compte.'), installable: false })
-  const sb = which('supabase'); const sbOk = sb ? sh('supabase', ['projects', 'list'], 20000) !== null : false
+  const sb = which('supabase'); const sbOk = sb ? ACCOUNTS.supabase === true : false
   add({ id: 'supabase', name: 'Supabase', group: 'site', state: sbOk ? 'ok' : 'warn', detail: sbOk ? undefined : (sb ? 'Pas connecté : bouton « Connecter » dans Paramètres > Studio.' : 'Facultatif : pour les sites avec base de données.'), installable: false })
   }
   add({ id: 'git', name: 'Git', group: 'site', state: which('git') ? 'ok' : 'missing', installable: false, detail: which('git') ? undefined : 'Installe les outils de développement Apple : xcode-select --install' })
@@ -682,7 +688,20 @@ function scan() {
   return out
 }
 
-let LIGHT_SCAN = false
+const ACCOUNTS = {}
+const execFileAsync = (cmd, args, timeout = 20000) => new Promise((resolve) => { try { execFile(cmd, args, { timeout, env: TOOL_ENV() }, (err, out) => resolve(err ? null : String(out).trim())) } catch { resolve(null) } })
+let accountsBusy = false
+/** Vérifie Vercel / GitHub / Supabase sans bloquer le pont ni la fenêtre. */
+async function refreshAccounts() {
+  if (accountsBusy || FAKE) return
+  accountsBusy = true
+  try {
+    if (which('vercel')) ACCOUNTS.vercel = await execFileAsync('vercel', ['whoami']) ?? undefined
+    if (which('gh')) ACCOUNTS.github = (await execFileAsync('gh', ['auth', 'status'])) !== null
+    if (which('supabase')) ACCOUNTS.supabase = (await execFileAsync('supabase', ['projects', 'list'])) !== null
+  } finally { accountsBusy = false }
+  await refreshScan()
+}
 let setupState = { components: [], installing: null, engine: cfgEngine(), platform: platform() }
 function cfgEngine() { return readJson(CONFIG, {}).engine ?? null }
 const COLORS = { ok: '\x1b[32m', missing: '\x1b[31m', warn: '\x1b[33m', error: '\x1b[31m', installing: '\x1b[36m', waiting: '\x1b[36m' }
@@ -855,6 +874,7 @@ async function loginClaude() {
   const t0 = Date.now()
   while (Date.now() - t0 < 10 * 60_000) { await sleep(3000); if (FAKE || claudeOk(true)) break }
   try { child.kill() } catch {}
+  if (claudeOk(true)) { await sleep(1500); closeLoginTabs('claude') }
   if (FAKE) fakeDone.add('claude-login')
   setupState.installing = null
   await refreshScan()
@@ -866,12 +886,51 @@ const LOGIN_CMD = {
   github: '(command -v gh >/dev/null || brew install gh) && gh auth login --web --git-protocol https',
   supabase: '(command -v supabase >/dev/null || brew install supabase/tap/supabase) && supabase login',
 }
+const LOGIN_TABS = { vercel: ['vercel.com/oauth/device', 'vercel.com/login', 'vercel.com/api/registration'], github: ['github.com/login/device', 'github.com/login/oauth'], supabase: ['supabase.com/dashboard/cli/login', 'supabase.com/dashboard/cli'], claude: ['claude.ai/oauth', 'claude.com/cai/oauth', 'claude.ai/login', 'console.anthropic.com/oauth'] }
+const LOGIN_CHECK = { vercel: ['vercel', ['whoami']], github: ['gh', ['auth', 'status']], supabase: ['supabase', ['projects', 'list']] }
+/** Ferme les pages de connexion restées ouvertes (onglets Safari / Chrome) une fois la connexion terminée. */
+function closeLoginTabs(id) {
+  const pats = LOGIN_TABS[id]; if (!pats || platform() !== 'darwin' || FAKE) return
+  const cond = pats.map((x) => `(u contains "${x}")`).join(' or ')
+  for (const app of ['Safari', 'Google Chrome']) {
+    if (!osa(['-e', `application "${app}" is running`])?.includes('true')) continue
+    const tabUrl = app === 'Safari' ? 'URL of t' : 'URL of t'
+    osa(['-e', `tell application "${app}"
+repeat with w in (reverse of (get windows))
+repeat with t in (reverse of (get tabs of w))
+try
+set u to ${tabUrl}
+if ${cond} then close t
+end try
+end repeat
+end repeat
+end tell`])
+  }
+}
+const loginWins = {}
+function closeLoginTerminal(id) {
+  const wid = loginWins[id]; if (!wid) return
+  osa(['-e', `tell application "Terminal"\ntry\nclose (every window whose id is ${Number(wid)}) saving no\nend try\nend tell`])
+  delete loginWins[id]
+}
+/** Surveille la connexion : dès qu'elle réussit, ferme la fenêtre Terminal et les pages de connexion, puis met à jour l'état. */
+async function watchLogin(id) {
+  const chk = LOGIN_CHECK[id]; if (!chk) return
+  for (let i = 0; i < 120; i++) { // 10 minutes
+    await sleep(5000)
+    if ((await execFileAsync(chk[0], chk[1], 15000)) !== null) {
+      await sleep(1500); closeLoginTerminal(id); closeLoginTabs(id)
+      await refreshAccounts(); return
+    }
+  }
+}
 function loginInTerminal(id) {
   const cmd = Object.hasOwn(LOGIN_CMD, id) ? LOGIN_CMD[id] : null
   if (!cmd || platform() !== 'darwin' || FAKE) return false
-  const line = `export PATH="${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:$PATH"; clear; echo "Flow Studio — connexion ${id}"; ${cmd}; echo; echo "Terminé. Tu peux fermer cette fenêtre."`
-  osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(line)}\nend tell`])
-  for (const mins of [0.5, 1, 2, 4, 8]) setTimeout(() => { if (!setupState.installing) void refreshScan() }, mins * 60_000) // l'état se met à jour tout seul sur Flow
+  const line = `export PATH="${OWN_BIN.join(':')}:/opt/homebrew/bin:/usr/local/bin:$PATH"; clear; echo "Flow Studio — connexion ${id}"; ${cmd}; echo; echo "Terminé : cette fenêtre se ferme toute seule."`
+  const wid = osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(line)}\nreturn id of front window\nend tell`])
+  if (wid && /^\d+$/.test(wid)) loginWins[id] = wid
+  void watchLogin(id)
   return true
 }
 async function doSetupCommand(p) {
@@ -1010,75 +1069,8 @@ async function guiSetup() {
   }
 }
 
-const APP_HTML = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flow Studio</title>
-<style>
-:root{--bg:#f4f4f7;--card:#fff;--text:#15151a;--mute:#6b6b78;--line:#e4e4ea;--acc:#4d59c7;--acct:#fff;--ok:#15803d;--bad:#c4262f;--warn:#a16207}
-@media(prefers-color-scheme:dark){:root{--bg:#0e0e12;--card:#18181f;--text:#f2f2f5;--mute:#9a9aa8;--line:#2a2a34;--acc:#8b94ff;--acct:#0e0e12;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24}}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%}
-body{font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;background:var(--bg);color:var(--text);opacity:0;transition:opacity .7s ease}
-body.on{opacity:1}body.out{opacity:0}
-main{max-width:640px;margin:0 auto;padding:28px 20px 40px}
-h1{font-size:24px;margin:0 0 4px}.sub{color:var(--mute);margin:0 0 20px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:14px}
-.card h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:10px}
-.n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--line);align-items:center;justify-content:center;font-size:12px;font-weight:600}
-.n.ok{background:var(--ok);color:#fff}
-.code{font:600 30px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;text-align:center;padding:14px;border-radius:12px;background:var(--bg);border:1px dashed var(--line);user-select:all}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:10px 16px;cursor:pointer;background:var(--acc);color:var(--acct)}
-button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
-button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
-ul{list-style:none;margin:0;padding:0}li.it{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}li.it:first-child{border-top:0}
-.nm{flex:1;min-width:0}.nm small{display:block;color:var(--mute);font-size:12px}
-.b{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg);color:var(--mute);white-space:nowrap}
-.b.ok{color:var(--ok)}.b.bad{color:var(--bad)}.b.warn{color:var(--warn)}.b.busy{color:var(--acc)}
-.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;background:var(--acc);transition:width .5s}
-.eng{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:12px}.eng label{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
-.mute{color:var(--mute);font-size:13px}.err{color:var(--bad);font-size:13px;margin-top:10px}.ok-t{color:var(--ok);font-weight:600}
-#go{width:100%;padding:15px;font-size:17px}
-@media(prefers-reduced-motion:reduce){body{transition:none}.bar i{transition:none}}
-</style></head><body><main>
-<h1>Flow Studio</h1><p class="sub">Trois étapes, tout est automatique.</p>
-<section class="card" aria-labelledby="h1"><h2 id="h1"><span class="n" id="n1">1</span>Relier ce Mac à Flow</h2><div id="pair"></div></section>
-<section class="card" aria-labelledby="h2"><h2 id="h2"><span class="n" id="n2">2</span>Logiciels du Mac</h2><div id="soft"></div></section>
-<section class="card" aria-labelledby="h3"><h2 id="h3"><span class="n" id="n3">3</span>Prêt ?</h2><button id="go" disabled>Commencer</button><p class="mute" id="why" aria-live="polite"></p></section>
-</main>
-<script>
-var T=location.pathname,$=function(i){return document.getElementById(i)};
-function post(r,b){return fetch(T+r,{method:'POST',headers:{'x-flow':'1','content-type':'application/json'},body:JSON.stringify(b||{})}).then(function(x){return x.json().catch(function(){return{}})})}
-function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
-var LBL={ok:'Installé',missing:'À installer',warn:'À connecter',installing:'En cours…',waiting:'En attente',error:'Échec'};
-var CLS={ok:'ok',missing:'bad',warn:'warn',installing:'busy',waiting:'busy',error:'bad'};
-var S=null,engine='effectcraft',starting=false;
-function render(s){S=s;
- var p=$('pair');p.textContent='';$('n1').className='n'+(s.paired?' ok':'');$('n1').textContent=s.paired?'✓':'1';
- if(s.paired){p.appendChild(el('p','ok-t','Ce Mac est relié à ton compte Flow.'))}
- else if(s.pair){p.appendChild(el('p','mute','Entre ce code dans Flow (Création de site → Connexion du Mac), ou clique sur « Ouvrir Flow » : le Mac se relie tout seul si tu es connecté.'));
-  p.appendChild(el('div','code',s.pair.code));var r=el('div','row');
-  var b1=el('button',null,'Ouvrir Flow');b1.onclick=function(){post('open-flow')};r.appendChild(b1);
-  var b2=el('button','ghost','Copier le code');b2.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(s.pair.code);b2.textContent='Copié ✓'};r.appendChild(b2);p.appendChild(r);
-  p.appendChild(el('p','mute','Le code se renouvelle tout seul : tu peux garder cette fenêtre ouverte.'))}
- else p.appendChild(el('p','mute','Préparation du code…'));
- var so=$('soft');so.textContent='';var ul=el('ul');if(!s.items.length){so.appendChild(el('p','mute','Vérification de ton Mac…'));return}
- s.items.forEach(function(c){var li=el('li','it');var n=el('div','nm',c.name);var sm=c.state==='ok'?(c.version||''):c.detail;if(c.cost==='paid'&&c.state!=='ok')sm=(sm?sm+' · ':'')+'abonnement payant';if(sm)n.appendChild(el('small',null,sm));
-  var opt=s.motionOk&&c.state!=='ok'&&['effectcraft','aftereffects','remotion'].indexOf(c.id)>=0;li.appendChild(n);li.appendChild(el('span','b '+(opt?'':(CLS[c.state]||'')),opt?'Facultatif':(LBL[c.state]||c.state)));ul.appendChild(li)});so.appendChild(ul);
- var missing=s.items.filter(function(c){return c.state!=='ok'&&['effectcraft','aftereffects','remotion'].indexOf(c.id)<0&&c.group!=='site'});
- if(!s.motionOk){var e=el('div','eng');e.appendChild(el('div','mute','Aucun moteur de motion design trouvé. Lequel installer ?'));
-  [['effectcraft','EffectCraft','gratuit (recommandé)'],['remotion','Remotion','gratuit, vidéos par code'],['aftereffects','After Effects','abonnement Adobe payant, installation guidée']].forEach(function(o){var l=el('label');var i=el('input');i.type='radio';i.name='eng';i.value=o[0];i.checked=engine===o[0];i.onchange=function(){engine=o[0]};l.appendChild(i);var d=el('div',null,o[1]);d.appendChild(el('small','mute',' — '+o[2]));l.appendChild(d);e.appendChild(l)});so.appendChild(e)}
- var need=!s.motionOk||missing.length>0||s.items.some(function(c){return c.id==='claude'&&c.state==='warn'});
- var row=el('div','row');var bi=el('button',null,need?'Installer ce qui manque':'Tout est installé ✓');bi.disabled=s.running||!need;bi.onclick=function(){post('install',{engine:s.motionOk?'':engine})};row.appendChild(bi);so.appendChild(row);
- if(s.running||s.step){so.appendChild(el('p','mute',s.step||''));if(s.pct!=null){var bar=el('div','bar');var i2=el('i');i2.style.width=s.pct+'%';bar.appendChild(i2);so.appendChild(bar)}}
- if(s.error)so.appendChild(el('p','err',s.error));
- var done=s.items.length&&!need&&!s.running;$('n2').className='n'+(done?' ok':'');$('n2').textContent=done?'✓':'2';
- var g=$('go');g.disabled=!s.ready||starting;var w=$('why');w.textContent=s.ready?'Tout est prêt : Flow Studio va s’ouvrir.':s.issues.join(' ');$('n3').className='n'+(s.ready?' ok':'')}
-function poll(){fetch(T+'state',{cache:'no-store'}).then(function(r){return r.json()}).then(render).catch(function(){}).then(function(){setTimeout(poll,1000)})}
-$('go').onclick=function(){if(starting)return;starting=true;$('go').disabled=true;post('start').then(function(r){if(!r.url){starting=false;return}document.body.classList.add('out');setTimeout(function(){location.href=r.url},800)})};
-requestAnimationFrame(function(){document.body.classList.add('on')});poll();
-</script></body></html>`
-
 /* ───────── Application Flow Studio (fenêtre locale) : liaison, vérification, installation, puis ouverture de Flow Studio ───────── */
-const APP_JSON = path.join(DIR, 'app.json')
-const appState = { pair: null, paired: false, running: false, step: '', error: '' }
+const appState = { pair: null, paired: false, running: false, step: '', error: '', handoff: null }
 const MOTION_IDS = ['effectcraft', 'aftereffects', 'remotion']
 const motionOk = () => setupState.components.some((c) => MOTION_IDS.includes(c.id) && c.state === 'ok')
 const readyIssues = () => {
@@ -1144,13 +1136,90 @@ function openAppWindow(url) {
     else openWindow(url)
   } catch (e) { log('app-window', e.message) }
 }
-async function appMode() {
-  const prev = readJson(APP_JSON, null)
-  if (prev?.pid && prev.url) { try { process.kill(prev.pid, 0); openAppWindow(prev.url); return } catch { /* ancienne instance disparue */ } }
+/* ───────── Mémoire locale : tout ce que montre la fenêtre Flow Studio (instantané, sans passer par Internet) ───────── */
+const LOCAL = { jobs: {}, order: [], uiSeen: 0, editor: null }
+const STEP_LABELS = {
+  motion: { receive: 'Réception', analyse: 'Analyse de la référence', plan: 'Plan', build: 'Construction', compare: 'Comparaison image par image', sound: 'Son', render4k: 'Rendu 4K', verify: 'Vérification' },
+  site: { interview: 'Compréhension du projet', analyse: 'Analyse des exemples', design: 'Design system', structure: 'Structure et contenus', build: 'Construction', data: 'Données et comptes', polish: 'Grande amélioration', deploy: 'Déploiement', qa: 'Vérification complète', motion: 'Vidéo motion design', deliver: 'Livraison' },
+}
+function lj(id, init) {
+  let j = LOCAL.jobs[id]
+  if (!j) { j = LOCAL.jobs[id] = { id, title: 'Projet', kind: 'site', status: 'draft', step: null, progress: 0, transcript: [], todo: [], questions: [], summary: '', deliverUrl: '', siteUrl: '', dir: '', sessionId: '', seq: 0, createdAt: Date.now() }; LOCAL.order.unshift(id) }
+  if (init) Object.assign(j, init)
+  return j
+}
+function lpush(j, e) { j.transcript.push({ n: ++j.seq, at: Date.now(), ...e }); if (j.transcript.length > 800) j.transcript.splice(0, j.transcript.length - 800) }
+const OWN_LOG = new Set(['Claude', 'Commande', 'Bash', 'Write', 'Edit', 'Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Task', 'TodoWrite'])
+/** Reflète localement chaque événement envoyé à Flow. */
+function localApply(jobId, ev) {
+  const j = lj(jobId)
+  if (ev.type === 'status') { j.status = ev.status === 'starting' ? 'running' : ev.status; if (ev.progress != null) j.progress = Math.max(j.progress, ev.progress); if (ev.title) lpush(j, { k: 'sys', text: ev.title + (ev.body ? ` — ${ev.body}` : ''), level: ev.status === 'failed' ? 'error' : 'info' }); if (ev.error) lpush(j, { k: 'sys', text: ev.error, level: 'error' }) }
+  else if (ev.type === 'step') { j.step = ev.step; if (ev.progress != null) j.progress = Math.max(j.progress, Math.min(99, ev.progress)) }
+  else if (ev.type === 'log' && !OWN_LOG.has(ev.title)) lpush(j, { k: 'sys', text: `${ev.title}${ev.body ? ` — ${ev.body}` : ''}`, level: ev.level ?? 'info' })
+  else if (ev.type === 'question') { const q = { id: `q${++j.seq}`, text: ev.text, choices: ev.choices ?? null, answered: false }; j.questions.push(q); j.status = 'needs_answer'; lpush(j, { k: 'question', text: ev.text, qid: q.id }) }
+  else if (ev.type === 'answered') { for (const q of j.questions) if (!q.answered) { q.answered = true; q.answer = ev.text } if (j.status === 'needs_answer') j.status = 'running' }
+  else if (ev.type === 'todo') j.todo = ev.items
+  else if (ev.type === 'session') j.sessionId = ev.sessionId
+  else if (ev.type === 'delivered') { j.status = 'done'; j.progress = 100; j.summary = ev.summary ?? ''; j.deliverUrl = ev.deliver?.url ?? ''; lpush(j, { k: 'sys', text: j.kind === 'site' ? 'Site terminé.' : 'Rendu terminé.', level: 'success' }) }
+}
+function localList() {
+  return LOCAL.order.map((id) => LOCAL.jobs[id]).map((j) => ({ id: j.id, title: j.title, kind: j.kind, status: j.status, step: j.step, progress: j.progress, createdAt: j.createdAt }))
+}
+function localJob(id, after = 0) {
+  const j = LOCAL.jobs[id]; if (!j) return null
+  const labels = STEP_LABELS[j.kind] ?? {}
+  const ids = (STEPS[j.kind] ?? [])
+  const at = j.step ? ids.indexOf(j.step) : -1
+  const steps = ids.map((sid, i) => ({ id: sid, label: labels[sid] ?? sid, state: j.status === 'done' ? 'done' : at === -1 ? 'todo' : i < at ? 'done' : i === at ? (j.status === 'paused' ? 'blocked' : 'active') : 'todo' }))
+  return { id: j.id, title: j.title, kind: j.kind, status: j.status, step: j.step, progress: j.progress, steps, todo: j.todo, questions: j.questions.filter((q) => !q.answered), summary: j.summary, deliverUrl: j.deliverUrl, siteUrl: j.siteUrl, dir: j.dir, hasSession: !!j.sessionId, startedAt: j.createdAt, seq: j.seq, transcript: j.transcript.filter((t) => t.n > after), editorAt: LOCAL.editor?.at ?? 0 }
+}
+/** Actions demandées depuis la fenêtre (messages, pause, réponse…) : même chemin que les commandes venant de Flow. */
+async function localAction(route, b) {
+  const id = typeof b.jobId === 'string' && UUID_RE.test(b.jobId) ? b.jobId : null
+  const j = id ? LOCAL.jobs[id] : null
+  if (!j) return { error: 'job' }
+  if (route === 'message') {
+    const text = String(b.text ?? '').slice(0, 8000).trim(); if (!text) return { error: 'empty' }
+    const mode = ['now', 'next', 'after'].includes(b.mode) ? b.mode : 'next'
+    lpush(j, { k: 'user', text })
+    void emit(id, { type: 'log', title: 'Message depuis le Mac', body: short(text, 300) })
+    void runMessage(id, text, { mode }).catch((e) => lpush(j, { k: 'sys', text: `Message non transmis : ${e.message}`, level: 'error' }))
+    return { ok: true }
+  }
+  if (route === 'control') { const t = ['pause', 'resume', 'cancel'].includes(b.action) ? b.action : null; if (!t) return { error: 'action' }; await handle({ jobId: id, type: t, payload: {} }); return { ok: true } }
+  if (route === 'answer') {
+    const q = j.questions.find((x) => x.id === b.qid && !x.answered); const text = String(b.text ?? '').slice(0, 4000).trim(); if (!q || !text) return { error: 'question' }
+    q.answered = true; q.answer = text; lpush(j, { k: 'user', text })
+    await handle({ jobId: id, type: 'answer', payload: { questionId: q.id, text, question: q.text } })
+    void emit(id, { type: 'answered', text }); return { ok: true }
+  }
+  if (route === 'open-folder') { if (j.dir && existsSync(j.dir) && platform() === 'darwin') execFileSync('/usr/bin/open', [j.dir], { stdio: 'ignore' }); return { ok: true } }
+  if (route === 'open-claude') {
+    const st = state.jobs[id]
+    if (!st?.sessionId || !j.dir || platform() !== 'darwin') return { error: 'session' }
+    const bin = resolveClaude('claude')
+    osa(['-e', `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(`cd ${JSON.stringify(j.dir)} && ${JSON.stringify(bin)} --resume ${st.sessionId}`)}\nend tell`])
+    return { ok: true }
+  }
+  if (route === 'attach') {
+    const name = safe(String(b.name ?? 'fichier')); const buf = Buffer.from(String(b.data ?? ''), 'base64')
+    if (!buf.length || buf.length > 25 * 1024 * 1024 || !j.dir) return { error: 'file' }
+    const d = path.join(j.dir, 'entrees'); mkdirSync(d, { recursive: true })
+    const dest = path.join(d, `msg-${Date.now()}-${name}`); writeFileSync(dest, buf)
+    return { ok: true, path: `entrees/${path.basename(dest)}` }
+  }
+  return { error: 'route' }
+}
+
+/* ───────── Serveur de la fenêtre (127.0.0.1 uniquement, jeton secret, hôte vérifié) ───────── */
+const UI_JSON = path.join(DIR, 'ui.json')
+function writeUiJson(kind, url) { try { writeFileSync(UI_JSON, JSON.stringify({ pid: process.pid, url, kind }), { mode: 0o600 }) } catch {} }
+function readUiJson() { const u = readJson(UI_JSON, null); if (!u?.pid) return null; try { process.kill(u.pid, 0); return u } catch { return null } }
+async function startUiServer(kind) {
   const token = randomBytes(18).toString('hex')
-  let idle = Date.now()
+  const csp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data: blob:; frame-src http://localhost:* http://127.0.0.1:* http://[::1]:*; connect-src 'self'; frame-ancestors 'none'"
   const server = createServer(async (req, res) => {
-    const send = (code, body, type = 'application/json') => { res.writeHead(code, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'" }); res.end(typeof body === 'string' ? body : JSON.stringify(body)) }
+    const send = (code, body, type = 'application/json', extra = {}) => { res.writeHead(code, { 'content-type': type.startsWith('image') ? type : `${type}; charset=utf-8`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': csp, ...extra }); res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body)) }
     try {
       const port = server.address().port
       if (req.headers.host !== `127.0.0.1:${port}`) return send(403, { error: 'host' }) // protège contre les sites web qui tentent d'atteindre cette fenêtre
@@ -1158,33 +1227,221 @@ async function appMode() {
       const prefix = `/t/${token}/`
       if (!u.pathname.startsWith(prefix)) return send(404, { error: 'not found' })
       const route = u.pathname.slice(prefix.length)
-      idle = Date.now()
-      if (req.method === 'GET' && route === '') return send(200, APP_HTML, 'text/html')
-      if (req.method === 'GET' && route === 'state') return send(200, appSnapshot())
+      LOCAL.uiSeen = Date.now()
+      if (req.method === 'GET') {
+        if (route === '') return send(200, UI_HTML, 'text/html')
+        if (route === 'state') return send(200, { ...appSnapshot(), jobs: localList(), started: cfg().started === true, handoff: appState.handoff ?? null })
+        if (route.startsWith('job/')) { const id = route.slice(4); const j = UUID_RE.test(id) ? localJob(id, Number(u.searchParams.get('after') ?? 0) || 0) : null; return j ? send(200, j) : send(404, { error: 'job' }) }
+        if (route === 'editor.jpg') return LOCAL.editor ? send(200, LOCAL.editor.buf, 'image/jpeg') : send(404, { error: 'none' })
+        return send(404, { error: 'not found' })
+      }
       if (req.method !== 'POST' || req.headers['x-flow'] !== '1' || (req.headers.origin && req.headers.origin !== `http://127.0.0.1:${port}`)) return send(403, { error: 'forbidden' })
-      let body = ''; for await (const ch of req) { body += ch; if (body.length > 2000) break }
+      let body = ''; for await (const ch of req) { body += ch; if (body.length > 36_000_000) return send(413, { error: 'too large' }) }
       const b = (() => { try { return JSON.parse(body || '{}') } catch { return {} } })()
       if (route === 'install') { void appInstall(typeof b.engine === 'string' ? b.engine : ''); return send(202, { ok: true }) }
+      if (route === 'login-claude') { if (!appState.running) void (async () => { appState.running = true; try { appState.step = 'Connexion à Claude : termine dans la page du navigateur qui s’ouvre…'; await loginClaude() } finally { appState.running = false; appState.step = '' } })(); return send(202, { ok: true }) }
       if (route === 'open-flow') { const p = appState.pair; openWindow(p ? p.url : `${cfg().server}/app`); return send(200, { ok: true }) }
+      if (route === 'open-url') { const x = String(b.url ?? ''); if (/^https:\/\/[^\s"'<>\\]+$/.test(x) || LOCAL_URL.test(x)) openWindow(x); return send(200, { ok: true }) }
       if (route === 'start') {
         if (readyIssues().length) return send(409, { error: 'not ready', issues: readyIssues() })
+        const c = readJson(CONFIG, {}); c.started = true; saveCfg(c)
         try { install() } catch (e) { log('app-install', e.message) }
-        setTimeout(() => { server.close(); try { rmSync(APP_JSON) } catch {} process.exit(0) }, 90_000) // la fenêtre est partie vers Flow Studio
-        return send(200, { url: `${cfg().server}/studio/live?welcome=1` })
+        return send(200, { ok: true })
       }
+      if (['message', 'control', 'answer', 'open-folder', 'open-claude', 'attach'].includes(route)) return send(200, await localAction(route, b))
       return send(404, { error: 'not found' })
-    } catch (e) { log('app-http', e.message); send(500, { error: 'server' }) }
+    } catch (e) { log('ui-http', e.message); send(500, { error: 'server' }) }
   })
   await new Promise((r) => server.listen(0, '127.0.0.1', r))
   const url = `http://127.0.0.1:${server.address().port}/t/${token}/`
-  writeFileSync(APP_JSON, JSON.stringify({ pid: process.pid, url }), { mode: 0o600 })
-  process.on('exit', () => { try { rmSync(APP_JSON) } catch {} })
-  LIGHT_SCAN = true
-  if (!FAKE_ENV() || process.env.FLOW_BRIDGE_OPEN_APP === '1') openAppWindow(url) // la fenêtre s'ouvre tout de suite
+  writeUiJson(kind, url)
+  process.on('exit', () => { const u = readJson(UI_JSON, null); if (u?.pid === process.pid) { try { rmSync(UI_JSON) } catch {} } })
+  return { server, url }
+}
+
+const UI_HTML = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flow Studio</title>
+<style>
+:root{--bg:#f4f4f7;--card:#fff;--text:#15151a;--mute:#6b6b78;--line:#e4e4ea;--acc:#4d59c7;--acct:#fff;--ok:#15803d;--bad:#c4262f;--warn:#a16207;--soft:#eceefb;--me:#15151a;--met:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#0e0e12;--card:#18181f;--text:#f2f2f5;--mute:#9a9aa8;--line:#2a2a34;--acc:#8b94ff;--acct:#0e0e12;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--soft:#20233f;--me:#f2f2f5;--met:#0e0e12}}
+[hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:8px 14px;cursor:pointer;background:var(--acc);color:var(--acct)}
+button.g{background:transparent;color:var(--text);border:1px solid var(--line)}button.s{padding:5px 10px;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.mute{color:var(--mute)}.small{font-size:12px}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+/* barre */
+#bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#bar .logo{font-weight:700;font-size:15px;margin-right:6px}
+#bar select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);max-width:260px}
+.pg{flex:1;min-width:120px;max-width:300px;height:8px;border-radius:99px;background:var(--line);overflow:hidden}.pg i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width 1s linear}
+.badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--acc)}
+.badge.ok{color:var(--ok)}.badge.bad{color:var(--bad)}.badge.warn{color:var(--warn)}
+.sp{flex:1}
+/* studio */
+#studio{flex:1;min-height:0;display:grid;grid-template-columns:minmax(300px,38%) 1fr;gap:12px;padding:12px}
+.pane{background:var(--card);border:1px solid var(--line);border-radius:14px;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.pane>h3{margin:0;padding:9px 14px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+#feed{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.m{max-width:94%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
+.m.claude{background:var(--bg);border-top-left-radius:4px;align-self:flex-start}
+.m.user{background:var(--me);color:var(--met);border-top-right-radius:4px;align-self:flex-end}
+.tl{font:11.5px/1.35 ui-monospace,Menlo,monospace;color:var(--mute);padding:1px 4px;word-break:break-all}
+.sys{align-self:center;text-align:center;font-size:12px;color:var(--mute)}.sys.error{color:var(--bad)}.sys.success{color:var(--ok);font-weight:600}.sys.warning{color:var(--warn)}
+.qb{border:1px solid var(--warn);background:var(--soft);border-radius:12px;padding:10px 12px;margin:0 14px 10px}
+.qb .ch{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+#comp{border-top:1px solid var(--line);padding:10px 12px;display:grid;gap:8px}
+#comp textarea{width:100%;min-height:62px;max-height:160px;resize:vertical;font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+#comp .r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#comp select{font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+#right{display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;min-height:0}
+#two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#two .pane{max-height:250px}.scr{overflow-y:auto;padding:8px 14px}
+.st{display:flex;gap:10px;align-items:flex-start;padding:5px 0}
+.dot{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:10px;margin-top:1px}
+.dot.done{background:var(--acc);border-color:var(--acc);color:var(--acct)}.dot.active{border-color:var(--acc);border-top-color:transparent;animation:sp 1s linear infinite}.dot.blocked{border-color:var(--warn)}
+.st.todo .t,.tdo.todo .t{color:var(--mute)}.tdo{display:flex;gap:9px;align-items:flex-start;padding:4px 6px;border-radius:8px}.tdo.doing{background:var(--soft)}
+.tdo .bx{flex:none;width:16px;height:16px;border-radius:5px;border:2px solid var(--line);margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.tdo.done .bx{background:var(--ok);border-color:var(--ok);color:#fff}.tdo.done .t{text-decoration:line-through;color:var(--mute)}
+@keyframes sp{to{transform:rotate(360deg)}}
+#prev{min-height:0}#tabs{display:flex;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);align-items:center}
+#tabs button{padding:5px 12px;font-size:12px}#tabs button.on{background:var(--acc);color:var(--acct)}#tabs button:not(.on){background:transparent;color:var(--text);border:1px solid var(--line)}
+#pv{flex:1;min-height:0;position:relative;background:#fff}#pv iframe,#pv img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#fff}
+#pv .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--mute);background:var(--card)}
+#done{padding:12px 14px;border-top:1px solid var(--line);max-height:42%;overflow-y:auto;background:var(--soft)}
+#done h4{margin:0 0 6px;font-size:14px}#done .md h5{margin:10px 0 3px;font-size:13px}#done .md li{margin:2px 0 2px 16px}#done .md p{margin:4px 0}
+.lk{color:var(--acc);text-decoration:underline;cursor:pointer;word-break:break-all;background:none;border:0;padding:0;font-weight:600}
+/* assistant */
+#wiz{position:fixed;inset:0;background:var(--bg);overflow-y:auto;transition:opacity .9s ease;z-index:5}#wiz.fade{opacity:0;pointer-events:none}
+#wiz main{max-width:640px;margin:0 auto;padding:28px 20px 40px}h1{font-size:24px;margin:0 0 4px}.sub{color:var(--mute);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:10px}
+.n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--line);align-items:center;justify-content:center;font-size:12px;font-weight:600}.n.ok{background:var(--ok);color:#fff}
+.code{font:600 30px/1.1 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-align:center;padding:14px;border-radius:12px;background:var(--bg);border:1px dashed var(--line);user-select:all}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}ul{list-style:none;margin:0;padding:0}
+li.it{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}li.it:first-child{border-top:0}.nm{flex:1;min-width:0}.nm small{display:block;color:var(--mute);font-size:12px}
+.b{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg);color:var(--mute);white-space:nowrap}.b.ok{color:var(--ok)}.b.bad{color:var(--bad)}.b.warn{color:var(--warn)}.b.busy{color:var(--acc)}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;background:var(--acc);transition:width .5s}
+.eng{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:12px}.eng label{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
+.err{color:var(--bad);font-size:13px;margin-top:10px}.ok-t{color:var(--ok);font-weight:600}#go{width:100%;padding:15px;font-size:17px}
+body{opacity:0;transition:opacity .6s}body.on{opacity:1}
+@media(max-width:820px){#studio{grid-template-columns:1fr;overflow-y:auto;display:block}#studio>section.pane,#right{margin-bottom:12px}#studio>section.pane{height:70vh}#two{grid-template-columns:1fr}#prev{height:70vh}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style></head><body><div id="app">
+<div id="bar" hidden><span class="logo">Flow Studio</span><select id="sel" aria-label="Projet"></select><span class="badge" id="stt"></span>
+<div class="pg" role="progressbar" aria-label="Avancement" aria-valuemin="0" aria-valuemax="100" id="pgw"><i id="pgi" style="width:0%"></i></div><span class="mute small" id="pct"></span><span class="mute small" id="stp"></span><span class="sp"></span>
+<button class="g s" id="bPause">Pause</button><button class="g s" id="bCancel">Annuler</button><button class="g s" id="bDir">Dossier</button><button class="g s" id="bCC" title="Ouvre la conversation dans Claude Code (Terminal)">Claude Code</button><button class="g s" id="bSet">Logiciels</button></div>
+<div id="studio" hidden>
+ <section class="pane" aria-label="Discussion"><h3>Discussion avec Claude</h3><div id="feed" aria-live="polite" tabindex="0"></div><div id="qz"></div>
+  <div id="comp"><textarea id="msg" placeholder="Écris à Claude : correction, idée, nouvelle demande…" aria-label="Message à Claude"></textarea>
+   <div class="r"><select id="mode" aria-label="Quand"><option value="next">Après l’étape</option><option value="now">Maintenant</option><option value="after">À la fin</option></select><button class="g s" id="att">Joindre</button><input type="file" id="fi" multiple hidden><span class="sp"></span><button id="snd">Envoyer</button></div><div class="mute small" id="atl"></div></div></section>
+ <div id="right"><div id="two"><section class="pane" aria-label="Étapes"><h3>Étapes</h3><div class="scr" id="steps"></div></section><section class="pane" aria-label="Tâches"><h3>Tâches de Claude <span id="tc"></span></h3><div class="scr" id="todo"></div></section></div>
+  <section class="pane" id="prev" aria-label="En direct"><div id="tabs"><button id="tSite">Page du site</button><button id="tEd">Montage</button><span class="sp"></span><button class="g s" id="rl" title="Recharger la page">↻</button><button class="g s" id="ext" title="Ouvrir dans le navigateur">Ouvrir</button></div><div id="pv"></div><div id="done" hidden></div></section></div>
+</div>
+<div id="wiz"><main>
+<h1>Flow Studio</h1><p class="sub">Trois étapes, tout est automatique.</p>
+<section class="card" aria-labelledby="h1"><h2 id="h1"><span class="n" id="n1">1</span>Relier ce Mac à Flow</h2><div id="pair"></div></section>
+<section class="card" aria-labelledby="h2"><h2 id="h2"><span class="n" id="n2">2</span>Logiciels du Mac</h2><div id="soft"></div></section>
+<section class="card" aria-labelledby="h3"><h2 id="h3"><span class="n" id="n3">3</span>Prêt ?</h2><button id="go" disabled>Commencer</button><p class="mute" id="why" aria-live="polite"></p></section></main></div>
+</div>
+<script>
+var T=location.pathname,$=function(i){return document.getElementById(i)};
+function post(r,b){return fetch(T+r,{method:'POST',headers:{'x-flow':'1','content-type':'application/json'},body:JSON.stringify(b||{})}).then(function(x){return x.json().catch(function(){return{}})})}
+function get(r){return fetch(T+r,{cache:'no-store'}).then(function(x){if(!x.ok)throw new Error(x.status);return x.json()})}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+var S=null,cur=null,lastN=0,jobId=null,engine='effectcraft',starting=false,showWiz=true,view='wiz',siteShown='',tab='site',edAt=0,att=[];
+var LBL={ok:'Installé',missing:'À installer',warn:'À connecter',installing:'En cours…',waiting:'En attente',error:'Échec'},CLS={ok:'ok',missing:'bad',warn:'warn',installing:'busy',waiting:'busy',error:'bad'};
+var STT={draft:'Brouillon',starting:'Démarrage',running:'En cours',paused:'En pause',needs_answer:'Question',done:'Terminé',failed:'Échec',cancelled:'Annulé',queued:'En attente'};
+/* ---------- assistant ---------- */
+function renderWiz(s){
+ var p=$('pair');p.textContent='';$('n1').className='n'+(s.paired?' ok':'');$('n1').textContent=s.paired?'✓':'1';
+ if(s.paired){p.appendChild(el('p','ok-t','Ce Mac est relié à ton compte Flow.'))}
+ else if(s.pair){p.appendChild(el('p','mute','Entre ce code dans Flow (Création de site → Connexion du Mac), ou clique sur « Ouvrir Flow » : le Mac se relie tout seul si tu es connecté.'));
+  p.appendChild(el('div','code',s.pair.code));var r=el('div','row');
+  var b1=el('button',null,'Ouvrir Flow');b1.onclick=function(){post('open-flow')};r.appendChild(b1);
+  var b2=el('button','g','Copier le code');b2.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(s.pair.code);b2.textContent='Copié ✓'};r.appendChild(b2);p.appendChild(r);
+  p.appendChild(el('p','mute small','Le code se renouvelle tout seul : tu peux garder cette fenêtre ouverte.'))}
+ else p.appendChild(el('p','mute','Préparation du code…'));
+ var so=$('soft');so.textContent='';
+ if(!s.items.length){so.appendChild(el('p','mute','Vérification de ton Mac…'));return}
+ var ul=el('ul');
+ s.items.forEach(function(c){var li=el('li','it');var n=el('div','nm',c.name);var sm=c.state==='ok'?(c.version||''):c.detail;if(c.cost==='paid'&&c.state!=='ok')sm=(sm?sm+' · ':'')+'abonnement payant';if(sm)n.appendChild(el('small',null,sm));
+  var opt=s.motionOk&&c.state!=='ok'&&['effectcraft','aftereffects','remotion'].indexOf(c.id)>=0;li.appendChild(n);li.appendChild(el('span','b '+(opt?'':(CLS[c.state]||'')),opt?'Facultatif':(LBL[c.state]||c.state)));ul.appendChild(li)});so.appendChild(ul);
+ var missing=s.items.filter(function(c){return c.state!=='ok'&&['effectcraft','aftereffects','remotion'].indexOf(c.id)<0&&c.group!=='site'});
+ if(!s.motionOk){var e=el('div','eng');e.appendChild(el('div','mute','Aucun moteur de motion design trouvé. Lequel installer ?'));
+  [['effectcraft','EffectCraft','gratuit (recommandé)'],['remotion','Remotion','gratuit, vidéos par code'],['aftereffects','After Effects','abonnement Adobe payant, installation guidée']].forEach(function(o){var l=el('label');var i=el('input');i.type='radio';i.name='eng';i.value=o[0];i.checked=engine===o[0];i.onchange=function(){engine=o[0]};l.appendChild(i);var d=el('div',null,o[1]);d.appendChild(el('small','mute',' — '+o[2]));l.appendChild(d);e.appendChild(l)});so.appendChild(e)}
+ var claudeWarn=s.items.some(function(c){return c.id==='claude'&&c.state==='warn'});
+ var need=!s.motionOk||missing.length>0||claudeWarn;
+ var row=el('div','row');var bi=el('button',null,need?'Installer ce qui manque':'Tout est installé ✓');bi.disabled=s.running||!need;bi.onclick=function(){post('install',{engine:s.motionOk?'':engine})};row.appendChild(bi);so.appendChild(row);
+ if(s.running||s.step){so.appendChild(el('p','mute',s.step||''));if(s.pct!=null){var bar=el('div','bar');var i2=el('i');i2.style.width=s.pct+'%';bar.appendChild(i2);so.appendChild(bar)}}
+ if(s.error)so.appendChild(el('p','err',s.error));
+ var done=s.items.length&&!need&&!s.running;$('n2').className='n'+(done?' ok':'');$('n2').textContent=done?'✓':'2';
+ var g=$('go');g.disabled=!s.ready||starting;var w=$('why');w.textContent=s.ready?'Tout est prêt : Flow Studio va s’ouvrir.':s.issues.join(' ');$('n3').className='n'+(s.ready?' ok':'')}
+/* ---------- studio ---------- */
+function md(t){var box=el('div','md');var lines=String(t||'').split('\\n');var tick=String.fromCharCode(96);
+ function inline(parent,x){x=x.split(tick).join('');var parts=x.split(/(\\*\\*[^*]+\\*\\*|https?:\\/\\/[^\\s)]+)/);parts.forEach(function(p){if(!p)return;if(p.indexOf('**')===0&&p.slice(-2)==='**'){parent.appendChild(el('strong',null,p.slice(2,-2)))}else if(/^https?:/.test(p)){var b=el('button','lk',p);b.onclick=function(){post('open-url',{url:p})};parent.appendChild(b)}else parent.appendChild(document.createTextNode(p))})}
+ lines.forEach(function(l){if(!l.trim())return;var m=/^#{1,4}\\s+(.*)/.exec(l);if(m){var h=el('h5');inline(h,m[1]);box.appendChild(h)}else if(/^\\s*[-*]\\s+/.test(l)){var li=el('li');inline(li,l.replace(/^\\s*[-*]\\s+/,''));box.appendChild(li)}else if(/^\\|/.test(l)){if(/^\\|[\\s:-|]+$/.test(l))return;var p2=el('p');inline(p2,l.replace(/^\\||\\|$/g,'').split('|').map(function(c){return c.trim()}).join('  ·  '));box.appendChild(p2)}else{var p3=el('p');inline(p3,l);box.appendChild(p3)}});return box}
+function addEntry(e){var f=$('feed'),n;
+ if(e.k==='claude'){n=el('div','m claude',e.text)}else if(e.k==='user'){n=el('div','m user',e.text)}
+ else if(e.k==='tool'){n=el('div','tl','› '+e.text)}else if(e.k==='question'){n=el('div','sys warning','Question : '+e.text)}
+ else{n=el('div','sys '+(e.level||''),e.text)}
+ f.appendChild(n)}
+function renderJob(j){
+ cur=j;$('stt').textContent=STT[j.status]||j.status;$('stt').className='badge'+(j.status==='done'?' ok':j.status==='failed'?' bad':j.status==='paused'||j.status==='needs_answer'?' warn':'');
+ $('pgi').style.width=j.progress+'%';$('pgw').setAttribute('aria-valuenow',j.progress);$('pct').textContent=j.progress+' %';
+ var cs=j.steps.filter(function(x){return x.state==='active'||x.state==='blocked'})[0];$('stp').textContent=cs?cs.label:'';
+ var act=['starting','running','needs_answer'].indexOf(j.status)>=0;$('bPause').textContent=j.status==='paused'?'Reprendre':'Pause';$('bPause').hidden=!(act||j.status==='paused');$('bCancel').hidden=!(act||j.status==='paused');
+ $('bCC').hidden=!j.hasSession;
+ var f=$('feed'),near=f.scrollHeight-f.scrollTop-f.clientHeight<80;j.transcript.forEach(function(e){addEntry(e);lastN=Math.max(lastN,e.n)});if(near&&j.transcript.length)f.scrollTop=f.scrollHeight;
+ var st=$('steps');st.textContent='';j.steps.forEach(function(x){var r=el('div','st '+x.state);var d=el('span','dot '+x.state,x.state==='done'?'✓':'');r.appendChild(d);r.appendChild(el('span','t',x.label));st.appendChild(r)});
+ var td=$('todo');td.textContent='';var dn=j.todo.filter(function(x){return x.state==='done'}).length;$('tc').textContent=j.todo.length?dn+' / '+j.todo.length:'';
+ if(!j.todo.length)td.appendChild(el('p','mute small','La liste arrive dès que Claude a planifié le travail.'));
+ j.todo.forEach(function(x){var r=el('div','tdo '+x.state);r.appendChild(el('span','bx',x.state==='done'?'✓':''));r.appendChild(el('span','t',x.text));td.appendChild(r)});
+ var qz=$('qz');qz.textContent='';j.questions.forEach(function(q){var b=el('div','qb');b.appendChild(el('strong',null,'Claude te pose une question'));b.appendChild(el('div',null,q.text));
+  if(q.choices){var c=el('div','ch');q.choices.forEach(function(x){var bb=el('button','g s',x);bb.onclick=function(){post('answer',{jobId:j.id,qid:q.id,text:x})};c.appendChild(bb)});b.appendChild(c)}
+  var i=el('input');i.placeholder='Ta réponse…';i.setAttribute('aria-label','Réponse');i.style.cssText='width:70%;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)';var ok=el('button','s','Répondre');ok.style.marginLeft='6px';
+  ok.onclick=function(){if(i.value.trim())post('answer',{jobId:j.id,qid:q.id,text:i.value.trim()})};b.appendChild(i);b.appendChild(ok);qz.appendChild(b)});
+ var pv=$('pv');
+ if(j.siteUrl&&siteShown!==j.siteUrl){siteShown=j.siteUrl;if(tab!=='ed')tab='site'}
+ $('tSite').hidden=!j.siteUrl&&j.kind!=='site';$('tSite').className=tab==='site'?'on':'';$('tEd').className=tab==='ed'?'on':'';$('ext').hidden=tab!=='site'||!j.siteUrl;$('rl').hidden=tab!=='site'||!j.siteUrl;
+ if(tab==='site'){var ifr=pv.querySelector('iframe');if(j.siteUrl){if(!ifr||ifr.getAttribute('data-u')!==j.siteUrl){pv.textContent='';ifr=el('iframe');ifr.setAttribute('data-u',j.siteUrl);ifr.src=j.siteUrl;ifr.title='Page du site (cliquable)';pv.appendChild(ifr)}}else{pv.textContent='';pv.appendChild(el('div','none','La page du site apparaît ici dès que Claude lance le serveur local. Tu pourras cliquer, défiler et naviguer dedans.'))}}
+ else{var im=pv.querySelector('img');if(j.editorAt){if(!im||im.getAttribute('data-t')!==String(j.editorAt)){pv.textContent='';im=el('img');im.setAttribute('data-t',j.editorAt);im.alt='Logiciel de montage';im.src=T+'editor.jpg?t='+j.editorAt;pv.appendChild(im)}}else{pv.textContent='';pv.appendChild(el('div','none','Ouvre EffectCraft ou After Effects : sa fenêtre apparaît ici en direct.'))}}
+ var dn2=$('done');if(j.status==='done'&&(j.deliverUrl||j.summary)){dn2.hidden=false;if(dn2.getAttribute('data-k')!==j.deliverUrl+j.summary.length){dn2.setAttribute('data-k',j.deliverUrl+j.summary.length);dn2.textContent='';dn2.appendChild(el('h4',null,'Terminé'));if(j.deliverUrl){var lb=el('button','lk',j.deliverUrl);lb.onclick=function(){post('open-url',{url:j.deliverUrl})};dn2.appendChild(lb)}dn2.appendChild(md(j.summary))}}else dn2.hidden=true}
+function renderSel(list){var s=$('sel'),v=s.value||jobId;s.textContent='';list.forEach(function(j){var o=el('option',null,j.title+' · '+(STT[j.status]||j.status));o.value=j.id;s.appendChild(o)});
+ if(!list.length){var o=el('option',null,'Aucun projet');o.value='';s.appendChild(o);$('stt').textContent='';return}
+ if(!jobId||!list.some(function(j){return j.id===jobId})){var a=list.filter(function(j){return ['running','starting','needs_answer','paused'].indexOf(j.status)>=0})[0]||list[0];jobId=a.id;lastN=0;$('feed').textContent='';siteShown=''}
+ s.value=jobId}
+function setView(v){view=v;var studio=v==='studio';$('bar').hidden=!studio;$('studio').hidden=!studio;
+ if(studio){$('wiz').classList.add('fade')}else{$('wiz').classList.remove('fade')}$('wiz').style.display='';}
+function tick(){get('state').then(function(s){S=s;renderWiz(s);renderSel(s.jobs);
+  if(s.handoff&&location.pathname.indexOf(s.handoff)<0){}
+  var wantStudio=s.paired&&s.started&&view!=='wiz-forced';if(view==='wiz'&&wantStudio)setView('studio');
+  $('bSet').hidden=false;
+  if(!jobId)return;return get('job/'+jobId+'?after='+lastN).then(renderJob)}).catch(function(){}).then(function(){setTimeout(tick,1000)})}
+$('sel').onchange=function(){jobId=this.value;lastN=0;$('feed').textContent='';siteShown=''};
+$('bPause').onclick=function(){if(!cur)return;post('control',{jobId:cur.id,action:cur.status==='paused'?'resume':'pause'})};
+$('bCancel').onclick=function(){if(cur&&confirm('Annuler ce projet ?'))post('control',{jobId:cur.id,action:'cancel'})};
+$('bDir').onclick=function(){if(cur)post('open-folder',{jobId:cur.id})};$('bCC').onclick=function(){if(cur)post('open-claude',{jobId:cur.id})};
+$('bSet').onclick=function(){if(view==='studio'){view='wiz-forced';$('bar').hidden=false;$('wiz').classList.remove('fade')}};
+$('tSite').onclick=function(){tab='site';siteShown='';if(cur)renderJob({...cur,transcript:[]})};$('tEd').onclick=function(){tab='ed';if(cur)renderJob({...cur,transcript:[]})};
+$('rl').onclick=function(){var f=$('pv').querySelector('iframe');if(f)f.src=f.getAttribute('data-u')};$('ext').onclick=function(){if(cur&&cur.siteUrl)post('open-url',{url:cur.siteUrl})};
+$('att').onclick=function(){$('fi').click()};
+$('fi').onchange=function(){var fs=Array.prototype.slice.call(this.files);var jid=jobId;fs.forEach(function(f){var r=new FileReader();r.onload=function(){var d=String(r.result).split(',')[1]||'';post('attach',{jobId:jid,name:f.name,data:d}).then(function(x){if(x.path){att.push(x.path);$('atl').textContent='Joint : '+att.join(', ')}})};r.readAsDataURL(f)});this.value=''};
+function sendMsg(){var t=$('msg').value.trim();if((!t&&!att.length)||!jobId)return;if(att.length)t+='\\n\\nFichiers joints (dans le projet) : '+att.join(', ');post('message',{jobId:jobId,text:t,mode:$('mode').value}).then(function(){$('msg').value='';att=[];$('atl').textContent=''})}
+$('snd').onclick=sendMsg;$('msg').onkeydown=function(e){if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();sendMsg()}};
+$('go').onclick=function(){if(starting)return;starting=true;$('go').disabled=true;post('start').then(function(r){if(r.error){starting=false;return}view='wiz';setView('studio')})};
+requestAnimationFrame(function(){document.body.classList.add('on')});tick();
+</script></body></html>`
+
+async function appMode() {
+  const prev = readUiJson()
+  if (prev && prev.pid !== process.pid) { if (!process.env.FLOW_APP_HOST) openAppWindow(prev.url); return } // déjà en marche : la fenêtre suit ui.json
+  const { url } = await startUiServer('wizard')
   if (process.env.FLOW_BRIDGE_APP_URL_FILE) writeFileSync(process.env.FLOW_BRIDGE_APP_URL_FILE, url)
+  if (!process.env.FLOW_APP_HOST && (!FAKE_ENV() || process.env.FLOW_BRIDGE_OPEN_APP === '1')) openAppWindow(url) // sans l'application native : fenêtre du navigateur
   void appPairing()
   setTimeout(() => void refreshScan({ post: false }), 50)
-  setInterval(() => { if (Date.now() - idle > 30 * 60_000) process.exit(0) }, 60_000) // fenêtre fermée depuis 30 min : on s'arrête
+  setInterval(() => { const u = readUiJson(); if (u && u.pid !== process.pid && u.kind === 'service') setTimeout(() => process.exit(0), 20_000) }, 2000) // le service (lancé après la liaison) prend le relais
+  setInterval(() => { if (Date.now() - LOCAL.uiSeen > 30 * 60_000) process.exit(0) }, 60_000) // fenêtre fermée depuis 30 min : on s'arrête
   setInterval(() => { if (!appState.running) void refreshScan({ post: appState.paired }) }, 60_000)
   await new Promise(() => {})
 }

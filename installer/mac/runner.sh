@@ -7,9 +7,11 @@ RES="$APPDIR/Contents/Resources"
 DIR="$HOME/.flow-bridge"
 mkdir -p "$DIR" && chmod 700 "$DIR"
 exec >>"$DIR/installer.log" 2>&1
-# une seule installation à la fois
+# déjà en marche (service ou assistant) : la fenêtre suit ~/.flow-bridge/ui.json, rien à relancer
+UIPID="$(/usr/bin/sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$DIR/ui.json" 2>/dev/null)"
+if [ -n "$UIPID" ] && kill -0 "$UIPID" 2>/dev/null; then exit 0; fi
 LOCK="$DIR/runner.lock"
-if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then echo "déjà en cours : on rouvre la fenêtre"; U="$(/usr/bin/sed -n 's/.*"url":"\([^"]*\)".*/\1/p' "$DIR/app.json" 2>/dev/null)"; case "$U" in http://127.0.0.1:*) /usr/bin/open "$U" ;; esac; exit 0; fi
+if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then exit 0; fi
 echo $$ > "$LOCK"; trap 'rm -f "$LOCK"' EXIT
 echo "=== $(date) — installation ==="
 status() { echo "$2"; }

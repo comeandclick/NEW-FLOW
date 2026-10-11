@@ -12,7 +12,7 @@ export type LiveAsset = { id: string; direction: 'in' | 'out'; kind: string; nam
 export type LiveStatus = 'draft' | 'queued' | 'starting' | 'running' | 'paused' | 'needs_answer' | 'done' | 'failed' | 'cancelled'
 export type LiveJob = {
   id: string; kind: 'motion' | 'site'; title: string; spec: Record<string, unknown>; status: LiveStatus; step: string | null; progress: number; error: string | null
-  sessionId: string | null; deliver: { url?: string; files?: { name: string; size?: number }[] } | null
+  sessionId: string | null; deliver: { url?: string; summary?: string; files?: { name: string; size?: number }[] } | null
   createdAt: string; startedAt: string | null; finishedAt: string | null; updatedAt: string; device: LiveDevice | null
 }
 export type TodoItem = { text: string; state: 'todo' | 'doing' | 'done' }

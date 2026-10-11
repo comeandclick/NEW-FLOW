@@ -15,7 +15,7 @@ const resumed = process.argv.includes('--resume')
 const sid = resumed ? process.argv[process.argv.indexOf('--resume') + 1] : session
 let kind = 'motion', started = false, aborted = false, working = false, queue = [], stepIdx = 0, askedOnce = false, waitingAnswer = false, delivered = false
 
-const STEPS = { motion: ['receive', 'analyse', 'plan', 'build', 'compare', 'sound', 'render4k', 'verify'], site: ['interview', 'analyse', 'design', 'structure', 'build', 'data', 'deploy', 'qa', 'motion', 'deliver'] }
+const STEPS = { motion: ['receive', 'analyse', 'plan', 'build', 'compare', 'sound', 'render4k', 'verify'], site: ['interview', 'analyse', 'design', 'structure', 'build', 'data', 'polish', 'deploy', 'qa', 'motion', 'deliver'] }
 const say = (text) => out({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } })
 const tool = (command) => out({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command } }] } })
 const result = (extra = {}) => out({ type: 'result', subtype: 'success', is_error: false, result: 'ok', session_id: sid, num_turns: 1, ...extra })

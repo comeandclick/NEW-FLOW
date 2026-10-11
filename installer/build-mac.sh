@@ -9,7 +9,11 @@ ORIGIN="${FLOW_ORIGIN:-https://new-flow-dashboard.vercel.app}"
 OUT="$ROOT/public/studio/Flow-Studio-Installer.dmg"
 W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
 APP="$W/stage/Flow Studio.app"; mkdir -p "$W/stage" "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$HERE/mac/runner.sh" "$APP/Contents/MacOS/FlowStudio"; chmod +x "$APP/Contents/MacOS/FlowStudio"
+cp "$HERE/mac/runner.sh" "$APP/Contents/Resources/runner.sh"; chmod +x "$APP/Contents/Resources/runner.sh"
+# fenêtre native (Swift/WebKit) : binaire universel Apple Silicon + Intel
+swiftc -O -target arm64-apple-macos11 "$HERE/mac/FlowStudio.swift" -o "$W/fs-arm"
+swiftc -O -target x86_64-apple-macos11 "$HERE/mac/FlowStudio.swift" -o "$W/fs-x86"
+lipo -create "$W/fs-arm" "$W/fs-x86" -output "$APP/Contents/MacOS/FlowStudio"; chmod +x "$APP/Contents/MacOS/FlowStudio"
 printf '%s' "$ORIGIN" > "$APP/Contents/Resources/origin.txt"
 # icône
 ICON_SRC="${ICON_PNG:-$HERE/icon.png}"
@@ -27,11 +31,12 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Flow Studio</string>
 <key>CFBundleDisplayName</key><string>Flow Studio</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>2.0.0</string>
-<key>CFBundleVersion</key><string>2.0.0</string>
+<key>CFBundleShortVersionString</key><string>3.0.0</string>
+<key>CFBundleVersion</key><string>3.0.0</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>LSMinimumSystemVersion</key><string>11.0</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/><key>NSAllowsArbitraryLoadsInWebContent</key><true/></dict>
 </dict></plist>
 PLIST
 # signature : Developer ID si fournie, sinon signature locale (évite le message « endommagé »)
