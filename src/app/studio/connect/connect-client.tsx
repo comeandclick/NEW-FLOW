@@ -14,6 +14,7 @@ export function ConnectClient() {
   const [view, setView] = useState<View>('checking')
   const [err, setErr] = useState('')
   const [name, setName] = useState('')
+  const [code, setCode] = useState('')
   const started = useRef(false)
 
   useEffect(() => {
@@ -22,18 +23,19 @@ export function ConnectClient() {
     const fromHash = new URLSearchParams(window.location.hash.slice(1)).get('code')?.toUpperCase().trim() ?? ''
     let code = CODE_RE.test(fromHash) ? fromHash : ''
     try {
-      if (code) sessionStorage.setItem(KEY, JSON.stringify({ code, at: Date.now() }))
-      else { const saved = JSON.parse(sessionStorage.getItem(KEY) ?? 'null'); if (saved && Date.now() - saved.at < 10 * 60_000 && CODE_RE.test(saved.code)) code = saved.code }
+      if (code) localStorage.setItem(KEY, JSON.stringify({ code, at: Date.now() }))
+      else { const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null'); if (saved && Date.now() - saved.at < 10 * 60_000 && CODE_RE.test(saved.code)) code = saved.code }
     } catch { /* stockage indisponible */ }
     history.replaceState(null, '', window.location.pathname) // le code ne reste pas dans l'adresse
     if (!code) { setView('nocode'); return }
+    setCode(code)
     void (async () => {
       try {
         const st = await studioApi.status()
         if (st.mode === 'anon' || st.mode === 'demo') { setView('login'); return }
         setView('linking')
         const { device } = await studioApi.confirm(code)
-        try { sessionStorage.removeItem(KEY) } catch { /* ignore */ }
+        try { localStorage.removeItem(KEY) } catch { /* ignore */ }
         setName(device.name); setView('done')
       } catch (e) {
         const a = e as ApiError
@@ -49,7 +51,8 @@ export function ConnectClient() {
       {view === 'login' && <>
         <LogIn className="mx-auto size-8 text-accent-ink" />
         <h1 className="mt-4 text-xl font-semibold">Connecte-toi à Flow</h1>
-        <p className="mt-2 text-sm text-text-2">Pour relier ton Mac, connecte-toi à ton compte Flow : tu reviens ici automatiquement ensuite.</p>
+        <p className="mt-2 text-sm text-text-2">Pour relier ton Mac, connecte-toi à ton compte Flow : le Mac est relié automatiquement ensuite.</p>
+        {code && <p className="mt-3 text-xs text-text-3">Code du Mac : <span className="font-mono font-medium text-text">{code}</span></p>}
         <Link href={`/login?next=${encodeURIComponent('/studio/connect')}`} className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text">Se connecter</Link>
       </>}
       {view === 'done' && <>

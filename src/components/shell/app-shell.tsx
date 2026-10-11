@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { PairResume } from '@/components/studio/pair-resume'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { Check, ChevronsLeft, ChevronsRight, LayoutGrid, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
@@ -26,6 +27,7 @@ import { PrefsApplier } from '@/lib/hooks/use-prefs'
 import { registerServiceWorker, useOnline, warmPages } from '@/lib/offline'
 
 export function AppShell({ children }: { children: ReactNode }) {
+  // le Mac en attente de liaison est relié dès la connexion (voir PairResume)
   const t = useT()
   const { locale, setLocale } = useI18n()
   const { pref, setPref } = useTheme()
@@ -148,6 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-ui fixed inset-0 flex overflow-hidden bg-bg">
+      <PairResume />
       <aside className={cn('hidden shrink-0 border-r border-border bg-bg-subtle transition-[width] duration-200 ease-out md:block', collapsed ? 'w-[60px]' : 'w-[248px]')}>{sidebar(collapsed)}</aside>
       <Sheet open={mobileOpen} onClose={() => setMobileOpen(false)}>{sidebar(false, () => setMobileOpen(false))}</Sheet>
 
