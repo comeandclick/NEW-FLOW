@@ -1,4 +1,4 @@
-import { CalendarDays, CheckSquare, Clock, FileText, FolderOpen, Home, MessageSquare, Settings, Target, Users, type LucideIcon } from 'lucide-react'
+import { Archive, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Target, Users, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
 export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages'; /** other routes that keep this item highlighted */ also?: string[] }
@@ -8,7 +8,8 @@ export const NAV: NavGroup[] = [
   {
     items: [
       { href: '', label: 'nav.home', icon: Home },
-      { href: '/tasks', label: 'nav.tasks', icon: CheckSquare, also: ['/projects'] },
+      { href: '/inbox', label: 'nav.inbox', icon: Inbox },
+      { href: '/tasks', label: 'nav.tasks', icon: CheckSquare, also: ['/projects', '/roadmap', '/team'] },
       { href: '/notes', label: 'nav.notes', icon: FileText, also: ['/whiteboard'] },
       { href: '/calendar', label: 'nav.calendar', icon: CalendarDays },
       { href: '/messages', label: 'nav.messages', icon: MessageSquare, badge: 'messages', also: ['/meetings'] },
@@ -23,18 +24,32 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    label: 'nav.group.product',
+    items: [{ href: '/feedback', label: 'nav.feedback', icon: Bug, also: ['/releases', '/localization'] }],
+  },
+  {
+    label: 'nav.group.studio',
+    items: [
+      { href: '/motion', label: 'nav.motion', icon: Clapperboard },
+      { href: '/site', label: 'nav.site', icon: Globe },
+      { href: '/library', label: 'nav.library', icon: Archive },
+    ],
+  },
+  {
     label: 'nav.group.personal',
     items: [{ href: '/focus', label: 'nav.focus', icon: Clock, also: ['/habits'] }],
   },
 ]
 
 export const NAV_FOOTER: NavItem[] = [
+  { href: '/me', label: 'perso.navLabel', icon: Lock },
   { href: '/settings', label: 'nav.settings', icon: Settings, also: ['/automations', '/activity', '/trash'] },
 ]
 
 /** Sub-pages grouped under a parent entry; rendered as tabs at the top of each page. */
 export const HUBS: Record<string, { href: string; label: Key }[]> = {
-  tasks: [{ href: '/tasks', label: 'nav.tasks' }, { href: '/projects', label: 'nav.projects' }],
+  tasks: [{ href: '/tasks', label: 'nav.tasks' }, { href: '/projects', label: 'nav.projects' }, { href: '/roadmap', label: 'nav.roadmap' }, { href: '/team', label: 'nav.team' }],
+  product: [{ href: '/feedback', label: 'nav.feedback' }, { href: '/releases', label: 'nav.releases' }, { href: '/localization', label: 'nav.localization' }],
   notes: [{ href: '/notes', label: 'nav.notes' }, { href: '/whiteboard', label: 'nav.whiteboard' }],
   messages: [{ href: '/messages', label: 'nav.messages' }, { href: '/meetings', label: 'nav.meetings' }],
   crm: [{ href: '/crm', label: 'nav.crm' }, { href: '/finance', label: 'nav.finance' }, { href: '/forms', label: 'nav.forms' }],
