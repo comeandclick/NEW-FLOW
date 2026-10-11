@@ -12,7 +12,7 @@ import readline from 'node:readline'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.1.0'
+const VERSION = '1.2.0'
 const HOME = homedir()
 const DIR = process.env.FLOW_BRIDGE_HOME || path.join(HOME, '.flow-bridge')
 const CONFIG = path.join(DIR, 'config.json')
@@ -1348,7 +1348,7 @@ var T=location.pathname,$=function(i){return document.getElementById(i)};
 function post(r,b){return fetch(T+r,{method:'POST',headers:{'x-flow':'1','content-type':'application/json'},body:JSON.stringify(b||{})}).then(function(x){return x.json().catch(function(){return{}})})}
 function get(r){return fetch(T+r,{cache:'no-store'}).then(function(x){if(!x.ok)throw new Error(x.status);return x.json()})}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
-var S=null,cur=null,lastN=0,jobId=null,engine='effectcraft',starting=false,showWiz=true,view='wiz',siteShown='',tab='site',edAt=0,att=[];
+var showAll=false,S=null,cur=null,lastN=0,jobId=null,engine='effectcraft',starting=false,showWiz=true,view='wiz',siteShown='',tab='site',edAt=0,att=[];
 var LBL={ok:'Installé',missing:'À installer',warn:'À connecter',installing:'En cours…',waiting:'En attente',error:'Échec'},CLS={ok:'ok',missing:'bad',warn:'warn',installing:'busy',waiting:'busy',error:'bad'};
 var STT={draft:'Brouillon',starting:'Démarrage',running:'En cours',paused:'En pause',needs_answer:'Question',done:'Terminé',failed:'Échec',cancelled:'Annulé',queued:'En attente'};
 /* ---------- assistant ---------- */
@@ -1371,7 +1371,8 @@ function renderWiz(s){
   [['effectcraft','EffectCraft','gratuit (recommandé)'],['remotion','Remotion','gratuit, vidéos par code'],['aftereffects','After Effects','abonnement Adobe payant, installation guidée']].forEach(function(o){var l=el('label');var i=el('input');i.type='radio';i.name='eng';i.value=o[0];i.checked=engine===o[0];i.onchange=function(){engine=o[0]};l.appendChild(i);var d=el('div',null,o[1]);d.appendChild(el('small','mute',' — '+o[2]));l.appendChild(d);e.appendChild(l)});so.appendChild(e)}
  var claudeWarn=s.items.some(function(c){return c.id==='claude'&&c.state==='warn'});
  var need=!s.motionOk||missing.length>0||claudeWarn;
- var row=el('div','row');var bi=el('button',null,need?'Installer ce qui manque':'Tout est installé ✓');bi.disabled=s.running||!need;bi.onclick=function(){post('install',{engine:s.motionOk?'':engine})};row.appendChild(bi);so.appendChild(row);
+ var row=el('div','row');var bi=el('button',null,need?'Installer ce qui manque':'Tout est installé ✓');bi.disabled=s.running||!need;bi.onclick=function(){post('install',{engine:s.motionOk?'':engine})};row.appendChild(bi);
+ if(!need&&!s.running){ul.hidden=!showAll;var tg=el('button','g s',showAll?'Masquer le détail':'Voir le détail');tg.onclick=function(){showAll=!showAll;renderWiz(S)};row.appendChild(tg)}so.appendChild(row);
  if(s.running||s.step){so.appendChild(el('p','mute',s.step||''));if(s.pct!=null){var bar=el('div','bar');var i2=el('i');i2.style.width=s.pct+'%';bar.appendChild(i2);so.appendChild(bar)}}
  if(s.error)so.appendChild(el('p','err',s.error));
  var done=s.items.length&&!need&&!s.running;$('n2').className='n'+(done?' ok':'');$('n2').textContent=done?'✓':'2';
