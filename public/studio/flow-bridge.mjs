@@ -1466,6 +1466,7 @@ async function connect() {
 const PLIST = path.join(HOME, 'Library', 'LaunchAgents', 'site.flow.bridge.plist')
 function install() {
   if (FAKE) { log('install ignoré (mode test)'); return }
+  if (process.env.FLOW_BRIDGE_HOME) { log('install ignoré (dossier de test)'); return } // un test ne doit jamais remplacer le vrai service du Mac
   if (platform() !== 'darwin') { console.error('install : macOS uniquement pour l\'instant.'); process.exit(1) }
   const node = process.execPath
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
