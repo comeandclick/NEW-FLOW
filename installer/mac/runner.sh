@@ -1,24 +1,24 @@
 #!/bin/bash
-# Flow Studio — exécuté par l'application « Installer Flow Studio » (aucune commande à taper).
+# Flow Studio — programme de l'application « Flow Studio » (aucune commande à taper).
 # Prépare Node.js si besoin (sans droits administrateur), récupère le pont depuis le site, puis lance l'assistant graphique.
 set -u
-RES="$(cd "$(dirname "$0")" && pwd)"
+APPDIR="$(cd "$(dirname "$0")/../.." && pwd)"   # …/Flow Studio.app
+RES="$APPDIR/Contents/Resources"
 DIR="$HOME/.flow-bridge"
 mkdir -p "$DIR" && chmod 700 "$DIR"
 exec >>"$DIR/installer.log" 2>&1
 # une seule installation à la fois
 LOCK="$DIR/runner.lock"
-if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then echo "déjà en cours"; exit 0; fi
+if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then echo "déjà en cours : on rouvre la fenêtre"; U="$(/usr/bin/sed -n 's/.*"url":"\([^"]*\)".*/\1/p' "$DIR/app.json" 2>/dev/null)"; case "$U" in http://127.0.0.1:*) /usr/bin/open "$U" ;; esac; exit 0; fi
 echo $$ > "$LOCK"; trap 'rm -f "$LOCK"' EXIT
 echo "=== $(date) — installation ==="
-GUI="$DIR/gui.txt"
-status() { printf 'phase=%s\nstep=%s\npct=%s\n' "$1" "$2" "$3" > "$GUI"; }
-fail() { printf 'phase=error\nerror=%s\n' "$1" > "$GUI"; echo "ERREUR : $1"; exit 1; }
+status() { echo "$2"; }
+fail() { echo "ERREUR : $1"; /usr/bin/osascript -e "display dialog \"Flow Studio n'a pas pu démarrer.\" & return & return & \"$1\" & return & return & \"Détails : ~/.flow-bridge/installer.log\" with title \"Flow Studio\" buttons {\"OK\"} default button \"OK\" with icon caution" >/dev/null 2>&1; exit 1; }
 
 # --- Adresse du site : celle d'où le .dmg a été téléchargé (vérifiée), sinon celle prévue dans l'application ---
 ORIGIN="$(tr -d '\n\r ' < "$RES/origin.txt" 2>/dev/null)"
 if [ -n "${FLOW_INSTALLER_ORIGIN:-}" ]; then ORIGIN="$FLOW_INSTALLER_ORIGIN"; else
-  VOL="$(cd "$RES/../../.." 2>/dev/null && pwd)"
+  VOL="$(cd "$APPDIR/.." 2>/dev/null && pwd)"
   IMG="$(/usr/bin/hdiutil info 2>/dev/null | /usr/bin/awk -v vol="$VOL" '/image-path/ {p=$0; sub(/^[^:]*: */, "", p)} index($0, vol) {print p; exit}')"
   if [ -n "$IMG" ] && [ -f "$IMG" ]; then
     URL="$(/usr/bin/mdls -raw -name kMDItemWhereFroms "$IMG" 2>/dev/null | /usr/bin/grep -Eo 'https://[A-Za-z0-9.-]+(:[0-9]+)?/studio/Flow-Studio-Installer\.dmg' | head -1)"
@@ -54,10 +54,14 @@ echo "node : $NODE"
 
 # --- Le pont ---
 status prepare "Téléchargement de Flow Studio…" 6
-/usr/bin/curl -fsSL --proto '=https,http' --tlsv1.2 "$ORIGIN/studio/flow-bridge.mjs" -o "$DIR/flow-bridge.mjs" || fail "Téléchargement de Flow Studio impossible. Vérifie ta connexion Internet."
+if /usr/bin/curl -fsSL --proto '=https,http' --tlsv1.2 "$ORIGIN/studio/flow-bridge.mjs" -o "$DIR/flow-bridge.new.mjs" && "$NODE" --check "$DIR/flow-bridge.new.mjs" 2>/dev/null; then mv "$DIR/flow-bridge.new.mjs" "$DIR/flow-bridge.mjs"; else rm -f "$DIR/flow-bridge.new.mjs"; [ -f "$DIR/flow-bridge.mjs" ] || fail "Téléchargement de Flow Studio impossible. Vérifie ta connexion Internet."; fi
 FLOW_SERVER_URL="$ORIGIN" "$NODE" -e "const fs=require('fs'),p=process.env.HOME+'/.flow-bridge/config.json';let c={};try{c=JSON.parse(fs.readFileSync(p,'utf8'))}catch{};c.server=process.env.FLOW_SERVER_URL;fs.writeFileSync(p,JSON.stringify(c,null,2),{mode:384})"
 
-# --- Assistant graphique (il écrit son état dans gui.txt : l'application l'affiche) ---
-"$NODE" "$DIR/flow-bridge.mjs" setup --gui
-CODE=$?
-if ! grep -q '^phase=\(done\|error\)' "$GUI" 2>/dev/null; then fail "L'installation s'est arrêtée (code $CODE). Détails : $DIR/installer.log"; fi
+# --- Copie de l'application dans ~/Applications (pour la rouvrir plus tard) ---
+DEST="$HOME/Applications/Flow Studio.app"
+if [ "$APPDIR" != "$DEST" ] && [ "${APPDIR#/Volumes/}" != "$APPDIR" -o "${APPDIR#/private/var/}" != "$APPDIR" ]; then
+  mkdir -p "$HOME/Applications" && rm -rf "$DEST" && /bin/cp -R "$APPDIR" "$DEST" && /usr/bin/xattr -dr com.apple.quarantine "$DEST" 2>/dev/null
+fi
+
+# --- Fenêtre Flow Studio (liaison, vérification, installation, ouverture) ---
+exec "$NODE" "$DIR/flow-bridge.mjs" app

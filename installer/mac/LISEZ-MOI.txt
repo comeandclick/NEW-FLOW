@@ -1,7 +1,9 @@
-Flow Studio — installation sur Mac
+Flow Studio — installation (Mac)
 
-Double-clique « Installer Flow Studio » et suis la fenêtre. Rien à taper.
+1. Double-clique sur « Flow Studio » (si macOS demande une confirmation : clic droit > Ouvrir).
+2. Une fenêtre s'ouvre : elle affiche un code à relier à ton compte Flow (le bouton « Ouvrir Flow » le fait tout seul si tu es connecté).
+3. Clique sur « Installer ce qui manque » : seuls les logiciels absents sont installés (Claude Code, EffectCraft ou After Effects, ffmpeg, méthodes de motion).
+4. Clique sur « Commencer » : Flow Studio s'ouvre.
 
-Si macOS dit que l'application ne peut pas être ouverte (développeur non vérifié) :
-Réglages Système > Confidentialité et sécurité > descends jusqu'à « Installer Flow Studio » > Ouvrir quand même.
-(À faire une seule fois.)
+L'application est copiée dans ton dossier Applications pour la rouvrir plus tard.
+Désinstaller : supprime ~/.flow-bridge et ~/Applications/Flow Studio.app.

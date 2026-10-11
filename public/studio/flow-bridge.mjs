@@ -3,7 +3,8 @@
 // les questions et les résultats, et applique pause / reprise / annulation / messages venant de Flow.
 // Aucune dépendance : Node 20+ seulement.  Usage :  node flow-bridge.mjs connect | start | status | install | uninstall | logs
 import { spawn, execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { createServer } from 'node:http'
 import { chmodSync, createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, renameSync, appendFileSync, readdirSync, rmSync } from 'node:fs'
 import { homedir, hostname, platform } from 'node:os'
 import path from 'node:path'
@@ -668,17 +669,20 @@ function scan() {
   add({ id: 'skills', name: 'Méthodes de motion (skills)', group: 'ia', required: true, state: sk.length === SKILLS.length || fakeDone.has('skills') ? 'ok' : 'missing', detail: sk.length === SKILLS.length ? undefined : `${sk.length}/${SKILLS.length} installées`, installable: true })
   // Sites
   const vc = which('vercel')
-  const vlog = vc ? sh('vercel', ['whoami'], 20000) : null
+  const vlog = vc && !LIGHT_SCAN ? sh('vercel', ['whoami'], 20000) : null
   add({ id: 'vercel', name: 'Vercel (mise en ligne des sites)', group: 'site', state: vc ? (vlog ? 'ok' : 'warn') : 'missing', version: vlog ?? undefined, detail: vc ? (vlog ? undefined : 'Installé mais pas connecté : lance « vercel login » dans le Terminal.') : 'Pour publier les sites.', installable: true })
+  if (!LIGHT_SCAN) { // la fenêtre d'installation ne vérifie pas les comptes (lent) : seulement les logiciels
   const gh = which('gh'); const ghOk = gh ? sh('gh', ['auth', 'status']) !== null : false
   add({ id: 'github', name: 'GitHub', group: 'site', state: ghOk ? 'ok' : 'warn', detail: ghOk ? undefined : (gh ? 'Pas connecté : bouton « Connecter » dans Paramètres > Studio.' : 'Facultatif : pour ranger le code dans ton compte.'), installable: false })
   const sb = which('supabase'); const sbOk = sb ? sh('supabase', ['projects', 'list'], 20000) !== null : false
   add({ id: 'supabase', name: 'Supabase', group: 'site', state: sbOk ? 'ok' : 'warn', detail: sbOk ? undefined : (sb ? 'Pas connecté : bouton « Connecter » dans Paramètres > Studio.' : 'Facultatif : pour les sites avec base de données.'), installable: false })
+  }
   add({ id: 'git', name: 'Git', group: 'site', state: which('git') ? 'ok' : 'missing', installable: false, detail: which('git') ? undefined : 'Installe les outils de développement Apple : xcode-select --install' })
   if (FAKE && process.env.FLOW_FAKE_MISSING) for (const id of process.env.FLOW_FAKE_MISSING.split(',')) { const x = out.find((c) => c.id === id); if (x && !fakeDone.has(id)) { x.state = 'missing'; x.version = undefined } }
   return out
 }
 
+let LIGHT_SCAN = false
 let setupState = { components: [], installing: null, engine: cfgEngine(), platform: platform() }
 function cfgEngine() { return readJson(CONFIG, {}).engine ?? null }
 const COLORS = { ok: '\x1b[32m', missing: '\x1b[31m', warn: '\x1b[33m', error: '\x1b[31m', installing: '\x1b[36m', waiting: '\x1b[36m' }
@@ -1006,6 +1010,185 @@ async function guiSetup() {
   }
 }
 
+const APP_HTML = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flow Studio</title>
+<style>
+:root{--bg:#f4f4f7;--card:#fff;--text:#15151a;--mute:#6b6b78;--line:#e4e4ea;--acc:#4d59c7;--acct:#fff;--ok:#15803d;--bad:#c4262f;--warn:#a16207}
+@media(prefers-color-scheme:dark){:root{--bg:#0e0e12;--card:#18181f;--text:#f2f2f5;--mute:#9a9aa8;--line:#2a2a34;--acc:#8b94ff;--acct:#0e0e12;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24}}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}
+body{font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;background:var(--bg);color:var(--text);opacity:0;transition:opacity .7s ease}
+body.on{opacity:1}body.out{opacity:0}
+main{max-width:640px;margin:0 auto;padding:28px 20px 40px}
+h1{font-size:24px;margin:0 0 4px}.sub{color:var(--mute);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:10px}
+.n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--line);align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.n.ok{background:var(--ok);color:#fff}
+.code{font:600 30px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;text-align:center;padding:14px;border-radius:12px;background:var(--bg);border:1px dashed var(--line);user-select:all}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:10px 16px;cursor:pointer;background:var(--acc);color:var(--acct)}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+ul{list-style:none;margin:0;padding:0}li.it{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}li.it:first-child{border-top:0}
+.nm{flex:1;min-width:0}.nm small{display:block;color:var(--mute);font-size:12px}
+.b{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg);color:var(--mute);white-space:nowrap}
+.b.ok{color:var(--ok)}.b.bad{color:var(--bad)}.b.warn{color:var(--warn)}.b.busy{color:var(--acc)}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;background:var(--acc);transition:width .5s}
+.eng{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:12px}.eng label{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
+.mute{color:var(--mute);font-size:13px}.err{color:var(--bad);font-size:13px;margin-top:10px}.ok-t{color:var(--ok);font-weight:600}
+#go{width:100%;padding:15px;font-size:17px}
+@media(prefers-reduced-motion:reduce){body{transition:none}.bar i{transition:none}}
+</style></head><body><main>
+<h1>Flow Studio</h1><p class="sub">Trois étapes, tout est automatique.</p>
+<section class="card" aria-labelledby="h1"><h2 id="h1"><span class="n" id="n1">1</span>Relier ce Mac à Flow</h2><div id="pair"></div></section>
+<section class="card" aria-labelledby="h2"><h2 id="h2"><span class="n" id="n2">2</span>Logiciels du Mac</h2><div id="soft"></div></section>
+<section class="card" aria-labelledby="h3"><h2 id="h3"><span class="n" id="n3">3</span>Prêt ?</h2><button id="go" disabled>Commencer</button><p class="mute" id="why" aria-live="polite"></p></section>
+</main>
+<script>
+var T=location.pathname,$=function(i){return document.getElementById(i)};
+function post(r,b){return fetch(T+r,{method:'POST',headers:{'x-flow':'1','content-type':'application/json'},body:JSON.stringify(b||{})}).then(function(x){return x.json().catch(function(){return{}})})}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+var LBL={ok:'Installé',missing:'À installer',warn:'À connecter',installing:'En cours…',waiting:'En attente',error:'Échec'};
+var CLS={ok:'ok',missing:'bad',warn:'warn',installing:'busy',waiting:'busy',error:'bad'};
+var S=null,engine='effectcraft',starting=false;
+function render(s){S=s;
+ var p=$('pair');p.textContent='';$('n1').className='n'+(s.paired?' ok':'');$('n1').textContent=s.paired?'✓':'1';
+ if(s.paired){p.appendChild(el('p','ok-t','Ce Mac est relié à ton compte Flow.'))}
+ else if(s.pair){p.appendChild(el('p','mute','Entre ce code dans Flow (Création de site → Connexion du Mac), ou clique sur « Ouvrir Flow » : le Mac se relie tout seul si tu es connecté.'));
+  p.appendChild(el('div','code',s.pair.code));var r=el('div','row');
+  var b1=el('button',null,'Ouvrir Flow');b1.onclick=function(){post('open-flow')};r.appendChild(b1);
+  var b2=el('button','ghost','Copier le code');b2.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(s.pair.code);b2.textContent='Copié ✓'};r.appendChild(b2);p.appendChild(r);
+  p.appendChild(el('p','mute','Le code se renouvelle tout seul : tu peux garder cette fenêtre ouverte.'))}
+ else p.appendChild(el('p','mute','Préparation du code…'));
+ var so=$('soft');so.textContent='';var ul=el('ul');if(!s.items.length){so.appendChild(el('p','mute','Vérification de ton Mac…'));return}
+ s.items.forEach(function(c){var li=el('li','it');var n=el('div','nm',c.name);var sm=c.state==='ok'?(c.version||''):c.detail;if(c.cost==='paid'&&c.state!=='ok')sm=(sm?sm+' · ':'')+'abonnement payant';if(sm)n.appendChild(el('small',null,sm));
+  var opt=s.motionOk&&c.state!=='ok'&&['effectcraft','aftereffects','remotion'].indexOf(c.id)>=0;li.appendChild(n);li.appendChild(el('span','b '+(opt?'':(CLS[c.state]||'')),opt?'Facultatif':(LBL[c.state]||c.state)));ul.appendChild(li)});so.appendChild(ul);
+ var missing=s.items.filter(function(c){return c.state!=='ok'&&['effectcraft','aftereffects','remotion'].indexOf(c.id)<0&&c.group!=='site'});
+ if(!s.motionOk){var e=el('div','eng');e.appendChild(el('div','mute','Aucun moteur de motion design trouvé. Lequel installer ?'));
+  [['effectcraft','EffectCraft','gratuit (recommandé)'],['remotion','Remotion','gratuit, vidéos par code'],['aftereffects','After Effects','abonnement Adobe payant, installation guidée']].forEach(function(o){var l=el('label');var i=el('input');i.type='radio';i.name='eng';i.value=o[0];i.checked=engine===o[0];i.onchange=function(){engine=o[0]};l.appendChild(i);var d=el('div',null,o[1]);d.appendChild(el('small','mute',' — '+o[2]));l.appendChild(d);e.appendChild(l)});so.appendChild(e)}
+ var need=!s.motionOk||missing.length>0||s.items.some(function(c){return c.id==='claude'&&c.state==='warn'});
+ var row=el('div','row');var bi=el('button',null,need?'Installer ce qui manque':'Tout est installé ✓');bi.disabled=s.running||!need;bi.onclick=function(){post('install',{engine:s.motionOk?'':engine})};row.appendChild(bi);so.appendChild(row);
+ if(s.running||s.step){so.appendChild(el('p','mute',s.step||''));if(s.pct!=null){var bar=el('div','bar');var i2=el('i');i2.style.width=s.pct+'%';bar.appendChild(i2);so.appendChild(bar)}}
+ if(s.error)so.appendChild(el('p','err',s.error));
+ var done=s.items.length&&!need&&!s.running;$('n2').className='n'+(done?' ok':'');$('n2').textContent=done?'✓':'2';
+ var g=$('go');g.disabled=!s.ready||starting;var w=$('why');w.textContent=s.ready?'Tout est prêt : Flow Studio va s’ouvrir.':s.issues.join(' ');$('n3').className='n'+(s.ready?' ok':'')}
+function poll(){fetch(T+'state',{cache:'no-store'}).then(function(r){return r.json()}).then(render).catch(function(){}).then(function(){setTimeout(poll,1000)})}
+$('go').onclick=function(){if(starting)return;starting=true;$('go').disabled=true;post('start').then(function(r){if(!r.url){starting=false;return}document.body.classList.add('out');setTimeout(function(){location.href=r.url},800)})};
+requestAnimationFrame(function(){document.body.classList.add('on')});poll();
+</script></body></html>`
+
+/* ───────── Application Flow Studio (fenêtre locale) : liaison, vérification, installation, puis ouverture de Flow Studio ───────── */
+const APP_JSON = path.join(DIR, 'app.json')
+const appState = { pair: null, paired: false, running: false, step: '', error: '' }
+const MOTION_IDS = ['effectcraft', 'aftereffects', 'remotion']
+const motionOk = () => setupState.components.some((c) => MOTION_IDS.includes(c.id) && c.state === 'ok')
+const readyIssues = () => {
+  const by = (id) => setupState.components.find((c) => c.id === id)
+  const out = []
+  if (!appState.paired) out.push('Relie ce Mac à Flow.')
+  for (const id of ['node', 'claude', 'skills', 'ffmpeg']) { const c = by(id); if (c && c.state !== 'ok') out.push(`${c.name} : ${c.state === 'warn' ? 'à connecter' : 'à installer'}.`) }
+  if (!motionOk()) out.push('Choisis un moteur de motion design (EffectCraft, gratuit).')
+  return out
+}
+async function appPairing() {
+  const c = cfg()
+  if (c.deviceToken) { appState.paired = true; return }
+  const info = { deviceName: process.env.FLOW_DEVICE_NAME || hostname().replace(/\.local$/, ''), os: 'macOS', version: VERSION }
+  for (let attempt = 0; attempt < 12 && !appState.paired; attempt++) { // le code se renouvelle tout seul : la fenêtre peut rester ouverte
+    let res
+    try { res = await api('POST', 'pair/start', info, { auth: false }) } catch { appState.error = 'Flow est injoignable (Internet ?) : nouvel essai…'; await sleep(5000); continue }
+    appState.error = ''
+    appState.pair = { code: res.code, url: `${c.server}/studio/connect#code=${res.code}`, expiresAt: Date.now() + res.expiresInSec * 1000 }
+    const t0 = Date.now()
+    while (Date.now() - t0 < res.expiresInSec * 1000) {
+      await sleep(2000)
+      const r = await api('GET', `pair/poll?token=${encodeURIComponent(res.pollToken)}`, undefined, { auth: false }).catch(() => null)
+      if (r?.status === 'paired') { saveCfg({ ...readJson(CONFIG, {}), server: c.server, deviceToken: r.deviceToken }); appState.paired = true; appState.pair = null; break }
+      if (r?.status === 'expired') break
+    }
+  }
+  if (appState.paired) { try { install() } catch (e) { log('app-install', e.message) } await refreshScan() }
+}
+/** Installe tout ce qui manque (jamais ce qui existe déjà), puis revérifie. */
+async function appInstall(engine) {
+  if (appState.running) return
+  appState.running = true; appState.error = ''
+  try {
+    appState.step = 'Vérification de ton Mac…'
+    await refreshScan({ post: false })
+    const by = (id) => setupState.components.find((c) => c.id === id)
+    if (!motionOk() && MOTION_IDS.includes(engine)) { appState.step = 'Installation du moteur de motion design…'; await installComponent(engine, { choice: engine }) }
+    for (const id of ['claude', 'skills', 'ffmpeg', 'python']) {
+      const c = by(id)
+      if (c && c.state !== 'ok' && c.installable !== false && !(id === 'claude' && c.state === 'warn')) { appState.step = `Installation de ${c.name}…`; await installComponent(id) }
+    }
+    await refreshScan({ post: false })
+    if (by('claude')?.state === 'warn') { appState.step = 'Connexion à Claude : termine dans la page du navigateur qui s’ouvre…'; await loginClaude() }
+    appState.step = 'Vérification finale…'
+    await refreshScan({ post: appState.paired })
+    const left = readyIssues().filter((x) => !x.startsWith('Relie'))
+    appState.step = left.length ? '' : 'Tout est prêt.'
+    if (left.length) appState.error = left.join(' ')
+  } catch (e) { appState.error = String(e.message ?? e).slice(0, 300); log('app-install', e.message) }
+  appState.running = false
+}
+const APP_ITEMS = ['node', 'claude', 'effectcraft', 'aftereffects', 'remotion', 'ffmpeg', 'python', 'skills']
+function appSnapshot() {
+  const items = setupState.components.filter((c) => APP_ITEMS.includes(c.id)).map((c) => ({ id: c.id, name: c.name, state: c.state, cost: c.cost ?? null, detail: c.detail ?? '', version: c.version ?? '', group: c.group }))
+  const inst = setupState.installing
+  const issues = readyIssues()
+  return { server: cfg().server, paired: appState.paired, pair: appState.pair, items, motionOk: motionOk(), running: appState.running, step: inst ? `${inst.label} — ${inst.step}` : appState.step, pct: inst?.pct ?? null, error: appState.error, issues, ready: issues.length === 0 }
+}
+function openAppWindow(url) {
+  try {
+    if (defaultBrowser() === 'chrome') execFileSync('/usr/bin/open', ['-na', 'Google Chrome', '--args', `--app=${url}`, '--window-size=1000,740'], { stdio: 'ignore' })
+    else openWindow(url)
+  } catch (e) { log('app-window', e.message) }
+}
+async function appMode() {
+  const prev = readJson(APP_JSON, null)
+  if (prev?.pid && prev.url) { try { process.kill(prev.pid, 0); openAppWindow(prev.url); return } catch { /* ancienne instance disparue */ } }
+  const token = randomBytes(18).toString('hex')
+  let idle = Date.now()
+  const server = createServer(async (req, res) => {
+    const send = (code, body, type = 'application/json') => { res.writeHead(code, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'" }); res.end(typeof body === 'string' ? body : JSON.stringify(body)) }
+    try {
+      const port = server.address().port
+      if (req.headers.host !== `127.0.0.1:${port}`) return send(403, { error: 'host' }) // protège contre les sites web qui tentent d'atteindre cette fenêtre
+      const u = new URL(req.url, `http://127.0.0.1:${port}`)
+      const prefix = `/t/${token}/`
+      if (!u.pathname.startsWith(prefix)) return send(404, { error: 'not found' })
+      const route = u.pathname.slice(prefix.length)
+      idle = Date.now()
+      if (req.method === 'GET' && route === '') return send(200, APP_HTML, 'text/html')
+      if (req.method === 'GET' && route === 'state') return send(200, appSnapshot())
+      if (req.method !== 'POST' || req.headers['x-flow'] !== '1' || (req.headers.origin && req.headers.origin !== `http://127.0.0.1:${port}`)) return send(403, { error: 'forbidden' })
+      let body = ''; for await (const ch of req) { body += ch; if (body.length > 2000) break }
+      const b = (() => { try { return JSON.parse(body || '{}') } catch { return {} } })()
+      if (route === 'install') { void appInstall(typeof b.engine === 'string' ? b.engine : ''); return send(202, { ok: true }) }
+      if (route === 'open-flow') { const p = appState.pair; openWindow(p ? p.url : `${cfg().server}/app`); return send(200, { ok: true }) }
+      if (route === 'start') {
+        if (readyIssues().length) return send(409, { error: 'not ready', issues: readyIssues() })
+        try { install() } catch (e) { log('app-install', e.message) }
+        setTimeout(() => { server.close(); try { rmSync(APP_JSON) } catch {} process.exit(0) }, 90_000) // la fenêtre est partie vers Flow Studio
+        return send(200, { url: `${cfg().server}/studio/live?welcome=1` })
+      }
+      return send(404, { error: 'not found' })
+    } catch (e) { log('app-http', e.message); send(500, { error: 'server' }) }
+  })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  const url = `http://127.0.0.1:${server.address().port}/t/${token}/`
+  writeFileSync(APP_JSON, JSON.stringify({ pid: process.pid, url }), { mode: 0o600 })
+  process.on('exit', () => { try { rmSync(APP_JSON) } catch {} })
+  LIGHT_SCAN = true
+  if (!FAKE_ENV() || process.env.FLOW_BRIDGE_OPEN_APP === '1') openAppWindow(url) // la fenêtre s'ouvre tout de suite
+  if (process.env.FLOW_BRIDGE_APP_URL_FILE) writeFileSync(process.env.FLOW_BRIDGE_APP_URL_FILE, url)
+  void appPairing()
+  setTimeout(() => void refreshScan({ post: false }), 50)
+  setInterval(() => { if (Date.now() - idle > 30 * 60_000) process.exit(0) }, 60_000) // fenêtre fermée depuis 30 min : on s'arrête
+  setInterval(() => { if (!appState.running) void refreshScan({ post: appState.paired }) }, 60_000)
+  await new Promise(() => {})
+}
+
 /* ───────── Appairage ───────── */
 async function connect() {
   const c = cfg()
@@ -1042,7 +1225,6 @@ function install() {
   try { execFileSync('launchctl', ['unload', PLIST], { stdio: 'ignore' }) } catch {}
   execFileSync('launchctl', ['load', '-w', PLIST])
   console.log('Service installé : le pont démarre avec le Mac et empêche la mise en veille tant qu\'il tourne.')
-  makeStudioApp()
 }
 /** Petite application « Flow Studio » (dossier Applications de l'utilisateur) : un double-clic ouvre la fenêtre de suivi. */
 function makeStudioApp() {
@@ -1070,6 +1252,7 @@ else if (cmd === 'start') await loop()
 else if (cmd === 'status') await status()
 else if (cmd === 'doctor') { await refreshScan({ post: false }); printState() }
 else if (cmd === 'setup') { if (process.argv.includes('--gui')) await guiSetup(); else await wizard({ yes: process.argv.includes('--yes') }) }
+else if (cmd === 'app') await appMode()
 else if (cmd === 'install') install()
 else if (cmd === 'open') { if (!openStudio(process.argv[3])) openStudio() }
 else if (cmd === 'uninstall') uninstall()
