@@ -1,0 +1,26 @@
+name: Social Cron Publisher
+
+on:
+  schedule:
+    # Toutes les 5 minutes (publication précise même Mac éteint)
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Publier les posts schedulés
+        run: |
+          RESULT=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://new-flow-dashboard.vercel.app/api/social/cron")
+          STATUS=$(echo "$RESULT" | grep -o 'HTTP_STATUS:[0-9]*' | cut -d: -f2)
+          BODY=$(echo "$RESULT" | grep -v 'HTTP_STATUS:')
+          echo "Status: $STATUS"
+          echo "Résultat: $BODY"
+          if [ "$STATUS" != "200" ]; then
+            echo "Erreur cron: status $STATUS"
+            exit 1
+          fi

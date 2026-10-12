@@ -194,9 +194,34 @@ async function publishLinkedIn(payload: PublishPayload): Promise<PublishResult> 
   return { ok: true, postId: post.id, url: `https://www.linkedin.com/feed/update/${post.id}/` }
 }
 
+// ── Ayrshare (fallback universel si AYRSHARE_API_KEY défini) ─────────────────
+
+const AYRSHARE_PLATFORM: Record<string, string> = {
+  tiktok: 'tiktok', instagram: 'instagram', facebook: 'facebook', linkedin: 'linkedin',
+}
+
+async function publishViaAyrshare(payload: PublishPayload): Promise<PublishResult> {
+  const apiKey = process.env.AYRSHARE_API_KEY
+  if (!apiKey) return { ok: false, error: 'AYRSHARE_API_KEY not set' }
+  const platform = AYRSHARE_PLATFORM[payload.platform]
+  if (!platform) return { ok: false, error: `Ayrshare: platform ${payload.platform} unsupported` }
+  const res = await fetch('https://app.ayrshare.com/api/post', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ post: payload.caption, platforms: [platform], mediaUrls: payload.mediaUrls }),
+  })
+  const data = await res.json() as { postIds?: { id: string }[]; errors?: { message: string }[] }
+  if (!res.ok || data.errors?.length) return { ok: false, error: data.errors?.[0]?.message ?? 'Ayrshare error' }
+  return { ok: true, postId: data.postIds?.[0]?.id }
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 
 export async function publishTo(payload: PublishPayload): Promise<PublishResult> {
+  // Si AYRSHARE_API_KEY présent, on passe par Ayrshare pour TikTok (pas encore approuvé en direct)
+  if (process.env.AYRSHARE_API_KEY && payload.platform === 'tiktok') {
+    return publishViaAyrshare(payload)
+  }
   switch (payload.platform) {
     case 'instagram': return publishInstagram(payload)
     case 'facebook': return publishFacebook(payload)

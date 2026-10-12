@@ -17,7 +17,8 @@ export const maxDuration = 120
 const json = (data: unknown, status = 200) => NextResponse.json(data, { status })
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('secret')
+  const bearer = req.headers.get('authorization')?.replace('Bearer ', '')
+  const secret = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('secret') ?? bearer
   if (secret !== process.env.CRON_SECRET) return json({ error: 'Unauthorized' }, 401)
 
   const admin = getAdminDb()

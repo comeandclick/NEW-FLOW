@@ -2,9 +2,10 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { CalendarRange, ChevronLeft, ChevronRight, List, Plus } from 'lucide-react'
+import { CalendarRange, ChevronLeft, ChevronRight, ExternalLink, List, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Dialog } from '@/components/ui/overlay'
 import { EmptyState } from '@/components/ui/misc'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useT } from '@/i18n/provider'
@@ -33,6 +34,7 @@ function CalendarPage() {
   const [cursor, setCursor] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>('list')
+  const [selected, setSelected] = useState<SocialPost | null>(null)
   const weekStartsOn = 1 as const
 
   async function loadPosts() {
@@ -65,8 +67,8 @@ function CalendarPage() {
   )
 
   const PostChip = ({ post }: { post: SocialPost }) => (
-    <Link
-      href={`/app/${ws.slug}/social/publish`}
+    <button
+      onClick={() => setSelected(post)}
       className="flex w-full min-w-0 items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80"
       style={{ background: `color-mix(in srgb, ${STATUS_COLORS[post.status] ?? '#6366f1'} 18%, transparent)`, color: STATUS_COLORS[post.status] ?? '#6366f1' }}
     >
@@ -76,10 +78,11 @@ function CalendarPage() {
         ))}
       </span>
       <span className="truncate">{post.title || post.caption?.slice(0, 20)}</span>
-    </Link>
+    </button>
   )
 
   return (
+    <>
     <div className="flex flex-col p-3 sm:p-6">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-2">
@@ -181,10 +184,10 @@ function CalendarPage() {
             />
           )}
           {sortedPosts.map((post) => (
-            <Link
+            <button
               key={post.id}
-              href={`/app/${ws.slug}/social/publish`}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-colors hover:bg-surface-2"
+              onClick={() => setSelected(post)}
+              className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-left transition-colors hover:bg-surface-2"
             >
               <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: STATUS_COLORS[post.status] }} />
               <div className="min-w-0 flex-1">
@@ -199,11 +202,36 @@ function CalendarPage() {
                   <PlatformIcon key={p} platform={p} className="size-4" color={PLATFORM_COLORS[p]} />
                 ))}
               </div>
-            </Link>
+            </button>
           ))}
         </div>
       )}
     </div>
+    <Dialog open={!!selected} onClose={() => setSelected(null)} title={selected?.title || 'Post'} size="lg"
+        footer={<Link href={`/app/${ws.slug}/social/publish`} className="flex items-center gap-1.5 text-sm text-accent-ink hover:underline"><ExternalLink className="size-3.5" />Nouveau post</Link>}>
+        {selected && (
+          <div className="flex flex-col gap-4">
+            {selected.media_urls?.[0] && (
+              selected.media_urls[0].match(/\.(mp4|webm|mov)$/i)
+                ? <video src={selected.media_urls[0]} controls playsInline className="max-h-72 w-full rounded-lg bg-black object-contain" />
+                : <img src={selected.media_urls[0]} alt="" className="max-h-72 w-full rounded-lg object-cover" />
+            )}
+            <div className="flex flex-wrap items-center gap-2 text-[13px]">
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: `color-mix(in srgb, ${STATUS_COLORS[selected.status]} 18%, transparent)`, color: STATUS_COLORS[selected.status] }}>{STATUS_LABELS[selected.status]}</span>
+              {selected.scheduled_at && <span className="text-text-3">{format(new Date(selected.scheduled_at), "dd MMM yyyy 'à' HH:mm", { locale: fr })}</span>}
+              <span className="flex gap-1">{(selected.platforms as Platform[]).map((p) => <PlatformIcon key={p} platform={p} className="size-4" color={PLATFORM_COLORS[p]} />)}</span>
+            </div>
+            {selected.caption && <p className="whitespace-pre-wrap text-sm text-text">{selected.caption}</p>}
+            {selected.publish_results && Object.entries(selected.publish_results).map(([p, r]) => (
+              <div key={p} className="flex items-center gap-2 text-[12px]">
+                <PlatformIcon platform={p as Platform} className="size-3.5" color={PLATFORM_COLORS[p as Platform]} />
+                {r.ok ? <span className="text-green-600">Publié{r.url && <a href={r.url} target="_blank" rel="noreferrer" className="ml-1 underline">voir</a>}</span> : <span className="text-red-500">{r.error ?? 'Échec'}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Dialog>
+    </>
   )
 }
 
