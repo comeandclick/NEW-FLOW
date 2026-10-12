@@ -126,7 +126,7 @@ async function publishTikTok(payload: PublishPayload): Promise<PublishResult> {
     body: JSON.stringify({
       post_info: {
         title: caption.slice(0, 2200),
-        privacy_level: 'PUBLIC_TO_EVERYONE',
+        privacy_level: process.env.TIKTOK_PRIVACY_LEVEL ?? 'PUBLIC_TO_EVERYONE',
         disable_duet: false,
         disable_comment: false,
         disable_stitch: false,
