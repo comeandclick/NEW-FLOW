@@ -123,7 +123,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ platfor
 
     return NextResponse.redirect(`${BASE}/app/${wsSlug}/social/accounts?connected=${platform}`)
   } catch (err) {
-    console.error('Social OAuth callback error:', err)
-    return NextResponse.redirect(`${BASE}/app/${wsSlug}/social/accounts?error=oauth_failed`)
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('Social OAuth callback error:', msg)
+    return NextResponse.redirect(`${BASE}/app/${wsSlug}/social/accounts?error=${encodeURIComponent(msg.slice(0, 200))}`)
   }
 }

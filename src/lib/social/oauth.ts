@@ -1,6 +1,12 @@
 import type { Platform } from './types'
 
-const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://new-flow-dashboard.vercel.app'
+function resolveBase(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL
+  if (url && !url.includes('localhost') && !url.includes('127.0.0.1')) return url
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  return 'https://new-flow-dashboard.vercel.app'
+}
+const BASE = resolveBase()
 
 function callbackUrl(platform: Platform) {
   return `${BASE}/api/social/oauth/${platform}/callback`
@@ -9,12 +15,8 @@ function callbackUrl(platform: Platform) {
 // ── Meta (Instagram + Facebook) ──────────────────────────────────────────────
 
 function metaAuthUrl(wsSlug: string, platform: 'instagram' | 'facebook'): string {
-  // Scopes limités aux permissions disponibles sans Business Verification
-  // Scopes minimaux — pas de Business Verification requise
-  const scopes =
-    platform === 'instagram'
-      ? 'instagram_basic'
-      : 'email,public_profile'
+  // instagram_basic deprecated Dec 2024 — use public_profile for both
+  const scopes = 'public_profile'
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: callbackUrl(platform),
@@ -100,19 +102,33 @@ export async function tiktokExchangeCode(code: string, verifier: string): Promis
       code_verifier: verifier,
     }),
   })
-  if (!res.ok) throw new Error(`TikTok token exchange failed: ${await res.text()}`)
-  const data = await res.json() as { data?: { access_token: string; refresh_token: string; expires_in: number } }
-  const d = data.data!
-  return { accessToken: d.access_token, refreshToken: d.refresh_token, expiresIn: d.expires_in }
+  const body = await res.text()
+  if (!res.ok) throw new Error(`TikTok token exchange failed: ${body}`)
+  const raw = JSON.parse(body) as Record<string, unknown>
+  // v2 production wraps under .data; sandbox returns at root level
+  const d = (raw.data as Record<string, unknown> | undefined) ?? raw
+  if (!d.access_token) throw new Error(`TikTok token error: ${body.slice(0, 300)}`)
+  return {
+    accessToken: d.access_token as string,
+    refreshToken: (d.refresh_token as string | undefined) ?? '',
+    expiresIn: (d.expires_in as number | undefined) ?? 86400,
+  }
 }
 
 export async function tiktokUserInfo(accessToken: string): Promise<{ id: string; username: string; displayName: string; avatar: string; followers: number }> {
   const res = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,follower_count,username', {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
-  const data = await res.json() as { data?: { user?: { open_id: string; username: string; display_name: string; avatar_url: string; follower_count: number } } }
-  const u = data.data?.user!
-  return { id: u.open_id, username: u.username, displayName: u.display_name, avatar: u.avatar_url, followers: u.follower_count }
+  const raw2 = await res.json() as Record<string, unknown>
+  // v2 production: raw2.data.user; sandbox may return at root or raw2.data directly
+  const u = (((raw2.data as Record<string, unknown>)?.user) ?? raw2.data ?? raw2) as Record<string, unknown>
+  return {
+    id: (u.open_id ?? u.openId ?? '') as string,
+    username: (u.username ?? u.display_name ?? u.displayName ?? '') as string,
+    displayName: (u.display_name ?? u.displayName ?? u.username ?? '') as string,
+    avatar: (u.avatar_url ?? u.avatarUrl ?? '') as string,
+    followers: ((u.follower_count ?? u.followerCount ?? 0) as number),
+  }
 }
 
 // ── LinkedIn ──────────────────────────────────────────────────────────────────

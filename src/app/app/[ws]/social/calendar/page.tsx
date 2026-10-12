@@ -1,12 +1,11 @@
 'use client'
 import { Suspense, useEffect, useMemo, useState } from 'react'
-import { addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from 'date-fns'
+import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { motion } from 'framer-motion'
-import { CalendarRange, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { CalendarRange, ChevronLeft, ChevronRight, List, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, EmptyState, PageHeader } from '@/components/ui/misc'
+import { EmptyState } from '@/components/ui/misc'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useT } from '@/i18n/provider'
 import { PLATFORM_COLORS, type Platform, type SocialPost } from '@/lib/social/types'
@@ -21,9 +20,11 @@ const STATUS_COLORS: Record<string, string> = {
   failed: '#ef4444',
 }
 
-function statusLabel(s: string): string {
-  return ({ draft: 'Brouillon', scheduled: 'Programmé', publishing: 'En cours', published: 'Publié', failed: 'Échec' }[s] ?? s)
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Brouillon', scheduled: 'Programmé', publishing: 'En cours', published: 'Publié', failed: 'Échec',
 }
+
+type ViewMode = 'calendar' | 'list'
 
 function CalendarPage() {
   const t = useT()
@@ -31,6 +32,7 @@ function CalendarPage() {
   const [posts, setPosts] = useState<SocialPost[]>([])
   const [cursor, setCursor] = useState(new Date())
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<ViewMode>('list')
   const weekStartsOn = 1 as const
 
   async function loadPosts() {
@@ -58,99 +60,144 @@ function CalendarPage() {
     return isSameDay(date, d)
   })
 
+  const sortedPosts = [...posts].sort((a, b) =>
+    new Date(b.scheduled_at ?? b.created_at).getTime() - new Date(a.scheduled_at ?? a.created_at).getTime()
+  )
+
   const PostChip = ({ post }: { post: SocialPost }) => (
     <Link
       href={`/app/${ws.slug}/social/publish`}
-      className="flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium transition-opacity hover:opacity-80"
+      className="flex w-full min-w-0 items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80"
       style={{ background: `color-mix(in srgb, ${STATUS_COLORS[post.status] ?? '#6366f1'} 18%, transparent)`, color: STATUS_COLORS[post.status] ?? '#6366f1' }}
     >
       <span className="flex shrink-0 gap-0.5">
         {(post.platforms as Platform[]).slice(0, 2).map((p) => (
-          <PlatformIcon key={p} platform={p} className="size-2.5" color={PLATFORM_COLORS[p]} />
+          <PlatformIcon key={p} platform={p} className="size-2" color={PLATFORM_COLORS[p]} />
         ))}
       </span>
-      <span className="truncate">{post.title || post.caption?.slice(0, 30)}</span>
+      <span className="truncate">{post.title || post.caption?.slice(0, 20)}</span>
     </Link>
   )
 
-  const allPosts = [...posts].sort((a, b) => {
-    const da = new Date(a.scheduled_at ?? a.created_at)
-    const db = new Date(b.scheduled_at ?? b.created_at)
-    return db.getTime() - da.getTime()
-  })
-
   return (
-    <div className="flex min-h-full flex-col px-3 py-4 sm:px-6 sm:py-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="hidden size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-ink sm:flex"><CalendarRange className="size-[18px]" /></span>
-          <h1 className="text-xl font-semibold capitalize tracking-tight">{format(cursor, 'LLLL yyyy', { locale: fr })}</h1>
+    <div className="flex flex-col p-3 sm:p-6">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold capitalize tracking-tight">
+            {format(cursor, 'LLLL yyyy', { locale: fr })}
+          </h1>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" onClick={() => setCursor(new Date())}>{t('cal.today')}</Button>
-          <Button variant="ghost" size="icon" onClick={() => setCursor((c) => subMonths(c, 1))} aria-label={t('cal.prev')}><ChevronLeft className="size-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => setCursor((c) => addMonths(c, 1))} aria-label={t('cal.next')}><ChevronRight className="size-4" /></Button>
-          <Link href={`/app/${ws.slug}/social/publish`}><Button variant="primary" size="sm"><Plus className="size-4" />{t('soc.cal.newPost')}</Button></Link>
+          <div className="flex items-center rounded-lg border border-border bg-surface p-0.5">
+            <button
+              onClick={() => setView('list')}
+              className={cn('flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] font-medium transition-colors', view === 'list' ? 'bg-accent text-white' : 'text-text-2 hover:text-text')}
+            >
+              <List className="size-3.5" />Liste
+            </button>
+            <button
+              onClick={() => setView('calendar')}
+              className={cn('flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] font-medium transition-colors', view === 'calendar' ? 'bg-accent text-white' : 'text-text-2 hover:text-text')}
+            >
+              <CalendarRange className="size-3.5" />Calendrier
+            </button>
+          </div>
+          {view === 'calendar' && (
+            <>
+              <Button variant="ghost" size="icon" onClick={() => setCursor((c) => subMonths(c, 1))} aria-label="Mois précédent"><ChevronLeft className="size-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setCursor((c) => addMonths(c, 1))} aria-label="Mois suivant"><ChevronRight className="size-4" /></Button>
+            </>
+          )}
+          <Link href={`/app/${ws.slug}/social/publish`}>
+            <Button variant="primary" size="sm"><Plus className="size-4" /><span className="hidden sm:inline">{t('soc.cal.newPost')}</span></Button>
+          </Link>
         </div>
       </div>
 
-      {/* Status legend */}
-      <div className="mb-3 flex flex-wrap gap-3 text-[12px] text-text-2">
-        {Object.entries(STATUS_COLORS).map(([s, c]) => (
-          <span key={s} className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: c }} />{statusLabel(s)}</span>
+      {/* Legend */}
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-3">
+        {Object.entries(STATUS_LABELS).map(([s, label]) => (
+          <span key={s} className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full" style={{ background: STATUS_COLORS[s] }} />
+            {label}
+          </span>
         ))}
       </div>
 
-      <motion.div key={format(cursor, 'yyyy-MM')} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface sm:min-h-0 sm:flex-1">
-        <div className="grid grid-cols-7 border-b border-border bg-surface-2/60">
-          {weekdays.map((d) => (
-            <div key={d.toISOString()} className="px-2 py-2 text-center text-[11px] font-medium uppercase tracking-wide text-text-3">
-              {format(d, 'EEE', { locale: fr })}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 sm:min-h-0 sm:flex-1" style={{ gridTemplateRows: `repeat(${days.length / 7}, minmax(0, 1fr))` }}>
-          {days.map((d) => {
-            const dayPosts = postsOn(d)
-            return (
-              <div key={d.toISOString()}
-                className={cn('flex min-h-[64px] flex-col overflow-hidden border-b border-r border-border/70 p-1 sm:min-h-[80px]', !isSameMonth(d, cursor) && 'bg-bg-subtle/60 text-text-3')}>
-                <span className={cn('mb-0.5 flex size-6 items-center justify-center self-start rounded-full text-xs tabular-nums', isToday(d) && 'bg-accent font-semibold text-white')}>{format(d, 'd')}</span>
-                <div className="flex flex-col gap-0.5">
-                  {dayPosts.slice(0, 3).map((p) => <PostChip key={p.id} post={p} />)}
-                  {dayPosts.length > 3 && <span className="px-1 text-[10px] text-text-3">+{dayPosts.length - 3}</span>}
+      {/* Calendar view */}
+      {view === 'calendar' && (
+        <div className="overflow-x-auto">
+          <div className="min-w-[320px] overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="grid grid-cols-7 border-b border-border bg-surface-2/60">
+              {weekdays.map((d) => (
+                <div key={d.toISOString()} className="py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-text-3">
+                  {format(d, 'EEEEE', { locale: fr })}
                 </div>
-              </div>
-            )
-          })}
+              ))}
+            </div>
+            <div className="grid grid-cols-7" style={{ gridTemplateRows: `repeat(${days.length / 7}, auto)` }}>
+              {days.map((d) => {
+                const dayPosts = postsOn(d)
+                return (
+                  <div
+                    key={d.toISOString()}
+                    className={cn(
+                      'flex min-h-[56px] flex-col overflow-hidden border-b border-r border-border/60 p-0.5 sm:min-h-[72px] sm:p-1',
+                      !isSameMonth(d, cursor) && 'bg-surface-2/40 text-text-3',
+                    )}
+                  >
+                    <span className={cn('mb-0.5 flex size-5 items-center justify-center self-end rounded-full text-[11px] tabular-nums sm:size-6 sm:text-xs', isToday(d) && 'bg-accent font-semibold text-white')}>
+                      {format(d, 'd')}
+                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      {dayPosts.slice(0, 2).map((p) => <PostChip key={p.id} post={p} />)}
+                      {dayPosts.length > 2 && <span className="px-0.5 text-[9px] text-text-3">+{dayPosts.length - 2}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
-      </motion.div>
-
-      {/* List below calendar on mobile */}
-      {!loading && posts.length === 0 && (
-        <Card className="mt-4">
-          <EmptyState
-            icon={<CalendarRange className="size-5" />}
-            title={t('soc.cal.empty')}
-            hint={t('soc.cal.emptyHint')}
-            action={<Link href={`/app/${ws.slug}/social/publish`}><Button variant="primary" size="sm"><Plus className="size-4" />{t('soc.cal.newPost')}</Button></Link>}
-          />
-        </Card>
       )}
 
-      {allPosts.length > 0 && (
-        <div className="mt-4 space-y-2 sm:hidden">
-          {allPosts.slice(0, 10).map((post) => (
-            <Link key={post.id} href={`/app/${ws.slug}/social/publish`}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
-              <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: STATUS_COLORS[post.status] }} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{post.title || post.caption?.slice(0, 40)}</span>
-                <span className="block text-xs text-text-3">{statusLabel(post.status)} · {post.scheduled_at ? format(new Date(post.scheduled_at), 'dd/MM HH:mm') : format(new Date(post.created_at), 'dd/MM')}</span>
-              </span>
-              <div className="flex gap-1">
-                {(post.platforms as Platform[]).map((p) => <PlatformIcon key={p} platform={p} className="size-4" color={PLATFORM_COLORS[p]} />)}
+      {/* List view */}
+      {view === 'list' && (
+        <div className="space-y-2">
+          {loading && Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />
+          ))}
+          {!loading && sortedPosts.length === 0 && (
+            <EmptyState
+              icon={<CalendarRange className="size-5" />}
+              title={t('soc.cal.empty')}
+              hint={t('soc.cal.emptyHint')}
+              action={
+                <Link href={`/app/${ws.slug}/social/publish`}>
+                  <Button variant="primary" size="sm"><Plus className="size-4" />{t('soc.cal.newPost')}</Button>
+                </Link>
+              }
+            />
+          )}
+          {sortedPosts.map((post) => (
+            <Link
+              key={post.id}
+              href={`/app/${ws.slug}/social/publish`}
+              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-colors hover:bg-surface-2"
+            >
+              <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: STATUS_COLORS[post.status] }} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-text">{post.title || post.caption?.slice(0, 50) || 'Sans titre'}</p>
+                <p className="mt-0.5 text-[12px] text-text-3">
+                  {STATUS_LABELS[post.status]}
+                  {post.scheduled_at && ` · ${format(new Date(post.scheduled_at), 'dd MMM HH:mm', { locale: fr })}`}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                {(post.platforms as Platform[]).map((p) => (
+                  <PlatformIcon key={p} platform={p} className="size-4" color={PLATFORM_COLORS[p]} />
+                ))}
               </div>
             </Link>
           ))}

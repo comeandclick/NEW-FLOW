@@ -184,18 +184,27 @@ function PreparePage() {
     </div>
   )
 
+  const STEP_LABELS = [t('soc.prep.step1'), t('soc.prep.step2'), t('soc.prep.step3'), t('soc.prep.step4'), t('soc.prep.step5')]
+
   return (
-    <div className="mx-auto max-w-4xl p-4 md:p-6">
+    <div className="mx-auto max-w-3xl p-4 pb-6 md:p-6">
       <PageHeader icon={<Clapperboard className="size-4" />} title={t('soc.prep.title')} subtitle={t('soc.prep.sub')} />
 
-      {/* Steps */}
-      <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-3">
-        {([1, 2, 3, 4, 5] as Step[]).map((n, i) => (
-          <div key={n} className="flex items-center gap-1">
-            {i > 0 && <ChevronRight className="size-3.5 shrink-0 text-border" />}
-            <StepIndicator n={n} label={[t('soc.prep.step1'), t('soc.prep.step2'), t('soc.prep.step3'), t('soc.prep.step4'), t('soc.prep.step5')][i]} />
-          </div>
-        ))}
+      {/* Steps — dots on mobile, labels on desktop */}
+      <div className="mb-6">
+        <div className="flex items-center gap-0">
+          {([1, 2, 3, 4, 5] as Step[]).map((n, i) => (
+            <div key={n} className="flex flex-1 items-center">
+              <div className="flex flex-col items-center gap-1">
+                <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors', step > n ? 'bg-success text-white' : step === n ? 'bg-accent text-white' : 'bg-surface-3 text-text-3')}>
+                  {step > n ? <CheckCircle className="size-3.5" /> : n}
+                </span>
+                <span className={cn('hidden text-[11px] sm:block', step >= n ? 'text-text-2' : 'text-text-3')}>{STEP_LABELS[i]}</span>
+              </div>
+              {i < 4 && <div className={cn('mx-1 h-px flex-1', step > n ? 'bg-success' : 'bg-border')} />}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Step 1: Template */}
