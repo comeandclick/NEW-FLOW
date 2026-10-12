@@ -113,17 +113,47 @@ async function publishTikTok(payload: PublishPayload): Promise<PublishResult> {
   const videoUrl = mediaUrls.find((u) => /\.(mp4|mov|avi|webm)$/i.test(u))
   if (!videoUrl) return { ok: false, error: 'TikTok requires a video file' }
 
+  // Fetch video for push_by_file (avoids domain verification)
+  const videoRes = await fetch(videoUrl)
+  if (!videoRes.ok) return { ok: false, error: `Failed to fetch video: ${videoRes.status}` }
+  const videoBuffer = await videoRes.arrayBuffer()
+  const videoSize = videoBuffer.byteLength
+
   // Init upload
   const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'content-type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
-      post_info: { title: caption.slice(0, 2200), privacy_level: 'PUBLIC_TO_EVERYONE', disable_duet: false, disable_comment: false, disable_stitch: false },
-      source_info: { source: 'PULL_FROM_URL', video_url: videoUrl },
+      post_info: {
+        title: caption.slice(0, 2200),
+        privacy_level: 'PUBLIC_TO_EVERYONE',
+        disable_duet: false,
+        disable_comment: false,
+        disable_stitch: false,
+      },
+      source_info: {
+        source: 'FILE_UPLOAD',
+        video_size: videoSize,
+        chunk_size: videoSize,
+        total_chunk_count: 1,
+      },
     }),
   })
-  const init = await initRes.json() as { data?: { publish_id?: string }; error?: { message: string } }
-  if (!init.data?.publish_id) return { ok: false, error: init.error?.message ?? 'TikTok init failed' }
+  const init = await initRes.json() as { data?: { publish_id?: string; upload_url?: string }; error?: { message: string; code?: string } }
+  if (!init.data?.publish_id || !init.data?.upload_url) {
+    return { ok: false, error: init.error?.message ?? `TikTok init failed: ${JSON.stringify(init)}` }
+  }
+
+  // Upload file (single chunk, < 64 MB)
+  const uploadRes = await fetch(init.data.upload_url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'video/mp4',
+      'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
+    },
+    body: videoBuffer,
+  })
+  if (!uploadRes.ok) return { ok: false, error: `TikTok upload failed: ${uploadRes.status}` }
 
   return { ok: true, postId: init.data.publish_id }
 }
