@@ -79,7 +79,16 @@ export default function FilesPage() {
   }
   async function download(f: FileRow) {
     const url = await signedUrl('files', f.storage_path)
-    const a = document.createElement('a'); a.href = url; a.download = f.name; a.target = '_blank'; a.rel = 'noreferrer'; a.click()
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(new Blob([blob], { type: f.mime_type ?? blob.type }))
+      const a = document.createElement('a'); a.href = blobUrl; a.download = f.name; a.click()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000)
+    } catch {
+      // Fallback : ouvre dans l'onglet courant (laisse le navigateur décider)
+      const a = document.createElement('a'); a.href = url; a.download = f.name; a.click()
+    }
   }
   async function remove(f: FileRow) {
     await getDb().from('files').update({ deleted_at: new Date().toISOString() }).eq('id', f.id)

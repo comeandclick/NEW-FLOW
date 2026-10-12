@@ -179,7 +179,7 @@ function PublishPage() {
   const minDateTime = format(new Date(Date.now() + 60000), "yyyy-MM-dd'T'HH:mm")
 
   return (
-    <div className="mx-auto max-w-3xl p-4 pb-28 md:p-6 md:pb-6">
+    <div className="mx-auto max-w-3xl p-4 md:p-6">
       <PageHeader title={t('soc.pub.title')} />
 
       {/* Réseaux — en haut sur mobile */}

@@ -154,7 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className={cn('hidden shrink-0 border-r border-border bg-bg-subtle transition-[width] duration-200 ease-out md:block', collapsed ? 'w-[60px]' : 'w-[248px]')}>{sidebar(collapsed)}</aside>
       <Sheet open={mobileOpen} onClose={() => setMobileOpen(false)}>{sidebar(false, () => setMobileOpen(false))}</Sheet>
 
-      <div className="flex min-w-0 flex-1 flex-col pt-[env(safe-area-inset-top)]">
+      <div className="flex min-w-0 flex-1 flex-col safe-top">
         {isDemo && (
           <div className="flex items-center justify-center gap-3 border-b border-border bg-accent-soft px-3 py-1.5 text-center text-xs text-accent-ink">
             <span className="truncate"><span className="hidden sm:inline">{t('common.demoBanner')}</span><span className="sm:hidden">{t('common.demoShort')}</span></span>
@@ -212,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main id="main" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">{children}</main>
+        <main id="main" className="main-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
 
         <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-bg/90 backdrop-blur-xl safe-bottom md:hidden" aria-label="Mobile">
           {MOBILE_TABS.map((href) => {

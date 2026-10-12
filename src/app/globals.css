@@ -161,10 +161,17 @@ button, [role='button'], a, summary { -webkit-tap-highlight-color: transparent; 
   border-radius: 8px;
 }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+/* Main scroll area: leaves room for the mobile bottom nav + iOS home indicator. Resets on md+ (desktop sidebar). */
+.main-scroll {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .main-scroll { padding-bottom: 0; }
+}
 html, body { background: var(--bg); min-height: 100%; }
 /* PWA installée : l'app occupe tout l'écran, sous la barre d'état (safe-area gérée par la barre du haut et la barre du bas). */
 @media (display-mode: standalone) { html, body { overscroll-behavior: none; } }
-.safe-top { padding-top: env(safe-area-inset-top); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
