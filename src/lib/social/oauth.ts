@@ -80,7 +80,7 @@ export async function tiktokAuthUrl(wsSlug: string): Promise<{ url: string; veri
   const params = new URLSearchParams({
     client_key: process.env.TIKTOK_CLIENT_KEY!,
     response_type: 'code',
-    scope: 'user.info.basic,video.publish',
+    scope: 'user.info.basic,video.upload,video.publish',
     redirect_uri: callbackUrl('tiktok'),
     state: wsSlug,
     code_challenge: challenge,
