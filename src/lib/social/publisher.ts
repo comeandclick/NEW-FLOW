@@ -119,18 +119,11 @@ async function publishTikTok(payload: PublishPayload): Promise<PublishResult> {
   const videoBuffer = await videoRes.arrayBuffer()
   const videoSize = videoBuffer.byteLength
 
-  // Init upload
-  const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+  // Init upload — inbox/draft (pas de Direct Post requis, disponible sans approbation TikTok)
+  const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/inbox/video/init/', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'content-type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
-      post_info: {
-        title: caption.slice(0, 2200),
-        privacy_level: process.env.TIKTOK_PRIVACY_LEVEL ?? 'PUBLIC_TO_EVERYONE',
-        disable_duet: false,
-        disable_comment: false,
-        disable_stitch: false,
-      },
       source_info: {
         source: 'FILE_UPLOAD',
         video_size: videoSize,
