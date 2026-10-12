@@ -9,10 +9,11 @@ function callbackUrl(platform: Platform) {
 // ── Meta (Instagram + Facebook) ──────────────────────────────────────────────
 
 function metaAuthUrl(wsSlug: string, platform: 'instagram' | 'facebook'): string {
+  // Scopes limités aux permissions disponibles sans Business Verification
   const scopes =
     platform === 'instagram'
-      ? 'instagram_basic,instagram_content_publish,instagram_manage_insights,pages_read_engagement'
-      : 'pages_manage_posts,pages_read_engagement,publish_to_groups'
+      ? 'instagram_basic,instagram_content_publish'
+      : 'email,public_profile,pages_show_list,pages_manage_posts'
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: callbackUrl(platform),
