@@ -10,10 +10,11 @@ function callbackUrl(platform: Platform) {
 
 function metaAuthUrl(wsSlug: string, platform: 'instagram' | 'facebook'): string {
   // Scopes limités aux permissions disponibles sans Business Verification
+  // Scopes minimaux — pas de Business Verification requise
   const scopes =
     platform === 'instagram'
-      ? 'instagram_basic,instagram_content_publish'
-      : 'email,public_profile,pages_show_list,pages_manage_posts'
+      ? 'instagram_basic'
+      : 'email,public_profile'
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: callbackUrl(platform),
@@ -77,7 +78,7 @@ export async function tiktokAuthUrl(wsSlug: string): Promise<{ url: string; veri
   const params = new URLSearchParams({
     client_key: process.env.TIKTOK_CLIENT_KEY!,
     response_type: 'code',
-    scope: 'user.info.basic,video.publish,video.upload',
+    scope: 'user.info.basic',
     redirect_uri: callbackUrl('tiktok'),
     state: wsSlug,
     code_challenge: challenge,
