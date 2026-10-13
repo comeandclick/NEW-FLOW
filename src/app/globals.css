@@ -41,29 +41,30 @@
 /* ── Thème sombre ── */
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #08090a;
-  --bg-subtle: #0c0d0f;
-  --surface: #101114;
-  --surface-2: #15171b;
-  --surface-3: #1c1e23;
-  --border: #23252a;
-  --border-strong: #2f3239;
-  --text: #f4f5f6;
-  --text-2: #a4a8b1;
-  --text-3: #8a909c;
+  /* gris graphite doux plutôt que noir (demande d'Aymen, 13/10/2026) */
+  --bg: #1b1c20;
+  --bg-subtle: #202126;
+  --surface: #25272c;
+  --surface-2: #2b2d33;
+  --surface-3: #33363d;
+  --border: #383b42;
+  --border-strong: #484c55;
+  --text: #f3f4f6;
+  --text-2: #b7bbc3;
+  --text-3: #a0a5af;
   --accent: #5b67d6;
   --accent-hover: #6874e0;
-  --accent-ink: #8f9af3;
-  --accent-soft: #1a1d36;
+  --accent-ink: #9aa4f6;
+  --accent-soft: #2a2e4d;
   --accent-text: #ffffff;
   --danger-bg: #c4262f;
   --success: #4cc38a;
   --warning: #e5a53a;
   --danger: #f06670;
   --info: #5fa1f5;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
-  --shadow-md: 0 8px 30px -8px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.03);
-  --shadow-lg: 0 30px 80px -16px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-md: 0 8px 30px -8px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-lg: 0 30px 80px -16px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.05);
   --glow: radial-gradient(60% 60% at 50% 0%, rgb(118 129 232 / 0.22), transparent 70%);
 }
 
@@ -172,6 +173,14 @@ button, [role='button'], a, summary { -webkit-tap-highlight-color: transparent; 
 html, body { background: var(--bg); min-height: 100%; }
 /* PWA installée : l'app occupe tout l'écran, sous la barre d'état (safe-area gérée par la barre du haut et la barre du bas). */
 @media (display-mode: standalone) { html, body { overscroll-behavior: none; } }
+/* Web app installée sur iPhone (barre d'état transparente) : iOS donne au site un écran plus court que l'écran réel, de la
+   hauteur de la barre d'état ; la barre du bas flottait au-dessus d'un vide. L'app prend la vraie hauteur de l'écran
+   (--app-h, mesurée dans app-shell), la barre du bas est posée en bas de l'app, et le haut descend un peu sous l'heure. */
+@media (display-mode: standalone) and (max-width: 767px) {
+  .app-ui { bottom: auto; height: var(--app-h, 100lvh); }
+  .app-ui .mobile-nav { position: absolute; }
+  .app-ui .safe-top { padding-top: calc(env(safe-area-inset-top) + 6px); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }

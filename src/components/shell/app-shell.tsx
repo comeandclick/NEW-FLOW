@@ -57,6 +57,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [ws.slug, base])
 
   useEffect(() => { try { setCollapsed(localStorage.getItem('flow_sidebar') === '1') } catch {} }, [])
+  // Web app installée sur iPhone : vraie hauteur de l'écran (voir .app-ui dans globals.css)
+  useEffect(() => {
+    const ios = (navigator as Navigator & { standalone?: boolean }).standalone === true
+    if (!ios || Math.min(screen.width, screen.height) >= 600) return
+    const set = () => {
+      const paysage = window.matchMedia('(orientation: landscape)').matches
+      const h = paysage ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height)
+      document.documentElement.style.setProperty('--app-h', `${Math.max(h, window.innerHeight)}px`)
+    }
+    set(); window.addEventListener('resize', set); window.addEventListener('orientationchange', set)
+    return () => { window.removeEventListener('resize', set); window.removeEventListener('orientationchange', set) }
+  }, [])
   const toggleCollapsed = useCallback(() => setCollapsed((c) => { try { localStorage.setItem('flow_sidebar', c ? '0' : '1') } catch {} return !c }), [])
   useEffect(() => setMobileOpen(false), [pathname])
 
@@ -214,7 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main id="main" className="main-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-bg/90 backdrop-blur-xl safe-bottom md:hidden" aria-label="Mobile">
+        <nav className="mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-bg/90 backdrop-blur-xl safe-bottom md:hidden" aria-label="Mobile">
           {MOBILE_TABS.map((href) => {
             const item = NAV.flatMap((g) => g.items).find((i) => i.href === href)!
             const active = isActive(href)
