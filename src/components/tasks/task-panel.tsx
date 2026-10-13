@@ -1,7 +1,7 @@
 'use client'
  
 import { useEffect, useRef, useState } from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { Plus, Send, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,8 +18,16 @@ import { useI18n } from '@/i18n/provider'
 import { onTaskDone } from '@/lib/task-done'
 import { REPEAT_RULES, repeatOf, withRepeat, type RepeatRule } from '@/lib/recurrence'
 import type { Priority, Task, TaskStatus } from '@/lib/types'
+import { projectTree } from '@/lib/projects'
 
 export type TaskDraft = Partial<Task> & { title: string }
+
+/** « 2026-10-14T14:00 » pour un champ date + heure (heure locale) */
+export function toDateTimeInput(iso?: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso), p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 export function toDateInput(iso?: string | null) {
   if (!iso) return ''
@@ -137,13 +145,19 @@ export function TaskPanel({ taskId, open, onClose, onChanged }: { taskId: string
                 <Select value={task.assignee_id ?? ''} disabled={ro} onChange={(e) => patch({ assignee_id: e.target.value || null })}>
                   <option value="">{t('common.unassigned')}</option>{members.filter((m) => !(m.profile?.preferences as { bot?: boolean } | undefined)?.bot || m.user_id === task.assignee_id).map((m) => <option key={m.user_id} value={m.user_id}>{m.profile?.full_name ?? m.profile?.email}</option>)}</Select></label>
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('common.dueDate')}</span>
-                <Input type="date" disabled={ro} value={toDateInput(task.due_date)} onChange={(e) => patch({ due_date: e.target.value ? new Date(`${e.target.value}T18:00:00`).toISOString() : null })} /></label>
+                <Input type="datetime-local" disabled={ro} value={toDateTimeInput(task.due_date)} onChange={(e) => patch({ due_date: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('common.project')}</span>
                 <Select value={task.project_id ?? ''} disabled={ro} onChange={(e) => patch({ project_id: e.target.value || null })}>
-                  <option value="">{t('common.none')}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></label>
+                  <option value="">{t('common.none')}</option>{projectTree(projects).map(({ project: p, depth }) => <option key={p.id} value={p.id}>{'\u00a0\u00a0'.repeat(depth)}{p.name}</option>)}</Select></label>
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('tasks.estimate')}</span>
                 <Input type="number" min={0} step={15} disabled={ro} value={task.estimate_minutes ?? ''} onChange={(e) => patch({ estimate_minutes: e.target.value ? Number(e.target.value) : null })} /></label>
             </div>
+            {/* heures de la tâche : créée, passée en cours, terminée */}
+            <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-3" aria-label={t('tasks.timeline')}>
+              <li>{t('tasks.createdAt')} <span className="text-text-2">{format(new Date(task.created_at), t('tasks.dateFmt'), { locale: dfl })}</span></li>
+              {task.started_at && <li>{t('tasks.startedAt')} <span className="text-text-2">{format(new Date(task.started_at), t('tasks.dateFmt'), { locale: dfl })}</span></li>}
+              {task.completed_at && <li>{t('tasks.completedAt')} <span className="text-text-2">{format(new Date(task.completed_at), t('tasks.dateFmt'), { locale: dfl })}</span></li>}
+            </ol>
             <label className="block space-y-1.5"><span className="text-xs text-text-3">{t('tasks.repeat')}</span>
               <Select value={repeatOf(task.tags) ?? ''} disabled={ro} onChange={(e) => { const tg = withRepeat(task.tags, (e.target.value || null) as RepeatRule | null); setTags(tg.join(', ')); void patch({ tags: tg }) }}>
                 <option value="">{t('tasks.repeat.none')}</option>{REPEAT_RULES.map((r) => <option key={r} value={r}>{t(`tasks.repeat.${r}`)}</option>)}</Select></label>

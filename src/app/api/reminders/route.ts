@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminDb } from '@/lib/supabase/server'
 import { notifyUsers } from '@/lib/api/notify'
 import { agentsTime, momentOf, parisClock, reminderTitle } from '@/lib/reminders'
+import { categoryOf, mergePrefs } from '@/lib/prefs'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -33,33 +34,38 @@ export async function POST(req: Request) {
   const items: { key: string; ws: string; user: string; type: string; title: string; url: string }[] = []
   for (const e of events ?? []) {
     const m = momentOf(new Date(e.start_at).getTime(), now); if (!m) continue
-    for (const u of ((e.attendees as string[]) ?? []).filter(human)) items.push({ key: `${m}:event:${e.id}:${u}`, ws: e.workspace_id, user: u, type: 'event', title: reminderTitle(m, e.title), url: e.task_id ? `/app/${slug(e.workspace_id)}/tasks?open=${e.task_id}` : `/app/${slug(e.workspace_id)}/calendar` })
+    for (const u of ((e.attendees as string[]) ?? []).filter(human)) items.push({ key: `${m}:event:${e.id}:${u}`, ws: e.workspace_id, user: u, type: m === 'avant' ? 'reminder_before' : 'reminder_now', title: reminderTitle(m, e.title), url: e.task_id ? `/app/${slug(e.workspace_id)}/tasks?open=${e.task_id}` : `/app/${slug(e.workspace_id)}/calendar` })
   }
   const withEvent = new Set((events ?? []).map((e) => e.task_id).filter(Boolean))
   for (const t of tasks ?? []) {
     if (withEvent.has(t.id) || !human(t.assignee_id as string)) continue   // déjà rappelée par son événement
     const m = momentOf(new Date(t.due_date as string).getTime(), now); if (!m) continue
-    items.push({ key: `${m}:task:${t.id}:${t.assignee_id}`, ws: t.workspace_id, user: t.assignee_id as string, type: 'task', title: reminderTitle(m, t.title), url: `/app/${slug(t.workspace_id)}/tasks?open=${t.id}` })
+    items.push({ key: `${m}:task:${t.id}:${t.assignee_id}`, ws: t.workspace_id, user: t.assignee_id as string, type: m === 'avant' ? 'reminder_before' : 'reminder_now', title: reminderTitle(m, t.title), url: `/app/${slug(t.workspace_id)}/tasks?open=${t.id}` })
   }
   const clock = parisClock(new Date(now))
-  if (agentsTime(clock.hm, clock.day)) for (const w of spaces ?? []) items.push({ key: `agents:${clock.day}:${w.id}`, ws: w.id, user: w.owner_id, type: 'alert', title: 'Lancer la session de travail des agents', url: `/app/${w.slug}/team` })
+  if (agentsTime(clock.hm, clock.day)) for (const w of spaces ?? []) items.push({ key: `agents:${clock.day}:${w.id}`, ws: w.id, user: w.owner_id, type: 'agents', title: 'Lancer la session de travail des agents', url: `/app/${w.slug}/team` })
 
   // ?test=1 : un exemple de chaque rappel au propriétaire de l'espace, par le vrai chemin d'envoi (sans réserver de clé)
   if (new URL(req.url).searchParams.get('test') === '1') {
     let n = 0
     for (const w of spaces ?? []) for (const [type, title, url, body] of [
-      ['event', reminderTitle('avant', 'Exemple : Définir la DA de Lumora (test)'), `/app/${w.slug}/calendar`, 'Notification de test : rappel 5 minutes avant une tâche.'],
-      ['event', reminderTitle('heure', 'Exemple : Définir la DA de Lumora (test)'), `/app/${w.slug}/calendar`, 'Notification de test : rappel à l’heure de la tâche.'],
-      ['alert', 'Lancer la session de travail des agents (test)', `/app/${w.slug}/team`, 'Dans chaque terminal (Agent 1, 2 et 3), dis : « au travail : lis ~/Developer/_coordination/AU-TRAVAIL.md ».'],
+      ['reminder_before', reminderTitle('avant', 'Exemple : Définir la DA de Lumora (test)'), `/app/${w.slug}/calendar`, 'Notification de test : rappel 5 minutes avant une tâche.'],
+      ['reminder_now', reminderTitle('heure', 'Exemple : Définir la DA de Lumora (test)'), `/app/${w.slug}/calendar`, 'Notification de test : rappel à l’heure de la tâche.'],
+      ['agents', 'Lancer la session de travail des agents (test)', `/app/${w.slug}/team`, 'Dans chaque terminal (Agent 1, 2 et 3), dis : « au travail : lis ~/Developer/_coordination/AU-TRAVAIL.md ».'],
     ] as const) { await notifyUsers(w.id, [w.owner_id], { type, title, body, url }); n++ }
     return NextResponse.json({ ok: true, test: n })
   }
+  // réglages de chacun (Paramètres → Préférences) : un rappel désactivé n'est pas envoyé du tout
+  const cibles = [...new Set(items.map((i) => i.user))]
+  const { data: reglages } = cibles.length ? await a.from('profiles').select('id,preferences').in('id', cibles) : { data: [] }
+  const voulu = (user: string, type: string) => mergePrefs(((reglages ?? []).find((r) => r.id === user)?.preferences as { ui?: unknown } | null)?.ui).notif[categoryOf(type)]
   let sent = 0
   for (const it of items) {
+    if (!voulu(it.user, it.type)) continue
     // une seule fois par rappel : la clé est réservée avant l'envoi
     const { error } = await a.from('reminders_sent').insert({ key: it.key })
     if (error) continue
-    await notifyUsers(it.ws, [it.user], { type: it.type, title: it.title, body: it.type === 'alert' ? 'Dans chaque terminal (Agent 1, 2 et 3), dis : « au travail : lis ~/Developer/_coordination/AU-TRAVAIL.md ».' : null, url: it.url })
+    await notifyUsers(it.ws, [it.user], { type: it.type, title: it.title, body: it.type === 'agents' ? 'Dans chaque terminal (Agent 1, 2 et 3), dis : « au travail : lis ~/Developer/_coordination/AU-TRAVAIL.md ».' : null, url: it.url })
     sent++
   }
   return NextResponse.json({ ok: true, checked: items.length, sent })

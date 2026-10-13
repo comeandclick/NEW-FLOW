@@ -13,6 +13,8 @@ export type Task = {
   id: string; workspace_id: string; project_id: string | null; parent_id: string | null; title: string; description: string | null
   status: TaskStatus; priority: Priority; assignee_id: string | null; created_by: string | null; due_date: string | null
   completed_at: string | null; position: number; tags: string[]; estimate_minutes: number | null; created_at: string; updated_at: string; deleted_at: string | null
+  /** heure du passage « en cours » (remplie par la base) */
+  started_at?: string | null
 }
 export type Note = {
   id: string; workspace_id: string; project_id: string | null; parent_id: string | null; kind: 'note' | 'doc' | 'wiki'; title: string; icon: string | null

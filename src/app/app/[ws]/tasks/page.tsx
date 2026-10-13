@@ -23,6 +23,8 @@ import { CsvMenu } from '@/components/common/csv-menu'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import type { Task, TaskStatus } from '@/lib/types'
+import { sortTasks } from '@/lib/task-sort'
+import { projectTree, withDescendants } from '@/lib/projects'
 
 function TaskMeta({ task, compact }: { task: Task; compact?: boolean }) {
   const { locale } = useI18n()
@@ -34,7 +36,10 @@ function TaskMeta({ task, compact }: { task: Task; compact?: boolean }) {
     <>
       {!compact && task.tags.slice(0, 2).map((tg) => <Badge key={tg} className="hidden sm:inline-flex">{tg}</Badge>)}
       {project && !compact && <Badge color={project.color} className="hidden md:inline-flex">{project.name}</Badge>}
-      {task.due_date && <span className={cn('shrink-0 text-xs tabular-nums', overdue ? 'text-danger' : 'text-text-3')}>{format(new Date(task.due_date), 'd MMM', { locale: dfl })}</span>}
+      {/* terminée : heure de fin ; sinon : échéance avec l'heure prévue */}
+      {task.status === 'done' && task.completed_at
+        ? <span className="shrink-0 text-xs tabular-nums text-success" title={format(new Date(task.completed_at), 'PPPp', { locale: dfl })}>✓ {format(new Date(task.completed_at), 'd MMM HH:mm', { locale: dfl })}</span>
+        : task.due_date && <span className={cn('shrink-0 text-xs tabular-nums', overdue ? 'text-danger' : 'text-text-3')} title={format(new Date(task.due_date), 'PPPp', { locale: dfl })}>{format(new Date(task.due_date), 'd MMM HH:mm', { locale: dfl })}</span>}
       {task.assignee_id && <Avatar name={profileOf(task.assignee_id)?.full_name} src={profileOf(task.assignee_id)?.avatar_url} size={20} />}
     </>
   )
@@ -95,12 +100,16 @@ function TasksPage() {
   useEffect(() => { if (params.get('new') === '1') { document.getElementById('quick-add')?.focus(); router.replace(`/app/${ws.slug}/tasks`) } }, [params, router, ws.slug])
   useEffect(() => { const o = params.get('open'); if (o) setOpenId(o) }, [params])
 
+  // un projet principal montre aussi les tâches de ses sous-projets
+  const inside = useMemo(() => new Set(project ? withDescendants(project, projects) : []), [project, projects])
   const filtered = useMemo(() => data.filter((x) => !x.parent_id
-    && (scope === 'all' || x.assignee_id === userId) && (!project || x.project_id === project)
-    && (!q.trim() || x.title.toLowerCase().includes(q.trim().toLowerCase()))), [data, scope, project, q, userId])
+    && (scope === 'all' || x.assignee_id === userId) && (!project || (!!x.project_id && inside.has(x.project_id)))
+    && (!q.trim() || x.title.toLowerCase().includes(q.trim().toLowerCase()))), [data, scope, project, q, userId, inside])
   const byStatus = useMemo(() => {
     const m = Object.fromEntries(STATUSES.map((s) => [s, [] as Task[]])) as Record<TaskStatus, Task[]>
     for (const x of filtered) m[x.status].push(x)
+    // dans chaque état : jour (retard, aujourd'hui, demain…), puis importance, puis heure ; terminées : la plus récente en haut
+    for (const s of STATUSES) m[s] = sortTasks(m[s])
     return m
   }, [filtered])
 
@@ -145,7 +154,7 @@ function TasksPage() {
           <div className="relative min-w-40 flex-1 sm:max-w-xs"><Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-text-3" /><Input className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('tasks.search')} /></div>
           <Tabs value={scope} onChange={setScope} items={[{ value: 'all', label: t('tasks.filter.all') }, { value: 'mine', label: t('tasks.filter.mine') }]} />
           <Select className="w-auto max-w-44" value={project} onChange={(e) => setProject(e.target.value)} aria-label={t('common.project')}>
-            <option value="">{t('tasks.filter.anyProject')}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
+            <option value="">{t('tasks.filter.anyProject')}</option>{projectTree(projects).map(({ project: p, depth }) => <option key={p.id} value={p.id}>{'\u00a0\u00a0'.repeat(depth)}{p.name}</option>)}</Select>
         </div>
         {canWrite && (
           <form onSubmit={(e) => { e.preventDefault(); void add() }} className="mb-4 flex gap-2">

@@ -8,7 +8,8 @@ import { LanguageToggle } from '@/components/ui/toggles'
 import { useTheme, type ThemePref } from '@/components/providers/theme'
 import { useSession } from '@/lib/hooks/use-session'
 import { usePrefs } from '@/lib/hooks/use-prefs'
-import { enablePush, pushPermission } from '@/lib/push'
+import { deviceSubscribed, disablePushHere, enablePush, pushPermission } from '@/lib/push'
+import { toast } from 'sonner'
 import { ACCENTS, NOTIF_CATEGORIES, type Accent } from '@/lib/prefs'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
@@ -33,7 +34,15 @@ export function PreferencesTab() {
   const { pref, setPref } = useTheme()
   const { prefs, update } = usePrefs()
   const [perm, setPerm] = useState<NotificationPermission | 'unsupported'>('default')
-  useEffect(() => { setPerm(pushPermission()) }, [])
+  const [sub, setSub] = useState(false)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { setPerm(pushPermission()); void deviceSubscribed().then(setSub) }, [])
+  async function activer() { setBusy(true); setPerm(await enablePush(isDemo)); setSub(await deviceSubscribed()); setBusy(false) }
+  async function desactiver() { setBusy(true); await disablePushHere(); setSub(await deviceSubscribed()); setBusy(false) }
+  async function tester() {
+    const r = await fetch('/api/push/test', { method: 'POST' })
+    if (r.ok) toast.success(t('set.pref.testSent')); else toast.error(t('common.error'))
+  }
   const themes: { v: ThemePref; label: string; icon: React.ReactNode }[] = [
     { v: 'light', label: t('common.theme.light'), icon: <Sun className="size-3.5" /> }, { v: 'dark', label: t('common.theme.dark'), icon: <Moon className="size-3.5" /> }, { v: 'system', label: t('common.theme.system'), icon: <Monitor className="size-3.5" /> },
   ]
@@ -66,12 +75,14 @@ export function PreferencesTab() {
       </Section>
 
       <Section title={t('set.pref.notifications')} hint={t('set.pref.notificationsHint')}>
-        <Row title={t('set.pref.system')} hint={t('set.pref.systemHint')}>
-          {perm === 'granted' ? <Badge color="var(--success)"><Check className="size-3" />{t('set.pref.enabled')}</Badge>
-            : perm === 'denied' ? <Badge color="var(--danger)">{t('set.pref.blocked')}</Badge>
+        {/* cet appareil précisément : inscrit ou non aux notifications (chaque appareil s'active à part) */}
+        <Row title={t('set.pref.device')} hint={perm === 'unsupported' ? t('set.pref.deviceHint') : sub ? t('set.pref.deviceOn') : t('set.pref.deviceOff')}>
+          {perm === 'denied' ? <Badge color="var(--danger)">{t('set.pref.blocked')}</Badge>
             : perm === 'unsupported' ? <Badge>—</Badge>
-            : <Button variant="primary" onClick={async () => setPerm(await enablePush(isDemo))}>{t('set.pref.enable')}</Button>}
+            : sub ? <div className="flex flex-wrap items-center justify-end gap-2"><Badge color="var(--success)"><Check className="size-3" />{t('set.pref.enabled')}</Badge><Button size="sm" loading={busy} onClick={desactiver}>{t('set.pref.deviceDisable')}</Button></div>
+            : <Button variant="primary" loading={busy} onClick={activer}>{t('set.pref.deviceEnable')}</Button>}
         </Row>
+        {!isDemo && <Row title={t('set.pref.test')}><Button size="sm" onClick={tester}>{t('set.pref.test')}</Button></Row>}
         <Row title={t('set.pref.banner')} hint={t('set.pref.bannerHint')}><Switch label={t('set.pref.banner')} checked={prefs.notif.system} onChange={(v) => update({ notif: { system: v } })} /></Row>
         <Row title={t('set.pref.sound')}><Switch label={t('set.pref.sound')} checked={prefs.notif.sound} onChange={(v) => update({ notif: { sound: v } })} /></Row>
         <div className="space-y-3 border-t border-border pt-4">

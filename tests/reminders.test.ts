@@ -32,3 +32,12 @@ describe('rappels', () => {
     expect(agentsTime('09:29')).toBe(false); expect(agentsTime('09:40')).toBe(false)
   })
 })
+
+import { categoryOf, mergePrefs } from '@/lib/prefs'
+describe('réglages des rappels', () => {
+  it('chaque rappel a son interrupteur, activé par défaut', () => {
+    expect(categoryOf('reminder_before')).toBe('remindBefore'); expect(categoryOf('reminder_now')).toBe('remindNow'); expect(categoryOf('agents')).toBe('agents')
+    const p = mergePrefs({}); expect(p.notif.remindBefore && p.notif.remindNow && p.notif.agents).toBe(true)
+    expect(mergePrefs({ notif: { remindBefore: false } }).notif.remindBefore).toBe(false)
+  })
+})

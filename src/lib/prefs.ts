@@ -1,7 +1,7 @@
 /** User preferences stored in profiles.preferences (jsonb). Pure functions: usable on the client and on the server. */
 export const ACCENTS = ['indigo', 'blue', 'violet', 'emerald', 'rose', 'amber'] as const
 export type Accent = (typeof ACCENTS)[number]
-export const NOTIF_CATEGORIES = ['messages', 'mentions', 'tasks', 'events', 'calls', 'alerts'] as const
+export const NOTIF_CATEGORIES = ['messages', 'mentions', 'tasks', 'events', 'calls', 'alerts', 'remindBefore', 'remindNow', 'agents'] as const
 export type NotifCategory = (typeof NOTIF_CATEGORIES)[number]
 
 export type Prefs = {
@@ -14,7 +14,7 @@ export type Prefs = {
 
 export const DEFAULT_PREFS: Prefs = {
   accent: 'indigo', density: 'comfortable', reduceMotion: false, weekStart: 1,
-  notif: { messages: true, mentions: true, tasks: true, events: true, calls: true, alerts: true, system: true, sound: true, quiet: { on: false, from: '22:00', to: '08:00' } },
+  notif: { messages: true, mentions: true, tasks: true, events: true, calls: true, alerts: true, remindBefore: true, remindNow: true, agents: true, system: true, sound: true, quiet: { on: false, from: '22:00', to: '08:00' } },
 }
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -31,6 +31,7 @@ export function mergePrefs(raw: unknown): Prefs {
     weekStart: r.weekStart === 0 ? 0 : 1,
     notif: {
       messages: bool(n.messages, d.messages), mentions: bool(n.mentions, d.mentions), tasks: bool(n.tasks, d.tasks), events: bool(n.events, d.events), calls: bool(n.calls, d.calls), alerts: bool(n.alerts, d.alerts),
+      remindBefore: bool(n.remindBefore, d.remindBefore), remindNow: bool(n.remindNow, d.remindNow), agents: bool(n.agents, d.agents),
       system: bool(n.system, d.system), sound: bool(n.sound, d.sound),
       quiet: {
         on: bool(n.quiet?.on, false),
@@ -48,6 +49,10 @@ export function categoryOf(type: string): NotifCategory {
   if (type === 'task' || type === 'task_assigned' || type === 'assigned') return 'tasks'
   if (type === 'event' || type === 'meeting') return 'events'
   if (type === 'call') return 'calls'
+  // rappels de l'emploi du temps (route /api/reminders)
+  if (type === 'reminder_before') return 'remindBefore'
+  if (type === 'reminder_now') return 'remindNow'
+  if (type === 'agents') return 'agents'
   return 'alerts'
 }
 

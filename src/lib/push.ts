@@ -33,6 +33,24 @@ export async function enablePush(isDemo: boolean): Promise<NotificationPermissio
   return perm
 }
 
+/** Cet appareil est-il abonné aux notifications (abonnement du navigateur présent) ? */
+export async function deviceSubscribed(): Promise<boolean> {
+  try {
+    if (pushPermission() !== 'granted' || !('serviceWorker' in navigator)) return false
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js') ?? await navigator.serviceWorker.getRegistration()
+    return !!(await reg?.pushManager?.getSubscription())
+  } catch { return false }
+}
+
+/** Désabonne CET appareil seulement (les autres appareils gardent leurs notifications). */
+export async function disablePushHere(): Promise<void> {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js') ?? await navigator.serviceWorker.getRegistration()
+    const sub = await reg?.pushManager?.getSubscription()
+    if (sub) { await getDb().from('push_subscriptions').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe() }
+  } catch { /* rien à désactiver */ }
+}
+
 /** Local system notification (works in demo too). Skipped when the tab is focused. */
 export function showSystemNotification(title: string, body: string, url?: string) {
   if (pushPermission() !== 'granted') return
