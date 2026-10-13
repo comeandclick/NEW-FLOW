@@ -11,7 +11,7 @@ export function BridgeChip({ online, offline, className }: { online: string; off
   const { ws } = useWorkspace()
   const { mode } = useStudioMode()
   const simDevices = useStudio((s) => s.devices)
-  const live = usePoll(studioApi.devices, 4000, mode === 'live')
+  const live = usePoll(studioApi.devices, 15000, mode === 'live') // 15 s (optimisation Vercel ; s'arrête quand l'onglet est caché)
   const devices = mode === 'live' ? (live.data?.devices ?? []).filter((d) => d.online) : simDevices
   const on = devices.length > 0
   return (

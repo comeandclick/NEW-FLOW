@@ -1,0 +1,31 @@
+-- 14/10/2026 : rappels économes. Chaque minute, la BASE vérifie s'il y a un rappel possible (événement ou tâche d'un humain
+-- dans les 6 minutes, ou heure du rappel des agents) et n'appelle Flow (Vercel) que dans ce cas : ~1 440 appels/jour -> quelques dizaines.
+-- Idempotent. À exécuter dans le SQL Editor de Supabase. Le secret (__SECRET__) est remplacé à la génération, jamais commité.
+create or replace function public.flow_rappels_tick() returns void language plpgsql security definer set search_path = public as $$
+declare
+  paris text := to_char(now() at time zone 'Europe/Paris', 'HH24:MI');
+  besoin boolean;
+begin
+  select exists (
+      select 1 from events e where e.deleted_at is null and not e.all_day
+        and e.start_at between now() - interval '2 minutes' and now() + interval '6 minutes')
+    or exists (
+      select 1 from tasks t join profiles p on p.id = t.assignee_id
+      where t.deleted_at is null and t.status not in ('done', 'cancelled')
+        and t.due_date between now() - interval '2 minutes' and now() + interval '6 minutes'
+        and coalesce(p.preferences ->> 'agent', '') = '' and coalesce((p.preferences ->> 'bot')::boolean, false) = false)
+    -- rappel des agents : 9 h 30 (et 12 h 30 pour les exceptions), Flow décide du jour exact
+    or paris between '09:30' and '09:39' or paris between '12:30' and '12:39'
+  into besoin;
+  if besoin then
+    perform net.http_post(
+      url := 'https://new-flow-dashboard.vercel.app/api/reminders',
+      headers := jsonb_build_object('content-type', 'application/json', 'x-reminders-secret', '__SECRET__'),
+      body := '{}'::jsonb, timeout_milliseconds := 20000);
+  end if;
+end $$;
+-- personne ne peut l'appeler depuis l'API publique : seulement la tâche planifiée
+revoke all on function public.flow_rappels_tick() from public, anon, authenticated;
+
+select cron.unschedule(jobid) from cron.job where jobname = 'flow-rappels';
+select cron.schedule('flow-rappels', '* * * * *', $$ select public.flow_rappels_tick() $$);

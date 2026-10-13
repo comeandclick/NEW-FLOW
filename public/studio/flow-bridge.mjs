@@ -12,7 +12,7 @@ import readline from 'node:readline'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.4.0'
+const VERSION = '1.5.0'
 const HOME = homedir()
 const DIR = process.env.FLOW_BRIDGE_HOME || path.join(HOME, '.flow-bridge')
 const CONFIG = path.join(DIR, 'config.json')
@@ -645,7 +645,9 @@ async function loop() {
   loadLocal()
   for (const [id, st] of Object.entries(state.jobs)) if (!LOCAL.jobs[id]) lj(id, { title: st.title ?? 'Projet', kind: st.kind ?? 'site', dir: st.dir ?? '', status: st.status === 'running' ? 'failed' : (st.status ?? 'done'), sessionId: st.sessionId ?? '' })
   try { await startUiServer('service') } catch (e) { log('ui', e.message) }
-  setTimeout(() => void syncRemote(), 1500); setInterval(() => void syncRemote(), 15_000)
+  // synchro de la liste : 15 s pendant un projet, 60 s au repos (optimisation Vercel, 14/10/2026)
+  const syncLoop = async () => { try { await syncRemote() } catch {} ; setTimeout(() => void syncLoop(), busy() ? 15_000 : 60_000) }
+  setTimeout(() => void syncLoop(), 1500)
   void refreshScan()
   setInterval(() => { if (!setupState.installing) void refreshScan() }, 10 * 60_000)
   setTimeout(() => void refreshAccounts(), 3000); setInterval(() => void refreshAccounts(), 10 * 60_000)
@@ -656,6 +658,7 @@ async function loop() {
   }
   saveState()
   let stop = false
+  let lastActive = Date.now()
   const quit = () => { stop = true; for (const r of runs.values()) { try { killGroup(r, 'SIGCONT') } catch {} } setTimeout(() => process.exit(0), 300) }
   process.on('SIGTERM', quit); process.on('SIGINT', quit)
   while (!stop) {
@@ -664,12 +667,14 @@ async function loop() {
       const b = busy()
       const out = await api('POST', 'bridge/poll', { busyJob: b?.job.id ?? null, version: VERSION, claudeOk: claudeOk() })
       watching = out.watch === true
+      if (b || out.commands.length || pending.length) lastActive = Date.now()
       for (const cmd of [...pending.splice(0), ...out.commands]) await handle(cmd)
     } catch (e) {
       if (e.status === 401) { log('401 : jeton refusé'); unpair(); await sleep(3000) }
       else log('poll', e.message)
     }
-    await sleep(busy() ? 1500 : 2500)
+    // sondage adaptatif (optimisation Vercel, 14/10/2026) : projet en cours 2 s, activité récente 5 s, repos 20 s
+    await sleep(busy() ? 2000 : Date.now() - lastActive < 3 * 60_000 ? 5000 : 20_000)
   }
 }
 

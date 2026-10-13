@@ -7,7 +7,8 @@ const db = () => studioDb()
 export const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 const token = (n = 32) => randomBytes(n).toString('base64url')
 const now = () => new Date().toISOString()
-const ONLINE_MS = 25_000
+// le pont sonde toutes les 20 s au repos et n'écrit sa présence que toutes les 30 s : « en ligne » si vu depuis moins de 75 s
+const ONLINE_MS = 75_000
 const CODE_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
 export const normalizeCode = (c: string) => {
@@ -271,7 +272,10 @@ export async function requestSetup(userId: string, deviceId: string, a: SetupAct
 }
 
 export async function bridgePoll(dev: Row, info: { busyJob?: string | null; version?: string; claudeOk?: boolean }) {
-  await db().update('studio_devices', { id: dev.id }, { last_seen: now(), busy_job: info.busyJob ?? null, ...(info.claudeOk !== undefined ? { claude_ok: info.claudeOk } : {}), ...(info.version ? { bridge_version: info.version } : {}) })
+  // écriture seulement si quelque chose change ou toutes les 30 s (au lieu de chaque sondage : moins de travail par appel)
+  const change = (info.busyJob ?? null) !== (dev.busy_job ?? null) || (!!info.version && info.version !== dev.bridge_version) || (info.claudeOk !== undefined && info.claudeOk !== dev.claude_ok)
+  const vieux = !dev.last_seen || Date.now() - new Date(dev.last_seen as string).getTime() > 30_000
+  if (change || vieux) await db().update('studio_devices', { id: dev.id }, { last_seen: now(), busy_job: info.busyJob ?? null, ...(info.claudeOk !== undefined ? { claude_ok: info.claudeOk } : {}), ...(info.version ? { bridge_version: info.version } : {}) })
   await assignWaiting(dev.user_id, dev.id)
   const cmds = await db().select('studio_commands', { device_id: dev.id, delivered_at: null }, { order: ['id', true], limit: 50 })
   for (const c of cmds) await db().update('studio_commands', { id: c.id }, { delivered_at: now() })
