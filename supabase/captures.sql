@@ -12,6 +12,8 @@ create table if not exists public.captures (
   title text,
   -- note écrite ou dictée au moment de l'envoi
   note text,
+  -- « Analyse par l'IA » cochée à l'envoi (ou plus tard sur la carte) : l'IA n'analyse QUE ces captures
+  ai_analysis boolean not null default false,
   -- nouveau : pas encore regardée par l'IA ; vu : analysée
   status text not null default 'nouveau' check (status in ('nouveau', 'vu')),
   -- remplis par le tri : résumé, connaissances retenues, tâches créées, note du coffre Obsidian
@@ -26,7 +28,11 @@ create table if not exists public.captures (
   deleted_at timestamptz
 );
 
+-- table déjà créée avant l'ajout de la case « Analyse par l'IA » : ajouter la colonne
+alter table public.captures add column if not exists ai_analysis boolean not null default false;
+
 create index if not exists captures_ws_status on public.captures (workspace_id, status, created_at desc);
+create index if not exists captures_ai_todo on public.captures (workspace_id, created_at) where ai_analysis and status = 'nouveau' and deleted_at is null;
 create index if not exists captures_project on public.captures (project_id);
 
 -- Mêmes droits que les autres tables d'un espace : lecture pour les membres, écriture pour ceux qui peuvent écrire.

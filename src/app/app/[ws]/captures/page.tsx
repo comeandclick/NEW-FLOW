@@ -10,6 +10,7 @@ import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { CAPTURE_KINDS, cleanCaptureUrl, currentProjectOf, firstUrl, withCurrentProject } from '@/lib/captures'
+import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import type { Capture } from '@/lib/types'
 
@@ -41,7 +42,11 @@ function CapturesInner() {
     void create({ url, note })
       .then((made) => {
         const name = projects.find((p) => p.id === made?.project_id)?.name
-        toast.success(name ? t('cap.addedTo', { p: name }) : t('cap.added'))
+        // partage système : enregistré tout de suite, la notification propose « Analyser par l'IA » (non par défaut)
+        toast.success(name ? t('cap.addedTo', { p: name }) : t('cap.added'), made ? {
+          duration: 12000,
+          action: { label: t('cap.aiAsk'), onClick: () => void getDb().from('captures').update({ ai_analysis: true, updated_at: new Date().toISOString() }).eq('id', made.id).then(({ error }) => { if (error) toast.error(t('common.error')); else { toast.success(t('cap.aiOn')); void captures.refresh() } }) },
+        } : undefined)
         void captures.refresh()
       })
       .catch(() => toast.error(t('common.error')))

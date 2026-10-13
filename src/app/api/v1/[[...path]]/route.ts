@@ -7,7 +7,7 @@ import { notifyUsers } from '@/lib/api/notify'
 import { ALERT_TYPES, cleanChannel, emitAlert, routesFrom, type AlertType, type Severity } from '@/lib/api/alerts'
 import { safePath } from '@/lib/utils'
 import { mdToDoc } from '@/lib/demo/kalimat-data'
-import { CAPTURE_KINDS, CAPTURE_STATUSES, MAX_CAPTURE_NOTE, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind } from '@/lib/captures'
+import { CAPTURE_KINDS, CAPTURE_STATUSES, MAX_CAPTURE_NOTE, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind, wantsAi } from '@/lib/captures'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -52,8 +52,8 @@ const RES: Record<string, Spec> = {
   deals: { table: 'crm_deals', scope: 'crm', soft: true, label: 'deal', search: 'title', filters: ['stage', 'contact_id'], cols: { contact_id: 'u:crm_contacts', title: 's', value: 'n', currency: 's', stage: 's', probability: 'n', close_date: 'd' } },
   // Captures: created through captures() below (link, file or text); read, updated and deleted through the generic CRUD.
   captures: {
-    table: 'captures', scope: 'captures', soft: true, label: 'capture', search: 'title', filters: ['status', 'kind', 'project_id'],
-    cols: { project_id: 'u:projects', kind: `e:${CAPTURE_KINDS.join('|')}`, url: 's', file_id: 'u:files', title: 's', note: 's', status: `e:${CAPTURE_STATUSES.join('|')}`, summary: 's', knowledge: 's', task_ids: 'ia:tasks', obsidian_note: 's' },
+    table: 'captures', scope: 'captures', soft: true, label: 'capture', search: 'title', filters: ['status', 'kind', 'project_id', 'ai_analysis'],
+    cols: { project_id: 'u:projects', kind: `e:${CAPTURE_KINDS.join('|')}`, url: 's', file_id: 'u:files', title: 's', note: 's', ai_analysis: 'b', status: `e:${CAPTURE_STATUSES.join('|')}`, summary: 's', knowledge: 's', task_ids: 'ia:tasks', obsidian_note: 's' },
   },
 }
 const REQUIRED: Record<string, string[]> = { projects: ['name'], tasks: ['title'], notes: ['title'], events: ['title', 'start_at', 'end_at'], goals: ['title', 'target'], 'key-results': ['goal_id', 'title', 'target'], contacts: ['name'], deals: ['title'] }
@@ -395,10 +395,10 @@ async function captures(ctx: Ctx, req: Request, method: string, id: string | und
     const path = `${ctx.ws.id}/captures/${crypto.randomUUID().slice(0, 8)}-${safeName(name)}`
     const { data, error } = await ctx.a.storage.from('files').createSignedUploadUrl(path)
     if (error || !data) return fail(500, 'storage_error', 'Could not create upload URL')
-    return json({ data: { path, upload_url: data.signedUrl, method: 'PUT', headers: { 'content-type': str(body.mime, 100) || 'application/octet-stream' }, then: 'POST /api/v1/captures {upload_path,name,mime,note?,project_id?}' } })
+    return json({ data: { path, upload_url: data.signedUrl, method: 'PUT', headers: { 'content-type': str(body.mime, 100) || 'application/octet-stream' }, then: 'POST /api/v1/captures {upload_path,name,mime,note?,project_id?,ai_analysis?}' } })
   }
 
-  // One request: JSON {url?, text?, note?, title?, project_id?, kind?, base64?+name, upload_path?+name} or multipart (same fields + "file").
+  // One request: JSON {url?, text?, note?, title?, project_id?, kind?, ai_analysis?, base64?+name, upload_path?+name} or multipart (same fields + "file").
   let fields: Row = body
   let file: { id: string; mime: string } | null = null
   if ((req.headers.get('content-type') ?? '').startsWith('multipart/form-data')) {
@@ -442,7 +442,7 @@ async function captures(ctx: Ctx, req: Request, method: string, id: string | und
     }
   }
 
-  const { data, error } = await ctx.a.from('captures').insert({ workspace_id: ctx.ws.id, project_id: projectId, kind, url, file_id: file?.id ?? null, title: str(fields.title, 200) || null, note: note || null, created_by: ctx.key.bot_id }).select('*').single()
+  const { data, error } = await ctx.a.from('captures').insert({ workspace_id: ctx.ws.id, project_id: projectId, kind, url, file_id: file?.id ?? null, title: str(fields.title, 200) || null, note: note || null, ai_analysis: wantsAi(fields.ai_analysis), created_by: ctx.key.bot_id }).select('*').single()
   if (error || !data) return fail(400, 'invalid', error?.message.slice(0, 200) ?? 'failed')
   await log(ctx, 'capture.create', 'capture', (data as Row).id as string)
   return json({ data }, 201)

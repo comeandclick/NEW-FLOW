@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { captureLabel, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind, withCurrentProject } from '@/lib/captures'
+import { captureLabel, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind, wantsAi, withCurrentProject } from '@/lib/captures'
 import { ALL_SCOPES, PRESETS, validScopes } from '@/lib/api/scopes'
 
 describe('captures: kind', () => {
@@ -79,5 +79,14 @@ describe('captures: API scope', () => {
     expect(validScopes(['captures:write'])).toEqual(['captures:write'])
     expect(PRESETS.read).toContain('captures:read')
     expect(PRESETS.read).not.toContain('captures:write')
+  })
+})
+
+describe('captures: « Analyse par l’IA »', () => {
+  it('is on only when clearly asked (form, share shortcut, API)', () => {
+    for (const yes of [true, 'true', '1', 'on', 'oui', 'Oui', ' yes ']) expect(wantsAi(yes)).toBe(true)
+  })
+  it('is off by default and for anything unclear', () => {
+    for (const no of [undefined, null, false, '', 'false', '0', 'non', 'no', 1, {}, 'peut-être']) expect(wantsAi(no)).toBe(false)
   })
 })

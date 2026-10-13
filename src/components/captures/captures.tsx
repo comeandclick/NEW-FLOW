@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import { Check, ExternalLink, Film, Image as ImageIcon, Link2, Paperclip, Plus, RotateCcw, StickyNote, Trash2 } from 'lucide-react'
+import { Check, ExternalLink, Film, Image as ImageIcon, Link2, Paperclip, Plus, RotateCcw, Sparkles, StickyNote, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
-import { Badge, EmptyState } from '@/components/ui/misc'
+import { Badge, EmptyState, Switch } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
@@ -22,7 +22,7 @@ const KIND_ICON: Record<Capture['kind'], typeof Link2> = { tiktok: Film, instagr
 export function useCreateCapture() {
   const { ws, log } = useWorkspace()
   const { userId, profile } = useSession()
-  return async function create(input: { url?: string | null; note?: string | null; title?: string | null; file?: File | null; projectId?: string | null }): Promise<Capture | null> {
+  return async function create(input: { url?: string | null; note?: string | null; title?: string | null; file?: File | null; projectId?: string | null; aiAnalysis?: boolean }): Promise<Capture | null> {
     if (!userId) return null
     const db = getDb()
     let fileId: string | null = null
@@ -37,7 +37,7 @@ export function useCreateCapture() {
       workspace_id: ws.id, project_id: projectId || null, kind: inferCaptureKind({ url: input.url, mime: input.file?.type }),
       url: input.url || null, file_id: fileId, title: input.title?.trim().slice(0, 200) || null, note: input.note?.trim().slice(0, MAX_CAPTURE_NOTE) || null, created_by: userId,
       // written out rather than left to the table defaults: the demo client has no defaults
-      status: 'nouveau', task_ids: [],
+      status: 'nouveau', task_ids: [], ai_analysis: !!input.aiAnalysis,
     }).select('*').single()
     if (error || !data) throw error ?? new Error('capture')
     log('capture.create', 'capture', (data as Capture).id, {})
@@ -54,6 +54,7 @@ export function AddCapture({ projectId, onAdded }: { projectId?: string; onAdded
   const [url, setUrl] = useState('')
   const [note, setNote] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [ai, setAi] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,10 +66,10 @@ export function AddCapture({ projectId, onAdded }: { projectId?: string; onAdded
     if (file && file.size > MAX_FILE_BYTES) { setError(t('cap.tooBig')); return }
     setBusy(true); setError(null)
     try {
-      const made = await create({ url: link, note, file, projectId })
+      const made = await create({ url: link, note, file, projectId, aiAnalysis: ai })
       const name = projects.find((p) => p.id === made?.project_id)?.name
       toast.success(name ? t('cap.addedTo', { p: name }) : t('cap.added'))
-      setOpen(false); setUrl(''); setNote(''); setFile(null); onAdded()
+      setOpen(false); setUrl(''); setNote(''); setFile(null); setAi(false); onAdded()
     } catch { setError(t('common.error')) }
     setBusy(false)
   }
@@ -81,6 +82,10 @@ export function AddCapture({ projectId, onAdded }: { projectId?: string; onAdded
           <Field label={t('cap.link')}><Input autoFocus type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('cap.linkPh')} /></Field>
           <Field label={t('cap.note')}><Textarea rows={3} value={note} maxLength={MAX_CAPTURE_NOTE} onChange={(e) => setNote(e.target.value)} placeholder={t('cap.notePh')} /></Field>
           <Field label={t('cap.file')} hint={t('cap.fileHint')}><Input type="file" accept="image/*,video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></Field>
+          <label className="flex items-start gap-3 rounded-lg bg-surface-2 p-3 text-sm">
+            <Switch checked={ai} onChange={setAi} label={t('cap.ai')} />
+            <span><span className="font-medium">{t('cap.ai')}</span><span className="block text-[13px] text-text-3">{t('cap.aiHint')}</span></span>
+          </label>
           {error && <p role="alert" className="text-[13px] text-danger">{error}</p>}
           <div className="flex justify-end gap-2"><Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button><Button type="submit" variant="primary" loading={busy}>{t('common.add')}</Button></div>
         </form>
@@ -143,6 +148,7 @@ export function CaptureList({ captures, showProject = false, empty, onChanged }:
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge>{t(`cap.kind.${c.kind}`)}</Badge>
                   <Badge className={c.status === 'nouveau' ? 'bg-accent-soft text-accent-ink' : undefined}>{t(`cap.status.${c.status}`)}</Badge>
+                  {c.ai_analysis && c.status === 'nouveau' && <Badge className="bg-accent-soft text-accent-ink"><Sparkles className="size-3" />{t('cap.aiBadge')}</Badge>}
                   {showProject && project && <Link href={`/app/${ws.slug}/projects/${project.id}`} className="hover:underline"><Badge color={project.color}>{project.name}</Badge></Link>}
                   {showProject && !project && <Badge>{t('cap.noProject')}</Badge>}
                 </div>
@@ -162,13 +168,18 @@ export function CaptureList({ captures, showProject = false, empty, onChanged }:
                   </p>
                 )}
               </div>
-            ) : c.status === 'nouveau' ? <p className="mt-2.5 text-xs text-text-3">{t('cap.pending')}</p> : null}
+            ) : c.status === 'nouveau' ? <p className="mt-2.5 text-xs text-text-3">{c.ai_analysis ? t('cap.pending') : t('cap.aiOff')}</p> : null}
 
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-text-2 hover:bg-surface-2 hover:text-text"><ExternalLink className="size-3.5" />{t('cap.openLink')}</a>}
               {file && <Button size="sm" variant="ghost" onClick={() => openFile(file)}><Paperclip className="size-3.5" />{t('cap.openFile')}</Button>}
               {canWrite && (
                 <>
+                  {c.status === 'nouveau' && (
+                    <label className="mr-1 inline-flex h-8 items-center gap-2 rounded-lg px-2 text-[13px] text-text-2">
+                      <Switch checked={!!c.ai_analysis} onChange={(v) => patch(c.id, { ai_analysis: v })} label={`${t('cap.ai')} : ${captureLabel(c)}`} />{t('cap.ai')}
+                    </label>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => patch(c.id, { status: c.status === 'nouveau' ? 'vu' : 'nouveau', processed_at: c.status === 'nouveau' ? new Date().toISOString() : null })}>
                     {c.status === 'nouveau' ? <Check className="size-3.5" /> : <RotateCcw className="size-3.5" />}{c.status === 'nouveau' ? t('cap.markSeen') : t('cap.markNew')}
                   </Button>

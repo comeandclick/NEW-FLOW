@@ -33,7 +33,7 @@ export type Reaction = { id: string; message_id: string; user_id: string; emoji:
 /** Something sent to Flow from a share sheet (link, image, video, text), sorted later by the AI. */
 export type Capture = {
   id: string; workspace_id: string; project_id: string | null; kind: 'tiktok' | 'instagram' | 'youtube' | 'lien' | 'image' | 'video' | 'texte'
-  url: string | null; file_id: string | null; title: string | null; note: string | null; status: 'nouveau' | 'vu'
+  url: string | null; file_id: string | null; title: string | null; note: string | null; status: 'nouveau' | 'vu'; ai_analysis: boolean
   summary: string | null; knowledge: string | null; task_ids: string[]; obsidian_note: string | null
   created_by: string | null; created_at: string; updated_at: string; processed_at: string | null; deleted_at: string | null
 }

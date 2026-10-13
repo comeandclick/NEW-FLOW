@@ -6,6 +6,12 @@ export const CAPTURE_STATUSES = ['nouveau', 'vu'] as const
 export type CaptureStatus = (typeof CAPTURE_STATUSES)[number]
 
 export const MAX_CAPTURE_URL = 2000
+
+/** « Analyse par l'IA » as sent by a form, a share shortcut or the API: true, "true", "1", "on", "oui", "yes". Anything else: no. */
+export function wantsAi(value: unknown): boolean {
+  if (value === true) return true
+  return typeof value === 'string' && ['true', '1', 'on', 'oui', 'yes'].includes(value.trim().toLowerCase())
+}
 export const MAX_CAPTURE_NOTE = 4000
 
 /** A shared text often carries the link inside a sentence ("Regarde ça https://… !"): take the first http(s) link. */
