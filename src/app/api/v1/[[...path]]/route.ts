@@ -455,6 +455,8 @@ async function captures(ctx: Ctx, req: Request, method: string, id: string | und
     if (projectIds.some((pid) => !tree.some((p) => p.id === pid))) throw new Bad('invalid_reference', 'project_ids: not found in this workspace')
   } else if (fields.projects !== undefined && fields.projects !== null && String(fields.projects).trim()) {
     projectIds = resolveProjects(fields.projects, tree, current?.id ?? null)
+    // projets envoyés mais aucun reconnu : refuser plutôt que ranger « sans projet » sans rien dire
+    if (projectIds.length === 0 && !/^projet (en cours|par défaut)/i.test(String(fields.projects).trim())) throw new Bad('unknown_projects', `Projets inconnus : ${String(fields.projects).slice(0, 200)}. Projets possibles : ${tree.map((p) => p.path).join(', ').slice(0, 600)}`, 422)
   } else if (typeof fields.project_id === 'string' && fields.project_id) {
     if (!UUID.test(fields.project_id) || !tree.some((p) => p.id === fields.project_id)) throw new Bad('invalid_reference', 'project_id: not found in this workspace')
     projectIds = [fields.project_id]

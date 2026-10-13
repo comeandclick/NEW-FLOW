@@ -129,7 +129,7 @@ describe('captures: projets choisis dans le raccourci', () => {
     { id: 'l', name: 'Lumora', path: 'Lumora' }, { id: 'v1', name: 'Vidéos', path: 'Kalimat › Vidéos' }, { id: 'v2', name: 'Vidéos', path: 'Motion › Vidéos' },
   ]
   it('libellés : projet en cours en tête', () => {
-    expect(projectLabels(tree.slice(0, 2), { id: 'k2', path: 'Kalimat › Kalimat 2.0' })).toEqual(['Projet en cours (Kalimat › Kalimat 2.0)', 'Kalimat', 'Kalimat › Kalimat 2.0'])
+    expect(projectLabels(tree.slice(0, 2), { id: 'k2', path: 'Kalimat › Kalimat 2.0' })).toEqual(['Projet par défaut (Kalimat › Kalimat 2.0)', 'Kalimat', 'Kalimat › Kalimat 2.0'])
   })
   it('plusieurs projets, une ligne chacun, sans doublon', () => {
     expect(resolveProjects('Kalimat › Kalimat 2.0\nLumora\nLumora', tree, null)).toEqual(['k2', 'l'])

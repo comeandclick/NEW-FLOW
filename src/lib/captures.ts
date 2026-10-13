@@ -121,7 +121,7 @@ export const projectsOf = (c: { project_id: string | null; project_ids?: string[
 
 // ── Choix des projets depuis le raccourci iPhone (libellés lisibles « Kalimat › Kalimat 2.0 ») ──
 
-export const CURRENT_PROJECT_LABEL = 'Projet en cours'
+export const CURRENT_PROJECT_LABEL = 'Projet par défaut'
 
 /** Libellés proposés par le raccourci : le projet en cours d'abord, puis l'arbre des projets. */
 export function projectLabels(tree: { id: string; path: string }[], current: { id: string; path: string } | null): string[] {
@@ -139,7 +139,7 @@ export function resolveProjects(input: unknown, tree: { id: string; name: string
   for (const raw of items) {
     const v = norm(raw)
     let id: string | null = null
-    if (v.startsWith(norm(CURRENT_PROJECT_LABEL))) id = currentId
+    if (v.startsWith(norm(CURRENT_PROJECT_LABEL)) || v.startsWith('projet en cours')) id = currentId
     else id = tree.find((p) => p.id === raw)?.id ?? tree.find((p) => norm(p.path) === v)?.id ?? null
     if (!id) { const same = tree.filter((p) => norm(p.name) === v); if (same.length === 1) id = same[0].id }
     if (id && !out.includes(id)) out.push(id)

@@ -2,7 +2,7 @@
 """Fabrique et signe le raccourci iPhone « Flow » (Partager -> Flow) : public/raccourci/Flow.shortcut.
 La clé API n'est PAS dans le fichier : l'app Raccourcis la demande à l'installation (question d'import), le fichier peut donc
 être public. Signature : `shortcuts sign --mode anyone` (Mac connecté à iCloud), obligatoire pour l'import sur iPhone.
-v2 (13/10/2026) : partagé depuis une app -> note facultative ; lancé depuis l'écran d'accueil -> zone de texte. Puis choix de
+v2.1 (13/10/2026, plus d'étape « Combiner le texte » : la liste partait vide) : partagé depuis une app -> note facultative ; lancé depuis l'écran d'accueil -> zone de texte. Puis choix de
 un ou plusieurs projets (liste lue dans Flow), « Analyse par l'IA ? », POST /api/v1/captures (JSON pour un lien ou du texte,
 formulaire avec le fichier pour une image ou une vidéo), et « Envoyé » SEULEMENT si Flow a créé la capture (sinon son message).
 Usage : python3 scripts/raccourci-iphone.py [https://new-flow-dashboard.vercel.app]"""
@@ -86,8 +86,8 @@ actions = [
     action("downloadurl", UUID=u_liste, WFURL=API + "/projects", WFHTTPMethod="GET", ShowHeaders=True, WFHTTPHeaders=auth()),
     action("getvalueforkey", UUID=u_data, WFInput=jeton(sortie("Contenu de l'URL", u_liste)), WFDictionaryKey="data", WFGetDictionaryValueType="Value"),
     action("choosefromlist", UUID=u_choix, WFInput=jeton(sortie("Valeur du dictionnaire", u_data)), WFChooseFromListActionPrompt="Pour quel(s) projet(s) ?", WFChooseFromListActionSelectMultiple=True),
-    action("text.combine", UUID=u_joint, WFInput=jeton(sortie("Élément choisi", u_choix)), WFTextSeparator="New Lines"),
-    definir("Projets", sortie("Texte combiné", u_joint)),
+    # la liste cochée est mise telle quelle dans un champ texte : Raccourcis la convertit en une ligne par projet
+    definir("Projets", sortie("Élément choisi", u_choix)),
     # 3) Analyse par l'IA ?
     action("choosefrommenu", GroupingIdentifier=g_menu, WFControlFlowMode=0, WFMenuPrompt="Analyse par l'IA ?", WFMenuItems=["Oui", "Non"]),
     action("choosefrommenu", GroupingIdentifier=g_menu, WFControlFlowMode=1, WFMenuItemTitle="Oui"),
