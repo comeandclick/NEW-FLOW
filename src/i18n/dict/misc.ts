@@ -48,6 +48,11 @@ export const misc = {
     'proj.archive': 'Archiver',
     'proj.openTasks': 'Voir les tâches',
     'proj.color': 'Couleur',
+    'proj.parent': 'Dans le projet',
+    'proj.noParent': 'Aucun (projet principal)',
+    'proj.subprojects': 'Sous-projets',
+    'proj.newSub': 'Sous-projet',
+    'proj.nSubs': 'Sous-projets : {n}',
     'proj.deletedToast': 'Projet placé dans la corbeille',
   },
   en: {
@@ -99,6 +104,11 @@ export const misc = {
     'proj.archive': 'Archive',
     'proj.openTasks': 'View tasks',
     'proj.color': 'Color',
+    'proj.parent': 'Inside project',
+    'proj.noParent': 'None (main project)',
+    'proj.subprojects': 'Sub-projects',
+    'proj.newSub': 'Sub-project',
+    'proj.nSubs': 'Sub-projects: {n}',
     'proj.deletedToast': 'Project moved to trash',
   },
 } as const
