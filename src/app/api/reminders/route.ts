@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     // une seule fois par rappel : la clé est réservée avant l'envoi
     const { error } = await a.from('reminders_sent').insert({ key: it.key })
     if (error) continue
-    await notifyUsers(it.ws, [it.user], { type: it.type, title: it.title, body: it.type === 'alert' ? 'Ouvre Agent 1, 2 et 3 dans MXterm et dis-leur « au travail » : chacun reprend ses tâches Flow.' : null, url: it.url })
+    await notifyUsers(it.ws, [it.user], { type: it.type, title: it.title, body: it.type === 'alert' ? 'Dans chaque terminal (Agent 1, 2 et 3), dis : « au travail : lis ~/Developer/_coordination/AU-TRAVAIL.md ».' : null, url: it.url })
     sent++
   }
   return NextResponse.json({ ok: true, checked: items.length, sent })
