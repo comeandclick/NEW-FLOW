@@ -21,6 +21,13 @@ Depuis n'importe quelle application (TikTok, Instagram, Safari, Photos), on envo
 
 Limite : le partage système (ordinateur, Android) ne transmet que les liens et le texte, pas les fichiers. Pour une image ou une vidéo : l'ajouter depuis la page Captures, ou passer par l'API.
 
+## Nouveautés du 13/10 au soir (v2)
+- **Plusieurs projets** par capture (`project_ids` ; `project_id` garde le premier). La page d'un projet principal montre aussi les captures de ses sous-projets.
+- **Aperçu** : miniature et titre TikTok / YouTube (oEmbed public, `/api/captures/preview`), miniatures relayées par `/api/captures/thumb` (hébergeurs connus seulement) ; **lecture sur place** avec les lecteurs officiels (CSP `frame-src` : tiktok.com, instagram.com, youtube-nocookie.com) ; vidéos jointes jouées dans la page (`playsInline`) ; images affichées.
+- **Notes modifiables** après l'envoi ; si la capture était déjà analysée et cochée « Analyse par l'IA », elle repasse à « nouveau » pour que l'IA la relise.
+- **Raccourci v2** : depuis l'écran d'accueil, zone de texte ; depuis Partager, note facultative ; puis choix de un ou plusieurs projets (`GET /api/v1/captures/projects`), « Analyse par l'IA ? », envoi, et « Envoyé » seulement si Flow a créé la capture (sinon le message d'erreur). Champ `projects` : un libellé par ligne (« Kalimat › Kalimat 2.0 », ou « Projet en cours (…) »).
+- Migration : `supabase/2026-10-13-cerveau.sql` (aussi `projects.parent_id` pour les projets dans des projets).
+
 ## Raccourci iPhone « Flow »
 **Le plus simple** : sur l'iPhone, dans Safari, Flow → **Captures** → **Installer sur iPhone** : « Créer ma clé » (clé limitée aux captures, copiée tout de suite), puis « Installer le raccourci » et coller la clé quand l'app Raccourcis la demande. Le raccourci est fabriqué et signé par `scripts/raccourci-iphone.py` (`public/raccourci/Flow.shortcut`, sans aucune clé dedans) ; le relancer si on change le raccourci ou l'adresse du site.
 
