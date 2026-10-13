@@ -21,7 +21,10 @@ Depuis n'importe quelle application (TikTok, Instagram, Safari, Photos), on envo
 
 Limite : le partage système (ordinateur, Android) ne transmet que les liens et le texte, pas les fichiers. Pour une image ou une vidéo : l'ajouter depuis la page Captures, ou passer par l'API.
 
-## Raccourci iPhone « Flow » (à construire une fois dans l'app Raccourcis)
+## Raccourci iPhone « Flow »
+**Le plus simple** : sur l'iPhone, dans Safari, Flow → **Captures** → **Installer sur iPhone** : « Créer ma clé » (clé limitée aux captures, copiée tout de suite), puis « Installer le raccourci » et coller la clé quand l'app Raccourcis la demande. Le raccourci est fabriqué et signé par `scripts/raccourci-iphone.py` (`public/raccourci/Flow.shortcut`, sans aucune clé dedans) ; le relancer si on change le raccourci ou l'adresse du site.
+
+À la main (si besoin), dans l'app Raccourcis :
 1. Dans Flow : **Paramètres → API → Nouvelle clé**, nom « Raccourci iPhone », droit **`captures:write` seulement**. Copier la clé (elle commence par `flw_`) ; ne la coller nulle part ailleurs que dans le raccourci.
 2. App **Raccourcis** → **+** → nommer le raccourci **Flow** (icône au choix). Dans ses réglages (i) : activer **Afficher dans la feuille de partage**, types acceptés : **URL, Texte, Images, Médias**.
 3. Actions, dans l'ordre :

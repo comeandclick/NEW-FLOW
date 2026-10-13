@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import { Check, ExternalLink, Film, Image as ImageIcon, Link2, Paperclip, Plus, RotateCcw, Sparkles, StickyNote, Trash2 } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, Film, Image as ImageIcon, KeyRound, Link2, Paperclip, Plus, RotateCcw, Smartphone, Sparkles, StickyNote, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
@@ -43,6 +43,69 @@ export function useCreateCapture() {
     log('capture.create', 'capture', (data as Capture).id, {})
     return data as Capture
   }
+}
+
+/**
+ * « Installer sur iPhone » : 1) crée une clé API limitée aux captures (copiée tout de suite), 2) télécharge le raccourci « Flow »
+ * signé (public/raccourci/Flow.shortcut, fabriqué par scripts/raccourci-iphone.py), qui demande la clé à l'installation.
+ * La clé n'est jamais dans le fichier du raccourci.
+ */
+export function InstallShortcut() {
+  const { t } = useI18n()
+  const { ws, isAdmin } = useWorkspace()
+  const [open, setOpen] = useState(false)
+  const [key, setKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function makeKey() {
+    setBusy(true); setCopied(false)
+    const made = fetch('/api/keys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ workspaceId: ws.id, name: t('cap.ios.keyName'), scopes: ['captures:write'], expiresInDays: null }) })
+      .then(async (r) => { const j = await r.json(); if (!r.ok || typeof j.key !== 'string') throw new Error(j.error ?? 'key'); return j.key as string })
+    // Safari sur iPhone n'accepte de copier que dans le geste du clic : on lui passe la promesse de la clé
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': made.then((k) => new Blob([k], { type: 'text/plain' })) })])
+        setCopied(true)
+      }
+    } catch { /* copie refusée : bouton Copier plus bas */ }
+    try { setKey(await made) } catch { toast.error(t('cap.ios.keyErr')) }
+    setBusy(false)
+  }
+  async function copy() {
+    if (!key) return
+    try { await navigator.clipboard.writeText(key); setCopied(true) } catch { toast.error(t('common.error')) }
+  }
+
+  if (!isAdmin) return null
+  return (
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}><Smartphone className="size-4" />{t('cap.ios.button')}</Button>
+      <Dialog open={open} onClose={() => setOpen(false)} title={t('cap.ios.title')} size="sm">
+        <ol className="space-y-4 text-sm">
+          <li className="space-y-2">
+            <p><span className="font-medium">1. </span>{t('cap.ios.step1')}</p>
+            {!key ? (
+              <Button variant="primary" loading={busy} onClick={makeKey}><KeyRound className="size-4" />{t('cap.ios.makeKey')}</Button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-accent-soft text-accent-ink"><Check className="size-3" />{copied ? t('cap.ios.copied') : t('cap.ios.made')}</Badge>
+                {!copied && <Button size="sm" onClick={copy}><Copy className="size-3.5" />{t('api.copy')}</Button>}
+              </div>
+            )}
+          </li>
+          <li className="space-y-2">
+            <p><span className="font-medium">2. </span>{t('cap.ios.step2')}</p>
+            <a href="/raccourci/Flow.shortcut" download="Flow.shortcut" className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-3.5 text-sm font-medium text-white aria-disabled:opacity-50" aria-disabled={!key}>
+              <Download className="size-4" />{t('cap.ios.install')}
+            </a>
+            <p className="text-[13px] text-text-3">{t('cap.ios.step2Hint')}</p>
+          </li>
+          <li><p><span className="font-medium">3. </span>{t('cap.ios.step3')}</p></li>
+        </ol>
+      </Dialog>
+    </>
+  )
 }
 
 /** Dialog to add a capture by hand (the share sheet does the same without opening Flow). */
