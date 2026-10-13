@@ -26,7 +26,8 @@ export default function TeamPage() {
 
   const stats = useMemo(() => {
     const today = startOfDay(new Date()), weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 }), weekAgo = subDays(new Date(), 7)
-    return members.map((m) => {
+    // robots des clés API masqués : l'équipe = Aymen et ses agents Claude
+    return members.filter((m) => !(m.profile?.preferences as { bot?: boolean } | undefined)?.bot).map((m) => {
       const mine = tasks.data.filter((x) => x.assignee_id === m.user_id && !x.parent_id)
       const open = mine.filter((x) => !['done', 'cancelled'].includes(x.status))
       const overdue = open.filter((x) => x.due_date && isBefore(new Date(x.due_date), today))

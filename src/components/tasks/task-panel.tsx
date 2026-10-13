@@ -135,7 +135,7 @@ export function TaskPanel({ taskId, open, onClose, onChanged }: { taskId: string
                 <Select value={task.priority} disabled={ro} onChange={(e) => patch({ priority: e.target.value as Priority })}>{PRIORITIES.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}</Select></label>
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('common.assignee')}</span>
                 <Select value={task.assignee_id ?? ''} disabled={ro} onChange={(e) => patch({ assignee_id: e.target.value || null })}>
-                  <option value="">{t('common.unassigned')}</option>{members.map((m) => <option key={m.user_id} value={m.user_id}>{m.profile?.full_name ?? m.profile?.email}</option>)}</Select></label>
+                  <option value="">{t('common.unassigned')}</option>{members.filter((m) => !(m.profile?.preferences as { bot?: boolean } | undefined)?.bot || m.user_id === task.assignee_id).map((m) => <option key={m.user_id} value={m.user_id}>{m.profile?.full_name ?? m.profile?.email}</option>)}</Select></label>
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('common.dueDate')}</span>
                 <Input type="date" disabled={ro} value={toDateInput(task.due_date)} onChange={(e) => patch({ due_date: e.target.value ? new Date(`${e.target.value}T18:00:00`).toISOString() : null })} /></label>
               <label className="space-y-1.5"><span className="text-xs text-text-3">{t('common.project')}</span>

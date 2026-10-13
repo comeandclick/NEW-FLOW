@@ -10,7 +10,7 @@ export function PeoplePicker({ value, onChange, disabled, label }: { value: stri
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id])
   return (
     <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
-      {members.map((m) => {
+      {members.filter((m) => !(m.profile?.preferences as { bot?: boolean } | undefined)?.bot || value.includes(m.user_id)).map((m) => {
         const on = value.includes(m.user_id)
         const name = m.profile?.full_name ?? m.profile?.email ?? '—'
         return (

@@ -1,0 +1,19 @@
+-- 13/10/2026 : rappels (5 min avant / à l'heure, et « lancer la session des agents » à 9 h 30) appelés chaque minute par Supabase.
+-- Idempotent. À exécuter dans le SQL Editor de Supabase. Le secret (__SECRET__) est remplacé à la génération, jamais commité.
+create table if not exists public.reminders_sent (key text primary key, sent_at timestamptz not null default now());
+alter table public.reminders_sent enable row level security;   -- aucune politique : accessible seulement par le serveur
+create index if not exists reminders_sent_at on public.reminders_sent (sent_at);
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- remplace la tâche si elle existe déjà
+select cron.unschedule(jobid) from cron.job where jobname in ('flow-rappels', 'flow-rappels-menage');
+select cron.schedule('flow-rappels', '* * * * *', $$
+  select net.http_post(
+    url := 'https://new-flow-dashboard.vercel.app/api/reminders',
+    headers := jsonb_build_object('content-type', 'application/json', 'x-reminders-secret', '__SECRET__'),
+    body := '{}'::jsonb, timeout_milliseconds := 20000)
+$$);
+-- ménage : on garde 30 jours de rappels envoyés
+select cron.schedule('flow-rappels-menage', '17 3 * * *', $$ delete from public.reminders_sent where sent_at < now() - interval '30 days' $$);
