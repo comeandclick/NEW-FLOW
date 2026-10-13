@@ -3,13 +3,14 @@
 Écrit le 13 octobre 2026. Demande d'origine : `~/Developer/_coordination/demandes/2026-10-13-capture-cerveau.md`.
 
 ## À quoi ça sert
-Depuis n'importe quelle application (TikTok, Instagram, Safari, Photos), on envoie un lien, une capture d'écran, une vidéo ou un texte vers Flow. La capture arrive dans le **projet en cours** de la personne. Plus tard, une IA regarde les captures nouvelles : elle résume, retient ce qui est utile, crée une tâche si besoin, range les connaissances dans le coffre Obsidian et marque la capture comme vue.
+Depuis n'importe quelle application (TikTok, Instagram, Safari, Photos), on envoie un lien, une capture d'écran, une vidéo ou un texte vers Flow. La capture arrive dans le **projet en cours** de la personne. Plus tard, une IA regarde les captures nouvelles **où « Analyse par l'IA » est cochée** : elle résume, retient ce qui est utile, crée une tâche si besoin, range les connaissances dans le coffre Obsidian et marque la capture comme vue.
 
 ## Dans l'application
 - **Menu « Captures »** (`/app/<espace>/captures`) : toutes les captures, filtres par statut (nouveau / vu), type et projet, ajout à la main.
 - **Page d'un projet** : section « Captures » du projet.
 - **Projet en cours** : un réglage par personne, choisi sur la page Captures ou avec le marque-page en haut d'un projet. Une capture envoyée sans projet y arrive. Sans projet en cours, elle arrive « sans projet ».
 - **Statuts** : `nouveau` (pas encore regardée par l'IA), `vu` (analysée). Chacun peut basculer à la main.
+- **« Analyse par l'IA »** (colonne `ai_analysis`, non cochée par défaut) : se choisit à l'envoi (raccourci iPhone : question oui / non ; ajout à la main : interrupteur ; partage système : bouton « Analyser par l'IA » dans la notification de confirmation) et se change ensuite sur la carte. **L'IA n'analyse que les captures cochées** ; les autres restent rangées telles quelles (pastille « IA » sur les captures en attente d'analyse).
 - Une capture supprimée va à la corbeille (suppression douce, colonne `deleted_at`).
 
 ## Envoyer depuis le menu « Partager »
@@ -20,16 +21,29 @@ Depuis n'importe quelle application (TikTok, Instagram, Safari, Photos), on envo
 
 Limite : le partage système (ordinateur, Android) ne transmet que les liens et le texte, pas les fichiers. Pour une image ou une vidéo : l'ajouter depuis la page Captures, ou passer par l'API.
 
+## Raccourci iPhone « Flow » (à construire une fois dans l'app Raccourcis)
+1. Dans Flow : **Paramètres → API → Nouvelle clé**, nom « Raccourci iPhone », droit **`captures:write` seulement**. Copier la clé (elle commence par `flw_`) ; ne la coller nulle part ailleurs que dans le raccourci.
+2. App **Raccourcis** → **+** → nommer le raccourci **Flow** (icône au choix). Dans ses réglages (i) : activer **Afficher dans la feuille de partage**, types acceptés : **URL, Texte, Images, Médias**.
+3. Actions, dans l'ordre :
+   1. **Demander une saisie** (Texte) : « Une note ? (facultatif) ». Variable `Note`.
+   2. **Choisir dans le menu** : « Analyse par l'IA ? » avec **Oui** et **Non**. Dans Oui : **Texte** `true` ; dans Non : **Texte** `false`. Après le menu : variable `IA` = **Résultat du menu**.
+   3. **Si** *Entrée du raccourci* **est** *URL* ou *Texte* :
+      **Obtenir le contenu de l'URL** `https://new-flow-dashboard.vercel.app/api/v1/captures`, méthode **POST**, en-têtes `Authorization` = `Bearer <la clé>`, corps **JSON** : `text` = *Entrée du raccourci*, `note` = `Note`, `ai_analysis` = `IA`.
+   4. **Sinon** (image ou vidéo) : même action, corps **Formulaire** : `file` (fichier) = *Entrée du raccourci*, `note` = `Note`, `ai_analysis` = `IA`.
+   5. **Afficher la notification** « Envoyé vers Flow ».
+4. Tester : dans TikTok, **Partager → Flow**, répondre aux deux questions, puis ouvrir Flow → Captures.
+Limite : un envoi direct accepte 4 Mo environ (limite de l'hébergement). Pour une vidéo plus lourde, partager plutôt son **lien**, ou l'ajouter depuis la page Captures.
+
 ## API
 Permission dédiée : `captures:read`, `captures:write` (Paramètres → API). Une clé peut n'avoir que `captures:write` : c'est le cas de celle du raccourci iPhone.
 
 | Appel | Rôle |
 |---|---|
-| `POST /api/v1/captures` | Crée une capture. JSON `{url?, text?, note?, title?, project_id?, kind?}` ou `multipart/form-data` avec les mêmes champs et `file`. Au moins un parmi `url`, `text`, `note`, `file` |
+| `POST /api/v1/captures` | Crée une capture. JSON `{url?, text?, note?, title?, project_id?, kind?, ai_analysis?}` (`ai_analysis` : `true`, `"true"`, `"1"`, `"on"`, `"oui"` ; sinon non) ou `multipart/form-data` avec les mêmes champs et `file`. Au moins un parmi `url`, `text`, `note`, `file` |
 | `POST /api/v1/captures/upload-url` | Fichier de plus de 4 Mo (25 Mo au plus) : renvoie une adresse d'envoi. Ensuite `PUT` du fichier, puis `POST /captures {upload_path, name, mime}` |
-| `GET /api/v1/captures?status=nouveau&kind=&project_id=` | Liste |
+| `GET /api/v1/captures?status=nouveau&ai_analysis=true&kind=&project_id=` | Liste |
 | `GET /api/v1/captures/:id` | Détail, avec le fichier et un lien de téléchargement valable 10 minutes |
-| `PATCH /api/v1/captures/:id` | Met à jour : `status`, `summary`, `knowledge`, `task_ids`, `obsidian_note`, `project_id`, `title`, `note` |
+| `PATCH /api/v1/captures/:id` | Met à jour : `status`, `ai_analysis`, `summary`, `knowledge`, `task_ids`, `obsidian_note`, `project_id`, `title`, `note` |
 | `DELETE /api/v1/captures/:id` | Corbeille |
 
 Règles :
@@ -52,7 +66,7 @@ Table `captures`, migration `supabase/captures.sql` (peut être relancée sans r
 Le projet en cours est rangé dans `profiles.preferences.current_project`, sous la forme `{ <id de l'espace>: <id du projet> }`.
 
 ## Tri par l'IA
-Skill Claude Code `flow-captures` (`~/.claude/skills/flow-captures/`) : liste les captures nouvelles, télécharge ce qu'il faut, analyse, écrit le résumé et les connaissances sur la capture, crée une tâche si besoin dans le même projet, range dans le coffre Obsidian, passe la capture à « vu ».
+Skill Claude Code `flow-captures` (`~/.claude/skills/flow-captures/`, mode d'emploi dans `SKILL.md`) : liste les captures nouvelles **et cochées « Analyse par l'IA »**, télécharge ce qu'il faut, analyse, écrit le résumé et les connaissances sur la capture, crée une tâche si besoin dans le même projet, range dans le coffre Obsidian, passe la capture à « vu ».
 - À la demande : « regarde mes captures ».
 - Chaque soir : tâche planifiée du Mac (voir le skill).
 
