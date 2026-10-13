@@ -23,6 +23,10 @@ describe('rappels', () => {
     expect(parisClock(new Date('2026-10-14T07:30:00Z'))).toEqual({ hm: '09:30', day: '2026-10-14' })
     expect(parisClock(new Date('2026-10-26T08:30:00Z'))).toEqual({ hm: '09:30', day: '2026-10-26' })
   })
+  it('exception du 14/10 : rappel des agents à 12 h 30 seulement', () => {
+    expect(agentsTime('09:30', '2026-10-14')).toBe(false); expect(agentsTime('12:30', '2026-10-14')).toBe(true); expect(agentsTime('12:39', '2026-10-14')).toBe(true)
+    expect(agentsTime('09:30', '2026-10-15')).toBe(true); expect(agentsTime('12:30', '2026-10-15')).toBe(false)
+  })
   it('rappel des agents entre 9 h 30 et 9 h 39', () => {
     expect(agentsTime('09:30')).toBe(true); expect(agentsTime('09:39')).toBe(true)
     expect(agentsTime('09:29')).toBe(false); expect(agentsTime('09:40')).toBe(false)

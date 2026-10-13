@@ -42,8 +42,18 @@ export async function POST(req: Request) {
     items.push({ key: `${m}:task:${t.id}:${t.assignee_id}`, ws: t.workspace_id, user: t.assignee_id as string, type: 'task', title: reminderTitle(m, t.title), url: `/app/${slug(t.workspace_id)}/tasks?open=${t.id}` })
   }
   const clock = parisClock(new Date(now))
-  if (agentsTime(clock.hm)) for (const w of spaces ?? []) items.push({ key: `agents:${clock.day}:${w.id}`, ws: w.id, user: w.owner_id, type: 'alert', title: 'Lancer la session de travail des agents', url: `/app/${w.slug}/team` })
+  if (agentsTime(clock.hm, clock.day)) for (const w of spaces ?? []) items.push({ key: `agents:${clock.day}:${w.id}`, ws: w.id, user: w.owner_id, type: 'alert', title: 'Lancer la session de travail des agents', url: `/app/${w.slug}/team` })
 
+  // ?test=1 : un exemple de chaque rappel au propriétaire de l'espace, par le vrai chemin d'envoi (sans réserver de clé)
+  if (new URL(req.url).searchParams.get('test') === '1') {
+    let n = 0
+    for (const w of spaces ?? []) for (const [type, title, url, body] of [
+      ['event', reminderTitle('avant', 'Exemple : Définir la DA de Lumora (test)'), `/app/${w.slug}/calendar`, 'Notification de test : rappel 5 minutes avant une tâche.'],
+      ['event', reminderTitle('heure', 'Exemple : Définir la DA de Lumora (test)'), `/app/${w.slug}/calendar`, 'Notification de test : rappel à l’heure de la tâche.'],
+      ['alert', 'Lancer la session de travail des agents (test)', `/app/${w.slug}/team`, 'Dans chaque terminal (Agent 1, 2 et 3), dis : « au travail : lis ~/Developer/_coordination/AU-TRAVAIL.md ».'],
+    ] as const) { await notifyUsers(w.id, [w.owner_id], { type, title, body, url }); n++ }
+    return NextResponse.json({ ok: true, test: n })
+  }
   let sent = 0
   for (const it of items) {
     // une seule fois par rappel : la clé est réservée avant l'envoi

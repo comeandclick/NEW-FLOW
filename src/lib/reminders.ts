@@ -21,5 +21,8 @@ export function parisClock(now: Date): { hm: string; day: string } {
   return { hm: `${p.hour}:${p.minute}`, day: `${p.year}-${p.month}-${p.day}` }
 }
 
-/** Le rappel « lancer la session de travail des agents » part entre 9 h 30 et 9 h 39 (heure de Paris), une fois par jour. */
-export const agentsTime = (hm: string) => hm >= '09:30' && hm < '09:40'
+/** Heure du rappel « lancer la session de travail des agents » : 9 h 30, sauf exceptions demandées par Aymen. */
+export const AGENTS_EXCEPTIONS: Record<string, string> = { '2026-10-14': '12:30' }
+const plus10 = (hm: string) => { const [h, m] = hm.split(':').map(Number); const t = h * 60 + m + 10; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}` }
+/** Le rappel part dans les 10 minutes qui suivent son heure (heure de Paris), une fois par jour. */
+export const agentsTime = (hm: string, day?: string) => { const at = (day && AGENTS_EXCEPTIONS[day]) || '09:30'; return hm >= at && hm < plus10(at) }
