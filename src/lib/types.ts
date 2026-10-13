@@ -30,6 +30,13 @@ export type Message = {
   attachments: Attachment[]; mentions: string[]; is_pinned: boolean; is_edited: boolean; deleted_at: string | null; created_at: string; updated_at: string
 }
 export type Reaction = { id: string; message_id: string; user_id: string; emoji: string }
+/** Something sent to Flow from a share sheet (link, image, video, text), sorted later by the AI. */
+export type Capture = {
+  id: string; workspace_id: string; project_id: string | null; kind: 'tiktok' | 'instagram' | 'youtube' | 'lien' | 'image' | 'video' | 'texte'
+  url: string | null; file_id: string | null; title: string | null; note: string | null; status: 'nouveau' | 'vu'
+  summary: string | null; knowledge: string | null; task_ids: string[]; obsidian_note: string | null
+  created_by: string | null; created_at: string; updated_at: string; processed_at: string | null; deleted_at: string | null
+}
 export type FileRow = { id: string; workspace_id: string; folder: string; name: string; size: number | null; mime_type: string | null; storage_path: string; uploaded_by: string | null; created_at: string; deleted_at: string | null }
 export type Meeting = { id: string; workspace_id: string; title: string; description: string | null; host_id: string | null; room: string; status: 'scheduled' | 'live' | 'ended'; scheduled_at: string | null; started_at: string | null; ended_at: string | null; summary: string | null; created_at: string; deleted_at: string | null }
 export type Goal = { id: string; workspace_id: string; title: string; description: string | null; target: number; current: number; unit: string; status: string; color: string | null; due_date: string | null; deleted_at: string | null }

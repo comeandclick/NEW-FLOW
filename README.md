@@ -52,6 +52,7 @@ Clés créées dans **Paramètres → API** (propriétaires/admins). Chaque clé
 | `/channels` | GET |
 | `/messages?channel=general` | GET, POST `{channel,text,file_ids?,reply_to?,notify?}`, PATCH/DELETE `/:id` (ses propres messages) |
 | `/files` | GET, POST (JSON `{name,text\|base64}` ou multipart, ≤ 4 Mo), `/files/upload-url` + PUT + `/files/register` (≤ 25 Mo), GET `/:id?content=1`, DELETE `/:id` |
+| `/captures` | POST `{url?,text?,note?,file?}` (JSON ou multipart, depuis « Partager »), `/captures/upload-url` (≤ 25 Mo), GET (liste, `?status=nouveau`), GET/PATCH/DELETE `/:id`. Détail : `docs/captures.md` |
 | `/notifications` | POST `{title,body?,url?,to?: "creator"\|"all"\|id}` |
 
 Notes : `markdown` accepté en écriture et renvoyé en lecture. Les suppressions vont à la corbeille. 120 requêtes/min/clé. Erreurs : `{"error":{"code","message"}}`.

@@ -1,5 +1,5 @@
 /** API scopes. Dependency-free: used by the settings UI, the key routes and the v1 handler. */
-export const RESOURCES = ['tasks', 'projects', 'notes', 'events', 'goals', 'crm', 'messages', 'files'] as const
+export const RESOURCES = ['tasks', 'projects', 'notes', 'events', 'goals', 'crm', 'messages', 'files', 'captures'] as const
 export type ApiResource = (typeof RESOURCES)[number]
 
 export const ALL_SCOPES: string[] = [...RESOURCES.flatMap((r) => [`${r}:read`, `${r}:write`]), 'notifications:write']

@@ -7,6 +7,7 @@ import { notifyUsers } from '@/lib/api/notify'
 import { ALERT_TYPES, cleanChannel, emitAlert, routesFrom, type AlertType, type Severity } from '@/lib/api/alerts'
 import { safePath } from '@/lib/utils'
 import { mdToDoc } from '@/lib/demo/kalimat-data'
+import { CAPTURE_KINDS, CAPTURE_STATUSES, MAX_CAPTURE_NOTE, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind } from '@/lib/captures'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -32,7 +33,7 @@ function limited(id: string) {
 }
 
 // ── resources ──
-// Column types: s string · n number · b boolean · d date/null · sa string[] · ua uuid[] · j object · e:a|b enum · u:<table> id of a row of this workspace
+// Column types: s string · n number · b boolean · d date/null · sa string[] · ua uuid[] of members · ia:<table> uuid[] of rows of this workspace · j object · e:a|b enum · u:<table> id of a row of this workspace
 type Spec = { table: string; scope: string; soft: boolean; cols: Record<string, string>; search?: string; filters?: string[]; label: string }
 const RES: Record<string, Spec> = {
   projects: { table: 'projects', scope: 'projects', soft: true, label: 'project', search: 'name', filters: ['status'], cols: { name: 's', description: 's', color: 's', icon: 's', status: 's' } },
@@ -49,6 +50,11 @@ const RES: Record<string, Spec> = {
   'key-results': { table: 'key_results', scope: 'goals', soft: false, label: 'key_result', search: 'title', filters: ['goal_id'], cols: { goal_id: 'u:goals', title: 's', target: 'n', current: 'n', unit: 's' } },
   contacts: { table: 'crm_contacts', scope: 'crm', soft: true, label: 'contact', search: 'name', filters: ['status'], cols: { name: 's', email: 's', phone: 's', company: 's', position: 's', status: 's', tags: 'sa', notes: 's' } },
   deals: { table: 'crm_deals', scope: 'crm', soft: true, label: 'deal', search: 'title', filters: ['stage', 'contact_id'], cols: { contact_id: 'u:crm_contacts', title: 's', value: 'n', currency: 's', stage: 's', probability: 'n', close_date: 'd' } },
+  // Captures: created through captures() below (link, file or text); read, updated and deleted through the generic CRUD.
+  captures: {
+    table: 'captures', scope: 'captures', soft: true, label: 'capture', search: 'title', filters: ['status', 'kind', 'project_id'],
+    cols: { project_id: 'u:projects', kind: `e:${CAPTURE_KINDS.join('|')}`, url: 's', file_id: 'u:files', title: 's', note: 's', status: `e:${CAPTURE_STATUSES.join('|')}`, summary: 's', knowledge: 's', task_ids: 'ia:tasks', obsidian_note: 's' },
+  },
 }
 const REQUIRED: Record<string, string[]> = { projects: ['name'], tasks: ['title'], notes: ['title'], events: ['title', 'start_at', 'end_at'], goals: ['title', 'target'], 'key-results': ['goal_id', 'title', 'target'], contacts: ['name'], deals: ['title'] }
 
@@ -75,6 +81,7 @@ async function clean(ctx: Ctx, spec: Spec, body: Row, partial: boolean): Promise
     else if (ty === 'd') { if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) throw new Bad('invalid_field', `${k} must be an ISO-8601 date`); out[k] = v }
     else if (ty === 'sa') { if (!Array.isArray(v) || v.length > 50 || v.some((x) => typeof x !== 'string' || x.length > 100)) throw new Bad('invalid_field', `${k} must be an array of strings`); out[k] = v }
     else if (ty === 'ua') { if (!Array.isArray(v) || v.length > 100 || v.some((x) => typeof x !== 'string' || !UUID.test(x))) throw new Bad('invalid_field', `${k} must be an array of ids`); for (const id of v as string[]) if (!(await refOk(ctx, '@members', id))) throw new Bad('invalid_reference', `${k}: unknown member`); out[k] = v }
+    else if (ty.startsWith('ia:')) { if (!Array.isArray(v) || v.length > 50 || v.some((x) => typeof x !== 'string' || !UUID.test(x))) throw new Bad('invalid_field', `${k} must be an array of ids`); for (const id of v as string[]) if (!(await refOk(ctx, ty.slice(3), id))) throw new Bad('invalid_reference', `${k}: not found in this workspace`); out[k] = v }
     else if (ty === 'j') { if (typeof v !== 'object') throw new Bad('invalid_field', `${k} must be an object`); out[k] = v }
     else if (ty.startsWith('e:')) { if (typeof v !== 'string' || !ty.slice(2).split('|').includes(v)) throw new Bad('invalid_field', `${k} must be one of ${ty.slice(2).replace(/\|/g, ', ')}`); out[k] = v }
     else if (ty.startsWith('u:')) { if (typeof v !== 'string' || !UUID.test(v) || !(await refOk(ctx, ty.slice(2), v))) throw new Bad('invalid_reference', `${k}: not found in this workspace`); out[k] = v }
@@ -134,6 +141,8 @@ async function crud(ctx: Ctx, method: string, name: string, id: string | undefin
     const row = await clean(ctx, spec, body, true)
     if (!Object.keys(row).length) throw new Bad('empty', 'Nothing to update')
     if (name === 'tasks' && 'status' in row) row.completed_at = row.status === 'done' ? new Date().toISOString() : null
+    if (name === 'captures' && 'status' in row) row.processed_at = row.status === 'vu' ? new Date().toISOString() : null
+    if (name === 'captures' && 'url' in row && row.url !== null && !cleanCaptureUrl(row.url)) throw new Bad('invalid_field', 'url must be an http(s) link')
     if (t !== 'key_results') row.updated_at = new Date().toISOString()
     const { data: before } = await ctx.a.from(t).select('*').eq('id', id).eq('workspace_id', ctx.ws.id).maybeSingle()
     let q = ctx.a.from(t).update(row).eq('id', id).eq('workspace_id', ctx.ws.id)
@@ -339,6 +348,106 @@ async function files(ctx: Ctx, req: Request, method: string, id: string | undefi
   return fail(405, 'method_not_allowed', 'Method not allowed')
 }
 
+// ── captures ──
+// What a share sheet sends: a link, a file, a text, or a mix. Never notifies the team: a capture is a personal inbox item.
+const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+
+async function captureFile(ctx: Ctx, bytes: Uint8Array, name: string, mime: string): Promise<{ id: string; mime: string }> {
+  if (bytes.length > MAX_INLINE) throw new Bad('too_large', 'Over 4 MB: use POST /captures/upload-url (up to 25 MB), then POST /captures {upload_path}', 413)
+  if (!bytes.length) throw new Bad('invalid_field', 'empty file')
+  const path = `${ctx.ws.id}/captures/${crypto.randomUUID().slice(0, 8)}-${safeName(name)}`
+  const up = await ctx.a.storage.from('files').upload(path, bytes, { contentType: mime, upsert: false })
+  if (up.error) throw new Bad('storage_error', 'Upload failed', 500)
+  return registerCaptureFile(ctx, path, name, mime, bytes.length)
+}
+
+async function registerCaptureFile(ctx: Ctx, path: string, name: string, mime: string, size: number | null): Promise<{ id: string; mime: string }> {
+  const { data, error } = await ctx.a.from('files').insert({ workspace_id: ctx.ws.id, folder: '/Captures', name: name.slice(0, 200), size, mime_type: mime, storage_path: path, uploaded_by: ctx.key.bot_id }).select('id').single()
+  if (error || !data) throw new Bad('invalid', error?.message.slice(0, 200) ?? 'Could not save the file')
+  return { id: data.id as string, mime }
+}
+
+async function captures(ctx: Ctx, req: Request, method: string, id: string | undefined, body: Row) {
+  const spec = RES.captures
+  // Everything but creation is plain CRUD; reading one capture also returns its file with a download link.
+  if (method === 'GET' && id && UUID.test(id)) {
+    if (!ctx.key.scopes.includes('captures:read')) return fail(403, 'insufficient_scope', 'Missing scope captures:read')
+    const { data } = await ctx.a.from('captures').select('*').eq('id', id).eq('workspace_id', ctx.ws.id).is('deleted_at', null).maybeSingle()
+    if (!data) return fail(404, 'not_found', 'capture not found')
+    const out: Row = { ...(data as Row), file: null }
+    if (data.file_id) {
+      const { data: f } = await ctx.a.from('files').select('id,name,size,mime_type,storage_path').eq('id', data.file_id).eq('workspace_id', ctx.ws.id).maybeSingle()
+      if (f) {
+        const { data: s } = await ctx.a.storage.from('files').createSignedUrl(f.storage_path, 600)
+        out.file = { id: f.id, name: f.name, size: f.size, mime_type: f.mime_type, download_url: s?.signedUrl ?? null, download_url_expires_in: 600 }
+      }
+    }
+    return json({ data: out })
+  }
+  if (method !== 'POST' || (id && id !== 'upload-url')) return await crud(ctx, method, 'captures', id, spec, body)
+  if (!ctx.key.scopes.includes('captures:write')) return fail(403, 'insufficient_scope', 'Missing scope captures:write')
+
+  // Big files (a video): 1) ask for a signed upload URL, 2) PUT the bytes to it, 3) POST /captures {upload_path, name, mime}.
+  if (id === 'upload-url') {
+    const name = str(body.name, 200), size = Number(body.size)
+    if (!name) throw new Bad('missing_field', 'name is required')
+    if (!Number.isFinite(size) || size <= 0 || size > MAX_FILE) throw new Bad('too_large', `size is required and must be at most ${MAX_FILE} bytes (25 MB)`, 413)
+    const path = `${ctx.ws.id}/captures/${crypto.randomUUID().slice(0, 8)}-${safeName(name)}`
+    const { data, error } = await ctx.a.storage.from('files').createSignedUploadUrl(path)
+    if (error || !data) return fail(500, 'storage_error', 'Could not create upload URL')
+    return json({ data: { path, upload_url: data.signedUrl, method: 'PUT', headers: { 'content-type': str(body.mime, 100) || 'application/octet-stream' }, then: 'POST /api/v1/captures {upload_path,name,mime,note?,project_id?}' } })
+  }
+
+  // One request: JSON {url?, text?, note?, title?, project_id?, kind?, base64?+name, upload_path?+name} or multipart (same fields + "file").
+  let fields: Row = body
+  let file: { id: string; mime: string } | null = null
+  if ((req.headers.get('content-type') ?? '').startsWith('multipart/form-data')) {
+    const fd = await req.formData()
+    fields = Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === 'string'))
+    const f = fd.get('file')
+    if (f instanceof File && f.size > 0) file = await captureFile(ctx, new Uint8Array(await f.arrayBuffer()), f.name || 'capture', f.type || 'application/octet-stream')
+  } else if (typeof body.base64 === 'string') {
+    file = await captureFile(ctx, Uint8Array.from(Buffer.from(body.base64, 'base64')), str(body.name, 200) || 'capture', str(body.mime, 100) || 'application/octet-stream')
+  } else if (typeof body.upload_path === 'string') {
+    const path = body.upload_path
+    if (!path.startsWith(`${ctx.ws.id}/captures/`) || path.includes('..')) throw new Bad('invalid_field', 'upload_path must come from /captures/upload-url')
+    const { data: info } = await ctx.a.storage.from('files').info(path)
+    if (!info) throw new Bad('not_uploaded', 'Nothing uploaded at this path yet', 409)
+    file = await registerCaptureFile(ctx, path, str(body.name, 200) || 'capture', str(body.mime, 100) || info.contentType || 'application/octet-stream', info.size ?? null)
+  }
+
+  // The link: given as such, or found inside the shared text ("Regarde ça https://…").
+  const text = str(fields.text, MAX_CAPTURE_NOTE)
+  let url: string | null = null
+  if (typeof fields.url === 'string' && fields.url.trim()) {
+    url = cleanCaptureUrl(fields.url)
+    if (!url) throw new Bad('invalid_field', 'url must be an http(s) link')
+  } else url = cleanCaptureUrl(firstUrl(text))
+  const note = str(fields.note, MAX_CAPTURE_NOTE) || (text && text !== url ? text : '')
+  if (!url && !file && !note) throw new Bad('missing_field', 'Send at least one of: url, text, note, file')
+
+  const kind = (CAPTURE_KINDS as readonly string[]).includes(String(fields.kind)) ? String(fields.kind) : inferCaptureKind({ url, mime: file?.mime })
+
+  // Project: the one given, else the "current project" of the person who created the key.
+  let projectId: string | null = null
+  if (typeof fields.project_id === 'string' && fields.project_id) {
+    if (!UUID.test(fields.project_id) || !(await refOk(ctx, 'projects', fields.project_id))) throw new Bad('invalid_reference', 'project_id: not found in this workspace')
+    projectId = fields.project_id
+  } else {
+    const { data: owner } = await ctx.a.from('profiles').select('preferences').eq('id', ctx.key.created_by).maybeSingle()
+    const current = currentProjectOf(owner?.preferences, ctx.ws.id)
+    if (current && UUID.test(current)) {
+      const { data: p } = await ctx.a.from('projects').select('id').eq('id', current).eq('workspace_id', ctx.ws.id).is('deleted_at', null).maybeSingle()
+      projectId = p ? current : null
+    }
+  }
+
+  const { data, error } = await ctx.a.from('captures').insert({ workspace_id: ctx.ws.id, project_id: projectId, kind, url, file_id: file?.id ?? null, title: str(fields.title, 200) || null, note: note || null, created_by: ctx.key.bot_id }).select('*').single()
+  if (error || !data) return fail(400, 'invalid', error?.message.slice(0, 200) ?? 'failed')
+  await log(ctx, 'capture.create', 'capture', (data as Row).id as string)
+  return json({ data }, 201)
+}
+
 // ── notifications ──
 async function notify(ctx: Ctx, body: Row) {
   if (!ctx.key.scopes.includes('notifications:write')) return fail(403, 'insufficient_scope', 'Missing scope notifications:write')
@@ -426,6 +535,7 @@ function openapi(origin: string) {
       '/files': { get: { summary: 'List files', 'x-scope': 'files:read', security: bearer, responses: { '200': { description: 'OK' } } }, post: { summary: 'Upload ≤ 4 MB (JSON or multipart)', 'x-scope': 'files:write', security: bearer, responses: { '201': { description: 'Created' } } } },
       '/files/upload-url': { post: { summary: 'Signed upload URL (≤ 25 MB), then PUT bytes, then /files/register', 'x-scope': 'files:write', security: bearer, responses: { '200': { description: 'OK' } } } },
       '/files/register': { post: { summary: 'Register an uploaded file', 'x-scope': 'files:write', security: bearer, responses: { '201': { description: 'Created' } } } },
+      '/captures/upload-url': { post: { summary: 'Signed upload URL for a big capture file (≤ 25 MB), then PUT bytes, then POST /captures {upload_path,name,mime}', 'x-scope': 'captures:write', security: bearer, responses: { '200': { description: 'OK' } } } },
       '/notifications': { post: { summary: 'Notify {title,body?,url?,to: creator|all|id}', 'x-scope': 'notifications:write', security: bearer, responses: { '201': { description: 'Created' } } } },
       '/alerts': { get: { summary: 'Alert routing', 'x-scope': 'notifications:write', security: bearer, responses: { '200': { description: 'OK' } } }, post: { summary: 'Emit an alert {type,title,body?,severity?,channel?,link?}', 'x-scope': 'notifications:write', security: bearer, responses: { '201': { description: 'Created' } } } },
       '/changelog': { get: { summary: 'Release notes from finished tasks (?since&until&project&lang=fr|en)', 'x-scope': 'tasks:read', security: bearer, responses: { '200': { description: 'OK' } } } },
@@ -470,6 +580,7 @@ async function handle(req: Request, { params }: { params: Promise<{ path?: strin
 
     if (!first) return json({ name: 'Flow API', version: 'v1', workspace: auth.ws.name, docs: `${ctx.url.origin}/app/${auth.ws.slug}/settings?tab=api`, resources: [...Object.keys(RES), 'channels', 'messages', 'files', 'notifications', 'alerts', 'changelog'], scopes: ALL_SCOPES })
     if (first === 'me') return json({ data: { workspace: auth.ws, key: { id: auth.key.id, name: auth.key.name, prefix: auth.key.prefix, scopes: auth.key.scopes, expires_at: auth.key.expires_at }, bot_user_id: auth.key.bot_id } })
+    if (first === 'captures') return await captures(ctx, req, method, id, body)
     if (RES[first]) return await crud(ctx, method, first, id, RES[first], body)
     if (first === 'channels' && method === 'GET') {
       if (!auth.key.scopes.includes('messages:read')) return fail(403, 'insufficient_scope', 'Missing scope messages:read')

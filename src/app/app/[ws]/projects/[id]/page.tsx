@@ -2,7 +2,7 @@
 import { use, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Archive, ArchiveRestore, ArrowLeft, FileText, Pencil, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, Bookmark, FileText, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge, EmptyState } from '@/components/ui/misc'
@@ -16,7 +16,10 @@ import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
-import type { Note, Task } from '@/lib/types'
+import { AddCapture, CaptureList } from '@/components/captures/captures'
+import { useSession } from '@/lib/hooks/use-session'
+import { currentProjectOf, withCurrentProject } from '@/lib/captures'
+import type { Capture, Note, Task } from '@/lib/types'
 
 export default function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -26,6 +29,14 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
   const project = projects.find((p) => p.id === id)
   const tasks = useLive<Task>('tasks', { eq: { workspace_id: ws.id, project_id: id }, is: { deleted_at: null }, order: ['position', true] })
   const notes = useLive<Note>('notes', { eq: { workspace_id: ws.id, project_id: id }, is: { deleted_at: null } })
+  const captures = useLive<Capture>('captures', { eq: { workspace_id: ws.id, project_id: id }, is: { deleted_at: null }, order: ['created_at', false] })
+  const { profile, updateProfile } = useSession()
+  // "Current project": where captures shared without a project land for this person.
+  const isCurrent = currentProjectOf(profile?.preferences, ws.id) === id
+  async function toggleCurrent() {
+    await updateProfile({ preferences: withCurrentProject(profile?.preferences, ws.id, isCurrent ? null : id) })
+    toast.success(isCurrent ? t('cap.currentUnset') : t('cap.currentSet', { p: project?.name ?? '' }))
+  }
   const [open, setOpen] = useState<string | null>(null)
   const [edit, setEdit] = useState<{ name: string; description: string; color: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -55,6 +66,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
       <div className="mb-6 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3"><span className="size-4 rounded-full" style={{ background: project.color }} /><div><h1 className="text-2xl font-semibold tracking-tight">{project.name}{archived && <Badge className="ml-2 align-middle">{t('proj.archived')}</Badge>}</h1><p className="text-sm text-text-2">{project.description}</p></div></div>
         {canWrite && <div className="flex shrink-0 gap-0.5">
+          <Button variant="ghost" size="icon" onClick={toggleCurrent} aria-pressed={isCurrent} aria-label={isCurrent ? t('cap.unsetCurrent') : t('cap.setCurrent')} title={isCurrent ? t('cap.unsetCurrent') : t('cap.setCurrent')}><Bookmark className={cn('size-4', isCurrent && 'fill-current text-accent-ink')} /></Button>
           <Button variant="ghost" size="icon" onClick={() => setEdit({ name: project.name, description: project.description ?? '', color: project.color })} aria-label={t('common.edit')}><Pencil className="size-4" /></Button>
           <Button variant="ghost" size="icon" onClick={toggleArchive} aria-label={archived ? t('proj.unarchive') : t('proj.archive')} title={archived ? t('proj.unarchive') : t('proj.archive')}>{archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}</Button>
           <Button variant="ghost" size="icon" onClick={() => setConfirmDelete(true)} aria-label={t('common.delete')}><Trash2 className="size-4" /></Button>
@@ -70,7 +82,15 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             {x.tags.slice(0, 2).map((tg) => <Badge key={tg}>{tg}</Badge>)}<span className="text-[11px] text-text-3">{profileOf(x.assignee_id)?.full_name?.split(' ')[0]}</span></button></li>))}</ul>)}
 
       {notes.data.length > 0 && <><h2 className="mb-2 text-sm font-semibold">{t('nav.notes')}</h2>
-        <ul className="grid gap-2 sm:grid-cols-2">{notes.data.map((n) => <li key={n.id}><Link href={`/app/${ws.slug}/notes/${n.id}`} className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 text-sm hover:border-border-strong"><FileText className="size-4 text-text-3" />{n.icon} {n.title}</Link></li>)}</ul></>}
+        <ul className="mb-8 grid gap-2 sm:grid-cols-2">{notes.data.map((n) => <li key={n.id}><Link href={`/app/${ws.slug}/notes/${n.id}`} className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 text-sm hover:border-border-strong"><FileText className="size-4 text-text-3" />{n.icon} {n.title}</Link></li>)}</ul></>}
+
+      {/* Captures: what was shared to Flow for this project (links, images, videos), sorted later by the AI */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">{t('cap.title')}<Badge>{captures.data.length}</Badge>{isCurrent && <Badge className="bg-accent-soft text-accent-ink">{t('cap.current')}</Badge>}</h2>
+        {canWrite && <AddCapture projectId={id} onAdded={captures.refresh} />}
+      </div>
+      {isCurrent && <p className="mb-3 text-[13px] text-text-3">{t('cap.currentHint')}</p>}
+      <CaptureList captures={captures.data} empty={t('cap.emptyProject')} onChanged={captures.refresh} />
       <Dialog open={!!edit} onClose={() => setEdit(null)} title={t('proj.edit')} size="sm"
         footer={<><Button onClick={() => setEdit(null)}>{t('common.cancel')}</Button><Button variant="primary" onClick={saveEdit} disabled={!edit?.name.trim()}>{t('common.save')}</Button></>}>
         {edit && <div className="space-y-4">
