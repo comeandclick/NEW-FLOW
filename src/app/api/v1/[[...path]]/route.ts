@@ -7,7 +7,8 @@ import { notifyUsers } from '@/lib/api/notify'
 import { ALERT_TYPES, cleanChannel, emitAlert, routesFrom, type AlertType, type Severity } from '@/lib/api/alerts'
 import { safePath } from '@/lib/utils'
 import { mdToDoc } from '@/lib/demo/kalimat-data'
-import { CAPTURE_KINDS, CAPTURE_STATUSES, MAX_CAPTURE_NOTE, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind, wantsAi } from '@/lib/captures'
+import { CAPTURE_KINDS, CAPTURE_STATUSES, MAX_CAPTURE_NOTE, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind, projectLabels, resolveProjects, wantsAi } from '@/lib/captures'
+import { projectPath, projectTree } from '@/lib/projects'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -367,8 +368,26 @@ async function registerCaptureFile(ctx: Ctx, path: string, name: string, mime: s
   return { id: data.id as string, mime }
 }
 
+/** Projets de l'espace en arbre (« Kalimat › Kalimat 2.0 ») et projet en cours de la personne qui a créé la clé. */
+async function captureProjects(ctx: Ctx) {
+  let rows = (await ctx.a.from('projects').select('id,name,parent_id').eq('workspace_id', ctx.ws.id).is('deleted_at', null).neq('status', 'archived')).data as { id: string; name: string; parent_id?: string | null }[] | null
+  // base pas encore à jour (pas de colonne parent_id) : projets à plat
+  if (!rows) rows = ((await ctx.a.from('projects').select('id,name').eq('workspace_id', ctx.ws.id).is('deleted_at', null).neq('status', 'archived')).data ?? []) as { id: string; name: string }[]
+  const tree = projectTree(rows).map(({ project }) => ({ id: project.id, name: project.name, path: projectPath(project.id, rows) }))
+  const { data: owner } = await ctx.a.from('profiles').select('preferences').eq('id', ctx.key.created_by).maybeSingle()
+  const cur = currentProjectOf(owner?.preferences, ctx.ws.id)
+  const current = tree.find((p) => p.id === cur) ?? null
+  return { tree, current }
+}
+
 async function captures(ctx: Ctx, req: Request, method: string, id: string | undefined, body: Row) {
   const spec = RES.captures
+  // GET /captures/projects : libellés pour le raccourci iPhone (projet en cours d'abord), lisible avec la seule clé captures
+  if (method === 'GET' && id === 'projects') {
+    if (!ctx.key.scopes.includes('captures:write') && !ctx.key.scopes.includes('captures:read')) return fail(403, 'insufficient_scope', 'Missing scope captures:write')
+    const { tree, current } = await captureProjects(ctx)
+    return json({ data: projectLabels(tree, current), projects: tree.map(({ id: pid, path }) => ({ id: pid, label: path })), current: current?.id ?? null })
+  }
   // Everything but creation is plain CRUD; reading one capture also returns its file with a download link.
   if (method === 'GET' && id && UUID.test(id)) {
     if (!ctx.key.scopes.includes('captures:read')) return fail(403, 'insufficient_scope', 'Missing scope captures:read')
@@ -398,7 +417,7 @@ async function captures(ctx: Ctx, req: Request, method: string, id: string | und
     return json({ data: { path, upload_url: data.signedUrl, method: 'PUT', headers: { 'content-type': str(body.mime, 100) || 'application/octet-stream' }, then: 'POST /api/v1/captures {upload_path,name,mime,note?,project_id?,ai_analysis?}' } })
   }
 
-  // One request: JSON {url?, text?, note?, title?, project_id?, kind?, ai_analysis?, base64?+name, upload_path?+name} or multipart (same fields + "file").
+  // One request: JSON {url?, text?, note?, title?, project_id?, project_ids?, projects?, kind?, ai_analysis?, base64?+name, upload_path?+name} or multipart (same fields + "file").
   let fields: Row = body
   let file: { id: string; mime: string } | null = null
   if ((req.headers.get('content-type') ?? '').startsWith('multipart/form-data')) {
@@ -428,21 +447,22 @@ async function captures(ctx: Ctx, req: Request, method: string, id: string | und
 
   const kind = (CAPTURE_KINDS as readonly string[]).includes(String(fields.kind)) ? String(fields.kind) : inferCaptureKind({ url, mime: file?.mime })
 
-  // Project: the one given, else the "current project" of the person who created the key.
-  let projectId: string | null = null
-  if (typeof fields.project_id === 'string' && fields.project_id) {
-    if (!UUID.test(fields.project_id) || !(await refOk(ctx, 'projects', fields.project_id))) throw new Bad('invalid_reference', 'project_id: not found in this workspace')
-    projectId = fields.project_id
-  } else {
-    const { data: owner } = await ctx.a.from('profiles').select('preferences').eq('id', ctx.key.created_by).maybeSingle()
-    const current = currentProjectOf(owner?.preferences, ctx.ws.id)
-    if (current && UUID.test(current)) {
-      const { data: p } = await ctx.a.from('projects').select('id').eq('id', current).eq('workspace_id', ctx.ws.id).is('deleted_at', null).maybeSingle()
-      projectId = p ? current : null
-    }
+  // Projets : project_ids (identifiants) ou projects (libellés du raccourci, une ligne chacun), sinon project_id, sinon le projet en cours.
+  const { tree, current } = await captureProjects(ctx)
+  let projectIds: string[] = []
+  if (Array.isArray(fields.project_ids)) {
+    projectIds = [...new Set((fields.project_ids as unknown[]).map(String))]
+    if (projectIds.some((pid) => !tree.some((p) => p.id === pid))) throw new Bad('invalid_reference', 'project_ids: not found in this workspace')
+  } else if (fields.projects !== undefined && fields.projects !== null && String(fields.projects).trim()) {
+    projectIds = resolveProjects(fields.projects, tree, current?.id ?? null)
+  } else if (typeof fields.project_id === 'string' && fields.project_id) {
+    if (!UUID.test(fields.project_id) || !tree.some((p) => p.id === fields.project_id)) throw new Bad('invalid_reference', 'project_id: not found in this workspace')
+    projectIds = [fields.project_id]
   }
+  if (projectIds.length === 0 && current) projectIds = [current.id]
+  const projectId = projectIds[0] ?? null
 
-  const { data, error } = await ctx.a.from('captures').insert({ workspace_id: ctx.ws.id, project_id: projectId, kind, url, file_id: file?.id ?? null, title: str(fields.title, 200) || null, note: note || null, ai_analysis: wantsAi(fields.ai_analysis), created_by: ctx.key.bot_id }).select('*').single()
+  const { data, error } = await ctx.a.from('captures').insert({ workspace_id: ctx.ws.id, project_id: projectId, project_ids: projectIds, kind, url, file_id: file?.id ?? null, title: str(fields.title, 200) || null, note: note || null, ai_analysis: wantsAi(fields.ai_analysis), created_by: ctx.key.bot_id }).select('*').single()
   if (error || !data) return fail(400, 'invalid', error?.message.slice(0, 200) ?? 'failed')
   await log(ctx, 'capture.create', 'capture', (data as Row).id as string)
   return json({ data }, 201)

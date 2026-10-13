@@ -1,5 +1,5 @@
 'use client'
-import { use, useState } from 'react'
+import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Archive, ArchiveRestore, ArrowLeft, Bookmark, FileText, Pencil, Trash2 } from 'lucide-react'
@@ -18,7 +18,8 @@ import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import { AddCapture, CaptureList } from '@/components/captures/captures'
 import { useSession } from '@/lib/hooks/use-session'
-import { currentProjectOf, withCurrentProject } from '@/lib/captures'
+import { currentProjectOf, projectsOf, withCurrentProject } from '@/lib/captures'
+import { withDescendants } from '@/lib/projects'
 import type { Capture, Note, Task } from '@/lib/types'
 
 export default function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -29,7 +30,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
   const project = projects.find((p) => p.id === id)
   const tasks = useLive<Task>('tasks', { eq: { workspace_id: ws.id, project_id: id }, is: { deleted_at: null }, order: ['position', true] })
   const notes = useLive<Note>('notes', { eq: { workspace_id: ws.id, project_id: id }, is: { deleted_at: null } })
-  const captures = useLive<Capture>('captures', { eq: { workspace_id: ws.id, project_id: id }, is: { deleted_at: null }, order: ['created_at', false] })
+  // captures du projet ET de ses sous-projets (une capture peut aller dans plusieurs projets : project_ids)
+  const allCaptures = useLive<Capture>('captures', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false] })
+  const captures = useMemo(() => { const inside = new Set(withDescendants(id, projects)); return { ...allCaptures, data: allCaptures.data.filter((c) => projectsOf(c).some((x) => inside.has(x))) } }, [allCaptures, id, projects])
   const { profile, updateProfile } = useSession()
   // "Current project": where captures shared without a project land for this person.
   const isCurrent = currentProjectOf(profile?.preferences, ws.id) === id

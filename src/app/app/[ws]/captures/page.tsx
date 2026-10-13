@@ -9,7 +9,8 @@ import { AddCapture, CaptureList, InstallShortcut, useCreateCapture } from '@/co
 import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
-import { CAPTURE_KINDS, cleanCaptureUrl, currentProjectOf, firstUrl, withCurrentProject } from '@/lib/captures'
+import { CAPTURE_KINDS, cleanCaptureUrl, currentProjectOf, firstUrl, projectsOf, withCurrentProject } from '@/lib/captures'
+import { projectTree, withDescendants } from '@/lib/projects'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import type { Capture } from '@/lib/types'
@@ -53,8 +54,12 @@ function CapturesInner() {
   }, [params, profile]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const shown = useMemo(
-    () => captures.data.filter((c) => (status === 'all' || c.status === status) && (!kind || c.kind === kind) && (!project || (project === 'none' ? !c.project_id : c.project_id === project))),
-    [captures.data, status, kind, project],
+    () => {
+      const inside = project && project !== 'none' ? new Set(withDescendants(project, projects)) : null
+      return captures.data.filter((c) => (status === 'all' || c.status === status) && (!kind || c.kind === kind)
+        && (!project || (project === 'none' ? projectsOf(c).length === 0 : projectsOf(c).some((id) => inside?.has(id)))))
+    },
+    [captures.data, status, kind, project, projects],
   )
   const fresh = captures.data.filter((c) => c.status === 'nouveau').length
 
@@ -71,7 +76,7 @@ function CapturesInner() {
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3">
         <label htmlFor="cap-current" className="text-[13px] font-medium">{t('cap.current')}</label>
         <Select id="cap-current" className="h-8 w-auto max-w-56 text-[13px]" value={current && projects.some((p) => p.id === current) ? current : ''} onChange={(e) => void setCurrent(e.target.value)}>
-          <option value="">{t('common.none')}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <option value="">{t('common.none')}</option>{projectTree(projects).map(({ project: p, depth }) => <option key={p.id} value={p.id}>{'\u00a0\u00a0'.repeat(depth)}{p.name}</option>)}
         </Select>
         <span className="text-xs text-text-3">{current && projects.some((p) => p.id === current) ? t('cap.currentHint') : t('cap.noCurrent')}</span>
       </div>
@@ -82,7 +87,7 @@ function CapturesInner() {
           <option value="">{t('cap.allKinds')}</option>{CAPTURE_KINDS.map((k) => <option key={k} value={k}>{t(`cap.kind.${k}`)}</option>)}
         </Select>
         <Select aria-label={t('cap.filter.project')} className="h-8 w-auto max-w-44 text-[13px]" value={project} onChange={(e) => setProject(e.target.value)}>
-          <option value="">{t('cap.allProjects')}</option><option value="none">{t('cap.noProject')}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <option value="">{t('cap.allProjects')}</option><option value="none">{t('cap.noProject')}</option>{projectTree(projects).map(({ project: p, depth }) => <option key={p.id} value={p.id}>{'\u00a0\u00a0'.repeat(depth)}{p.name}</option>)}
         </Select>
       </div>
 

@@ -71,3 +71,78 @@ export function withCurrentProject(preferences: unknown, workspaceId: string, pr
   else delete map[workspaceId]
   return { ...prefs, current_project: map }
 }
+
+// ── Aperçu et lecture sur place (TikTok, Instagram, YouTube) ──
+
+/** Aperçu enregistré sur la capture (colonne preview), rempli au premier affichage par /api/captures/preview. */
+export type CapturePreview = { provider: 'tiktok' | 'instagram' | 'youtube'; title?: string | null; author?: string | null; thumbnail?: string | null; embed?: string | null; fetched_at: string }
+
+export function youtubeId(url: string): string | null {
+  try {
+    const u = new URL(url); const h = u.hostname.replace(/^(www|m)\./, '')
+    if (h === 'youtu.be') return /^[\w-]{6,20}$/.test(u.pathname.slice(1)) ? u.pathname.slice(1) : null
+    if (!h.endsWith('youtube.com')) return null
+    const v = u.searchParams.get('v'); if (v && /^[\w-]{6,20}$/.test(v)) return v
+    const m = /^\/(?:shorts|embed|live)\/([\w-]{6,20})/.exec(u.pathname); return m ? m[1] : null
+  } catch { return null }
+}
+
+/** Reel ou publication Instagram : { type, code } pour le lecteur officiel /<type>/<code>/embed/. */
+export function instagramPost(url: string): { type: 'reel' | 'p' | 'tv'; code: string } | null {
+  try {
+    const u = new URL(url); if (!u.hostname.replace(/^www\./, '').endsWith('instagram.com')) return null
+    const m = /^\/(?:[\w.]+\/)?(reels?|p|tv)\/([\w-]{5,40})/.exec(u.pathname)
+    return m ? { type: m[1].startsWith('reel') ? 'reel' : (m[1] as 'p' | 'tv'), code: m[2] } : null
+  } catch { return null }
+}
+
+/** Numéro de la vidéo TikTok quand il est dans le lien (les liens courts vm.tiktok.com passent par l'oEmbed). */
+export function tiktokId(url: string): string | null {
+  const m = /\/video\/(\d{8,25})/.exec(url) ?? /\/v\/(\d{8,25})/.exec(url)
+  return m ? m[1] : null
+}
+
+/** Adresse du lecteur officiel, lu sur place dans la page (jamais en plein écran forcé). */
+export function embedUrl(kind: string, url: string | null, tiktokVideoId?: string | null): string | null {
+  if (!url) return null
+  if (kind === 'youtube') { const id = youtubeId(url); return id ? `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&autoplay=1&rel=0` : null }
+  if (kind === 'instagram') { const p = instagramPost(url); return p ? `https://www.instagram.com/${p.type}/${p.code}/embed/` : null }
+  if (kind === 'tiktok') { const id = tiktokVideoId ?? tiktokId(url); return id ? `https://www.tiktok.com/embed/v2/${id}` : null }
+  return null
+}
+
+/** Miniatures acceptées par le relais /api/captures/thumb (rien d'autre n'est relayé). */
+export const THUMB_HOSTS = ['tiktokcdn.com', 'tiktokcdn-us.com', 'tiktokcdn-eu.com', 'ytimg.com', 'cdninstagram.com', 'fbcdn.net']
+export const isThumbHost = (url: string): boolean => { try { const u = new URL(url); return u.protocol === 'https:' && THUMB_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`)) } catch { return false } }
+
+/** Projets d'une capture : project_ids (tous), sinon l'ancien project_id. */
+export const projectsOf = (c: { project_id: string | null; project_ids?: string[] | null }): string[] =>
+  c.project_ids && c.project_ids.length ? c.project_ids : c.project_id ? [c.project_id] : []
+
+// ── Choix des projets depuis le raccourci iPhone (libellés lisibles « Kalimat › Kalimat 2.0 ») ──
+
+export const CURRENT_PROJECT_LABEL = 'Projet en cours'
+
+/** Libellés proposés par le raccourci : le projet en cours d'abord, puis l'arbre des projets. */
+export function projectLabels(tree: { id: string; path: string }[], current: { id: string; path: string } | null): string[] {
+  return [...(current ? [`${CURRENT_PROJECT_LABEL} (${current.path})`] : []), ...tree.map((p) => p.path)]
+}
+
+/**
+ * Projets choisis dans le raccourci (une ligne par projet, ou un tableau) -> identifiants, sans doublon, dans l'ordre.
+ * Accepte un libellé « Kalimat › Kalimat 2.0 », un nom seul s'il n'y a pas d'ambiguïté, un identifiant, ou « Projet en cours ».
+ */
+export function resolveProjects(input: unknown, tree: { id: string; name: string; path: string }[], currentId: string | null): string[] {
+  const items = (Array.isArray(input) ? input : typeof input === 'string' ? input.split(/\r?\n/) : []).map((x) => String(x).trim()).filter(Boolean)
+  const norm = (v: string) => v.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim()
+  const out: string[] = []
+  for (const raw of items) {
+    const v = norm(raw)
+    let id: string | null = null
+    if (v.startsWith(norm(CURRENT_PROJECT_LABEL))) id = currentId
+    else id = tree.find((p) => p.id === raw)?.id ?? tree.find((p) => norm(p.path) === v)?.id ?? null
+    if (!id) { const same = tree.filter((p) => norm(p.name) === v); if (same.length === 1) id = same[0].id }
+    if (id && !out.includes(id)) out.push(id)
+  }
+  return out
+}

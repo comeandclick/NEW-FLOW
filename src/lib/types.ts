@@ -8,7 +8,7 @@ export type Profile = {
 }
 export type Workspace = { id: string; name: string; slug: string; logo_url: string | null; owner_id: string; plan: string; settings: Record<string, unknown> }
 export type Member = { id: string; workspace_id: string; user_id: string; role: Role; joined_at: string }
-export type Project = { id: string; workspace_id: string; name: string; description: string | null; color: string; icon: string | null; status: string; created_by: string | null; created_at: string; deleted_at: string | null }
+export type Project = { id: string; workspace_id: string; name: string; description: string | null; color: string; icon: string | null; status: string; created_by: string | null; created_at: string; deleted_at: string | null; /** projet parent (projets dans des projets) */ parent_id?: string | null }
 export type Task = {
   id: string; workspace_id: string; project_id: string | null; parent_id: string | null; title: string; description: string | null
   status: TaskStatus; priority: Priority; assignee_id: string | null; created_by: string | null; due_date: string | null
@@ -34,6 +34,7 @@ export type Reaction = { id: string; message_id: string; user_id: string; emoji:
 export type Capture = {
   id: string; workspace_id: string; project_id: string | null; kind: 'tiktok' | 'instagram' | 'youtube' | 'lien' | 'image' | 'video' | 'texte'
   url: string | null; file_id: string | null; title: string | null; note: string | null; status: 'nouveau' | 'vu'; ai_analysis: boolean
+  project_ids: string[]; preview: import('@/lib/captures').CapturePreview | null
   summary: string | null; knowledge: string | null; task_ids: string[]; obsidian_note: string | null
   created_by: string | null; created_at: string; updated_at: string; processed_at: string | null; deleted_at: string | null
 }

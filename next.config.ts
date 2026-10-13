@@ -13,7 +13,8 @@ const csp = [
   `media-src 'self' data: blob: ${supabase}`,
   "font-src 'self' data:",
   `connect-src 'self' ${supabase} ${supabaseWs} data: blob:`,
-  `frame-src 'self' blob: ${supabase}`,
+  // lecteurs officiels des captures (TikTok, Instagram, YouTube sans cookies), lus sur place dans la page Captures
+  `frame-src 'self' blob: ${supabase} https://www.tiktok.com https://www.instagram.com https://www.youtube-nocookie.com`,
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",

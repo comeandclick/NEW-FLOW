@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { captureLabel, cleanCaptureUrl, currentProjectOf, firstUrl, inferCaptureKind, wantsAi, withCurrentProject } from '@/lib/captures'
+import { captureLabel, cleanCaptureUrl, currentProjectOf, embedUrl, firstUrl, inferCaptureKind, instagramPost, isThumbHost, projectLabels, projectsOf, resolveProjects, wantsAi, withCurrentProject, youtubeId } from '@/lib/captures'
 import { ALL_SCOPES, PRESETS, validScopes } from '@/lib/api/scopes'
 
 describe('captures: kind', () => {
@@ -88,5 +88,60 @@ describe('captures: « Analyse par l’IA »', () => {
   })
   it('is off by default and for anything unclear', () => {
     for (const no of [undefined, null, false, '', 'false', '0', 'non', 'no', 1, {}, 'peut-être']) expect(wantsAi(no)).toBe(false)
+  })
+})
+
+describe('captures: lecteurs officiels', () => {
+  it('YouTube : liens longs, courts, Shorts', () => {
+    expect(youtubeId('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=3')).toBe('dQw4w9WgXcQ')
+    expect(youtubeId('https://youtu.be/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ')
+    expect(youtubeId('https://m.youtube.com/shorts/abcDEF12345')).toBe('abcDEF12345')
+    expect(embedUrl('youtube', 'https://youtu.be/dQw4w9WgXcQ')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?playsinline=1&autoplay=1&rel=0')
+  })
+  it('Instagram : Reel, publication, lien avec nom de compte', () => {
+    expect(instagramPost('https://www.instagram.com/reel/Cxyz123ab/?igsh=abc')).toEqual({ type: 'reel', code: 'Cxyz123ab' })
+    expect(instagramPost('https://www.instagram.com/reels/Cxyz123ab/')).toEqual({ type: 'reel', code: 'Cxyz123ab' })
+    expect(instagramPost('https://instagram.com/p/Babc12345/')).toEqual({ type: 'p', code: 'Babc12345' })
+    expect(embedUrl('instagram', 'https://www.instagram.com/reel/Cxyz123ab/')).toBe('https://www.instagram.com/reel/Cxyz123ab/embed/')
+  })
+  it('TikTok : numéro dans le lien, ou fourni par l’oEmbed pour un lien court', () => {
+    expect(embedUrl('tiktok', 'https://www.tiktok.com/@studio/video/7300000000000000001')).toBe('https://www.tiktok.com/embed/v2/7300000000000000001')
+    expect(embedUrl('tiktok', 'https://vm.tiktok.com/ZNabc123/')).toBeNull()
+    expect(embedUrl('tiktok', 'https://vm.tiktok.com/ZNabc123/', '7300000000000000002')).toBe('https://www.tiktok.com/embed/v2/7300000000000000002')
+  })
+  it('relais de miniatures : seulement les hébergeurs connus, en https', () => {
+    expect(isThumbHost('https://p16-sign-va.tiktokcdn.com/obj/x.jpeg')).toBe(true)
+    expect(isThumbHost('https://i.ytimg.com/vi/x/hqdefault.jpg')).toBe(true)
+    expect(isThumbHost('http://i.ytimg.com/vi/x.jpg')).toBe(false)
+    expect(isThumbHost('https://evil.com/?h=ytimg.com')).toBe(false)
+    expect(isThumbHost('https://ytimg.com.evil.com/x.jpg')).toBe(false)
+  })
+  it('projets d’une capture', () => {
+    expect(projectsOf({ project_id: 'a', project_ids: ['a', 'b'] })).toEqual(['a', 'b'])
+    expect(projectsOf({ project_id: 'a', project_ids: [] })).toEqual(['a'])
+    expect(projectsOf({ project_id: null })).toEqual([])
+  })
+})
+
+describe('captures: projets choisis dans le raccourci', () => {
+  const tree = [
+    { id: 'k', name: 'Kalimat', path: 'Kalimat' }, { id: 'k2', name: 'Kalimat 2.0', path: 'Kalimat › Kalimat 2.0' },
+    { id: 'l', name: 'Lumora', path: 'Lumora' }, { id: 'v1', name: 'Vidéos', path: 'Kalimat › Vidéos' }, { id: 'v2', name: 'Vidéos', path: 'Motion › Vidéos' },
+  ]
+  it('libellés : projet en cours en tête', () => {
+    expect(projectLabels(tree.slice(0, 2), { id: 'k2', path: 'Kalimat › Kalimat 2.0' })).toEqual(['Projet en cours (Kalimat › Kalimat 2.0)', 'Kalimat', 'Kalimat › Kalimat 2.0'])
+  })
+  it('plusieurs projets, une ligne chacun, sans doublon', () => {
+    expect(resolveProjects('Kalimat › Kalimat 2.0\nLumora\nLumora', tree, null)).toEqual(['k2', 'l'])
+    expect(resolveProjects(['Projet en cours (Kalimat › Kalimat 2.0)', 'Lumora'], tree, 'k2')).toEqual(['k2', 'l'])
+  })
+  it('nom seul accepté seulement sans ambiguïté', () => {
+    expect(resolveProjects('lumora', tree, null)).toEqual(['l'])
+    expect(resolveProjects('Vidéos', tree, null)).toEqual([])
+    expect(resolveProjects('Motion › Vidéos', tree, null)).toEqual(['v2'])
+  })
+  it('rien de reconnu : liste vide (la capture ira dans le projet en cours)', () => {
+    expect(resolveProjects('Inconnu', tree, 'k')).toEqual([])
+    expect(resolveProjects(undefined, tree, 'k')).toEqual([])
   })
 })
