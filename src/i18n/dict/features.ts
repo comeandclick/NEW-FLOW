@@ -24,7 +24,7 @@ export const features = {
     'road.empty': 'Rien à afficher', 'road.emptyHint': 'Une tâche avec une échéance dans un projet, ou un objectif avec une date, apparaît ici.',
     // team
     'team.title': 'Équipe', 'team.sub': 'Qui fait quoi, et qui est déjà chargé.', 'team.empty': 'Aucun membre',
-    'team.open': '{n} en cours', 'team.overdue': '{n} en retard', 'team.done7': '{n} terminées en 7 j', 'team.tracked': '{h} suivies cette semaine',
+    'team.open': '{n} en cours', 'team.overdue': '{n} en retard', 'team.done7': '{n} terminées en 7 j', 'team.done7one': '1 terminée en 7 j', 'team.tracked': '{h} suivies cette semaine',
     'team.load': 'Charge prévue cette semaine', 'team.noTasks': 'Aucune tâche ouverte.', 'team.unassigned': '{n} sans responsable',
     // feedback
     'fb.title': 'Retours', 'fb.sub': 'Bugs, idées et questions de vos testeurs et utilisateurs.', 'fb.new': 'Nouveau retour', 'fb.saved': 'Retour enregistré',
@@ -73,7 +73,7 @@ export const features = {
     'road.title': 'Roadmap', 'road.sub': 'Your projects and goals over time.', 'road.m3': '3 months', 'road.m6': '6 months', 'road.m12': '12 months',
     'road.empty': 'Nothing to show', 'road.emptyHint': 'A task with a due date in a project, or a goal with a date, shows up here.',
     'team.title': 'Team', 'team.sub': 'Who is doing what, and who is already loaded.', 'team.empty': 'No members',
-    'team.open': '{n} open', 'team.overdue': '{n} overdue', 'team.done7': '{n} done in 7 d', 'team.tracked': '{h} tracked this week',
+    'team.open': '{n} open', 'team.overdue': '{n} overdue', 'team.done7': '{n} done in 7 d', 'team.done7one': '1 done in 7 d', 'team.tracked': '{h} tracked this week',
     'team.load': 'Planned load this week', 'team.noTasks': 'No open task.', 'team.unassigned': '{n} unassigned',
     'fb.title': 'Feedback', 'fb.sub': 'Bugs, ideas and questions from your testers and users.', 'fb.new': 'New feedback', 'fb.saved': 'Feedback saved',
     'fb.stat.open': 'Open', 'fb.stat.blocking': 'Priority bugs', 'fb.stat.ideas': 'Ideas', 'fb.search': 'Search feedback…',

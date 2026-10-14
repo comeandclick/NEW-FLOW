@@ -42,8 +42,10 @@ export default function AutomationsPage() {
         : <ul className="space-y-2">{list.data.map((a) => (
           <li key={a.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><Zap className="size-4" /></span>
-            <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{a.name}</div><div className="truncate text-xs text-text-3">{t(`auto.trigger.${a.trigger_type}` as any)} → {t(`auto.action.${a.action_type}` as any)}</div></div>
-            <Badge>{t('auto.runs', { n: a.run_count })}</Badge>
+            <div className="min-w-0 flex-1"><div className="line-clamp-2 text-sm font-medium">{a.name}</div><div className="line-clamp-2 text-xs text-text-3">{t(`auto.trigger.${a.trigger_type}` as any)} → {t(`auto.action.${a.action_type}` as any)}</div>
+              {/* au téléphone, le compteur passe sous le nom pour laisser la place au titre */}
+              <Badge className="mt-1.5 sm:hidden">{t('auto.runs', { n: a.run_count })}</Badge></div>
+            <Badge className="max-sm:hidden">{t('auto.runs', { n: a.run_count })}</Badge>
             {canWrite && <><Switch checked={a.is_active} label={a.name} onChange={async (v) => { await getDb().from('automations').update({ is_active: v }).eq('id', a.id); list.refresh() }} />
               <Button variant="ghost" size="icon" onClick={async () => { await getDb().from('automations').delete().eq('id', a.id); list.refresh() }} aria-label={t('common.delete')}><Trash2 className="size-4" /></Button></>}
           </li>))}</ul>}

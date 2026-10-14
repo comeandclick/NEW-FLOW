@@ -8,6 +8,7 @@ import { CalendarDays, CheckSquare, FileText, MessageSquare, Users, Video, Activ
 import { Avatar, Card, EmptyState, Skeleton } from '@/components/ui/misc'
 import { DigestButton } from '@/components/home/digest'
 import { AlertsWidget } from '@/components/home/alerts'
+import { ClientsWidget } from '@/components/clients/clients-widget'
 import { PriorityIcon, StatusIcon } from '@/components/common/task-ui'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -91,6 +92,7 @@ export default function HomePage() {
       </div>
 
       <motion.div {...fade(4.5)} className="mt-6"><AlertsWidget /></motion.div>
+      <motion.div {...fade(4.7)} className="mt-4 empty:hidden"><ClientsWidget /></motion.div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <motion.div {...fade(5)} className="min-w-0 lg:col-span-2">

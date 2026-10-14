@@ -14,7 +14,8 @@ import type { Priority, Task } from '@/lib/types'
 
 const CAPACITY_MIN = 30 * 60 // 30 productive hours per week
 
-const fmtH = (min: number) => (min >= 60 ? `${Math.round((min / 60) * 10) / 10} h` : `${min} min`)
+// virgule décimale en français (« 4,7 h »)
+const fmtH = (min: number) => (min >= 60 ? `${String(Math.round((min / 60) * 10) / 10).replace('.', typeof document !== 'undefined' && document.documentElement.lang.startsWith('en') ? '.' : ',')} h` : `${min} min`)
 
 /** Who has what: open, overdue and planned work per person, plus time actually tracked this week. */
 export default function TeamPage() {
@@ -61,7 +62,7 @@ export default function TeamPage() {
                     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-text-3">
                       <span>{t('team.open', { n: open.length })}</span>
                       <span className={overdue.length ? 'font-medium text-danger' : ''}>{t('team.overdue', { n: overdue.length })}</span>
-                      <span>{t('team.done7', { n: done7 })}</span>
+                      <span>{t(done7 === 1 ? 'team.done7one' : 'team.done7', { n: done7 })}</span>
                       {tracked > 0 && <span>{t('team.tracked', { h: fmtH(tracked) })}</span>}
                     </div>
                   </div>
