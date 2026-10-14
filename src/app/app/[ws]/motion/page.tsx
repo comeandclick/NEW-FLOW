@@ -21,6 +21,8 @@ import { JobCard } from '@/components/studio/job-card'
 import { PromptPreview } from '@/components/studio/prompt-preview'
 import { RefDropzone } from '@/components/studio/ref-dropzone'
 import { ChoiceGrid, Section } from '@/components/studio/section'
+import { Productions } from '@/components/studio/productions'
+import { Tabs } from '@/components/ui/misc'
 
 function RatioShape({ w, h, on }: { w: number; h: number; on: boolean }) {
   const k = 40 / Math.max(w, h)
@@ -57,6 +59,9 @@ export default function MotionPage() {
   const devs = usePoll(studioApi.devices, 6000, mode === 'live')
   const ready_ = (id: string) => (devs.data?.devices ?? []).some((d) => d.setup?.components.some((x) => x.id === id && x.state === 'ok'))
   const [busy, setBusy] = useState(false)
+  // « Productions » (vidéos suivies par Atelier, pensé pour l'iPhone) ou « Lancer » (nouvelle vidéo via le pont Studio)
+  const [onglet, setOnglet] = useState<'productions' | 'lancer'>(() => (typeof window !== 'undefined' && localStorage.getItem('motion-onglet') === 'lancer' ? 'lancer' : 'productions'))
+  const changerOnglet = (v: 'productions' | 'lancer') => { setOnglet(v); try { localStorage.setItem('motion-onglet', v) } catch {} }
 
   const dim = dimensions(ratio, quality)
   const frames = Math.round(duration * fps)
@@ -90,6 +95,9 @@ export default function MotionPage() {
       <PageHeader icon={<Clapperboard className="size-4" />} title={c.motion.title} subtitle={c.motion.subtitle}
         actions={<BridgeChip online={c.bridge.online} offline={c.bridge.offline} />} />
 
+      <Tabs className="mb-5" value={onglet} onChange={changerOnglet} items={[{ value: 'productions', label: 'Productions', icon: <Film className="size-3.5" /> }, { value: 'lancer', label: 'Lancer', icon: <Clapperboard className="size-3.5" /> }]} />
+
+      {onglet === 'productions' ? <Productions /> : (<>
       <ModeBanner mode={mode} reason={reason} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -216,6 +224,7 @@ export default function MotionPage() {
           <div className="space-y-3">{jobs.map((j, i) => <div id={`job-${j.id}`} key={j.id}><JobCard job={j} defaultOpen={i === 0} /></div>)}</div>
         )}
       </section>
+      </>)}
     </div>
   )
 }
