@@ -54,8 +54,8 @@ export default function AiPage() {
   }, [userId, ws.id, isDemo, cleLocale])
   useEffect(() => { void charger() }, [charger])
   // revenir sur l'onglet ou l'app : on reprend la conversation la plus récente (envoyée depuis un autre appareil)
-  useEffect(() => { const f = () => { if (document.visibilityState === 'visible' && !attenteRef.current) void charger() }; document.addEventListener('visibilitychange', f); return () => document.removeEventListener('visibilitychange', f) }, [charger])
   const attenteRef = useRef(false)
+  useEffect(() => { const f = () => { if (document.visibilityState === 'visible' && !attenteRef.current) void charger() }; document.addEventListener('visibilitychange', f); return () => document.removeEventListener('visibilitychange', f) }, [charger])
   async function sauver(liste: Msg[]) {
     const id = convId ?? crypto.randomUUID()
     if (!convId) setConvId(id)
