@@ -18,9 +18,9 @@ export function OffresPubliques({ comparatif = false }: { comparatif?: boolean }
   return (
     <div>
       <div className="mb-8 flex items-center justify-center gap-2.5 text-sm text-text-2">
-        Mensuel
-        <button type="button" role="switch" aria-checked={annuel} aria-label="Facturation annuelle" onClick={() => setAnnuel((a) => !a)} className={cn('relative h-6 w-11 rounded-full transition-colors', annuel ? 'bg-success' : 'bg-border-strong')}>
-          <span className={cn('absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform', annuel ? 'translate-x-[22px]' : 'translate-x-0.5')} />
+        <span>Mensuel</span>
+        <button type="button" role="switch" aria-checked={annuel} aria-label="Facturation annuelle" onClick={() => setAnnuel((a) => !a)} className={cn('relative h-6 w-11 shrink-0 rounded-full p-0 transition-colors', annuel ? 'bg-success' : 'bg-border-strong')}>
+          <span className={cn('absolute left-0 top-0.5 size-5 rounded-full bg-white shadow transition-transform', annuel ? 'translate-x-[22px]' : 'translate-x-0.5')} />
         </button>
         Annuel <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">2 mois offerts</span>
       </div>

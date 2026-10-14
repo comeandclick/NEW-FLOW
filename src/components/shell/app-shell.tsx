@@ -175,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <Plus className="size-4 text-success" /><it.icon className="size-4 text-text-3" strokeWidth={1.75} /><span className="truncate">{t(it.label)}</span>
                   </button>
                 ))}
-                {!masques.length && <p className="px-1 text-xs text-text-3">Tout est affiché. Le bouton « − » masque ce que tu n'utilises pas.</p>}
+                {!masques.length && <p className="px-1 text-xs text-text-3">Tout est affiché. Le bouton « − » masque ce que tu n&apos;utilises pas.</p>}
                 <button onClick={() => setEdition(false)} className="mt-1 h-8 w-full rounded-md bg-text text-[13px] font-medium text-bg transition-opacity hover:opacity-90">Terminé</button>
               </div>
             ) : (

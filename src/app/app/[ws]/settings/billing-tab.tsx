@@ -39,8 +39,8 @@ export function BillingTab() {
       <section>
         <h3 className="mb-3 text-sm font-semibold">Utilisation de « {ws.name} »</h3>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <QuotaMeter titre="Membres" utilise={members.length} total={Math.max(3, members.length)} reprise="Offre Gratuit : 3" />
-          <QuotaMeter titre="Fichiers" utilise={Math.round(go * 10) / 10} total={5} unite=" Go" reprise="Offre Gratuit : 5 Go" />
+          <QuotaMeter titre="Membres" utilise={members.length} total={3} afficher="utilise" reprise="Offre Gratuit : 3" />
+          <QuotaMeter titre="Fichiers" utilise={Math.round(go * 10) / 10} total={5} unite=" Go" afficher="utilise" reprise="Offre Gratuit : 5 Go" />
           <QuotaMeter titre="Assistant IA aujourd'hui" utilise={ia} total={20} reprise="repart à minuit" />
         </div>
         <p className="mt-2 text-xs text-text-3">Pendant le lancement, ces limites ne bloquent rien : elles montrent ce que couvrirait chaque offre.</p>
@@ -54,9 +54,9 @@ export function BillingTab() {
             ))}
           </div>
           <label className="inline-flex cursor-pointer items-center gap-2.5 text-[13px] text-text-2">
-            Mensuel
-            <button type="button" role="switch" aria-checked={annuel} onClick={() => setAnnuel((a) => !a)} className={cn('relative h-5 w-9 rounded-full transition-colors', annuel ? 'bg-success' : 'bg-border-strong')}>
-              <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform', annuel ? 'translate-x-[18px]' : 'translate-x-0.5')} />
+            <span>Mensuel</span>
+            <button type="button" role="switch" aria-checked={annuel} onClick={() => setAnnuel((a) => !a)} className={cn('relative h-5 w-9 shrink-0 rounded-full p-0 transition-colors', annuel ? 'bg-success' : 'bg-border-strong')}>
+              <span className={cn('absolute left-0 top-0.5 size-4 rounded-full bg-white shadow transition-transform', annuel ? 'translate-x-[18px]' : 'translate-x-0.5')} />
             </button>
             Annuel <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">-20 %</span>
           </label>

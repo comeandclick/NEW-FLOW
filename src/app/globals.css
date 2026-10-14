@@ -237,5 +237,5 @@ html, body { background: var(--bg); min-height: 100%; }
 .auth-carte input:not([type='checkbox']):not([type='radio']) { height: auto; padding: 0.75rem 1.25rem; border-radius: 0.75rem; border-color: transparent; background: rgb(255 255 255 / 0.1); color: #fff; font-size: 0.875rem; }
 .auth-carte input::placeholder { color: #d4d4d4; opacity: 0.8; }
 .auth-carte input:focus { box-shadow: 0 0 0 2px #a3a3a3; outline: none; }
-.auth-carte button { border-radius: 9999px; min-height: 2.75rem; }
+.auth-carte button { border-radius: 9999px; min-height: 2.75rem; justify-content: center; }
 .auth-carte label { color: #d4d4d4; }

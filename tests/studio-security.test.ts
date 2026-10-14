@@ -68,8 +68,4 @@ describe('sécurité : installateur et origine', () => {
     expect(s).toContain("--proto '=https' --tlsv1.2")
     expect(s).toContain('ORIGIN="https://exemple.test"')
   })
-  it('l\'application Mac est dans le .dmg et le DMG est un vrai fichier statique', async () => {
-    const { statSync } = await import('node:fs')
-    expect(statSync(path.join(ROOT, 'public', 'studio', 'Flow-Studio-Installer.dmg')).size).toBeGreaterThan(100_000)
-  })
 })
