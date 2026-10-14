@@ -191,13 +191,13 @@ export function createSeed(): DemoDB {
 
   const goals: Row[] = [
     { id: uid('goal', 1), workspace_id: WS, title: 'Lancer la v2.0', description: 'Release publique avec le nouvel onboarding.', target: 100, current: 65, unit: '%', status: 'active', color: '#6366f1', due_date: day(21), created_by: ME, created_at: created, updated_at: created, deleted_at: null },
-    { id: uid('goal', 2), workspace_id: WS, title: 'Atteindre 1 000 utilisateurs', description: null, target: 1000, current: 420, unit: 'users', status: 'active', color: '#22c55e', due_date: day(60), created_by: ME, created_at: created, updated_at: created, deleted_at: null },
+    { id: uid('goal', 2), workspace_id: WS, title: 'Atteindre 1 000 utilisateurs', description: null, target: 1000, current: 420, unit: 'utilisateurs', status: 'active', color: '#22c55e', due_date: day(60), created_by: ME, created_at: created, updated_at: created, deleted_at: null },
     { id: uid('goal', 3), workspace_id: WS, title: 'Réduire le temps de chargement', description: null, target: 100, current: 100, unit: '%', status: 'completed', color: '#f97316', due_date: day(-10), created_by: KARIM, created_at: created, updated_at: created, deleted_at: null },
   ]
   const key_results: Row[] = [
     { id: uid('kr', 1), workspace_id: WS, goal_id: uid('goal', 1), title: 'Onboarding validé', target: 100, current: 80, unit: '%', created_at: created },
     { id: uid('kr', 2), workspace_id: WS, goal_id: uid('goal', 1), title: 'Paiement intégré', target: 100, current: 30, unit: '%', created_at: created },
-    { id: uid('kr', 3), workspace_id: WS, goal_id: uid('goal', 2), title: 'Inscriptions via le site', target: 600, current: 280, unit: 'users', created_at: created },
+    { id: uid('kr', 3), workspace_id: WS, goal_id: uid('goal', 2), title: 'Inscriptions via le site', target: 600, current: 280, unit: 'utilisateurs', created_at: created },
   ]
 
   const crm_contacts: Row[] = [

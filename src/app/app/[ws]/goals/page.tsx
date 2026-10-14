@@ -64,7 +64,7 @@ export default function GoalsPage() {
                   <Button variant="ghost" size="icon" onClick={async () => { await getDb().from('goals').update({ deleted_at: new Date().toISOString() }).eq('id', g.id); goals.refresh() }} aria-label={t('common.delete')}><Trash2 className="size-4" /></Button></div>}
               </div>
               <div className="mt-4 flex items-center gap-3"><div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-3"><motion.div initial={{ width: 0 }} animate={{ width: `${p}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="h-full rounded-full" style={{ background: g.color ?? 'var(--accent)' }} /></div>
-                <span className="w-24 text-right text-xs tabular-nums text-text-2">{g.current}/{g.target} {g.unit} · {p}%</span></div>
+                <span className="w-24 text-right text-xs tabular-nums text-text-2">{g.unit === '%' ? `${p} %` : `${g.current}/${g.target} ${g.unit} · ${p} %`}</span></div>
               {canWrite && <input type="range" min={0} max={g.target} value={g.current} onChange={(e) => bump(g, Number(e.target.value))} className="mt-3 w-full accent-[var(--accent)]" aria-label={t('goals.current')} />}
               <div className="mt-4 space-y-2"><h3 className="text-xs font-medium uppercase tracking-wide text-text-3">{t('goals.kr')}</h3>
                 {list.map((k) => (

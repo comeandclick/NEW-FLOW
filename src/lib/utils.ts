@@ -36,11 +36,14 @@ export function colorFor(seed: string) {
   return PALETTE[h % PALETTE.length]
 }
 
-export function formatBytes(bytes?: number | null) {
-  if (!bytes) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
+/** Taille lisible, dans la langue de la page : « 1,7 Mo » en français, « 1.7 MB » en anglais. */
+export function formatBytes(bytes?: number | null, locale = typeof document !== 'undefined' ? document.documentElement.lang : 'fr') {
+  const en = locale.startsWith('en')
+  const units = en ? ['B', 'KB', 'MB', 'GB'] : ['o', 'Ko', 'Mo', 'Go']
+  if (!bytes) return `0 ${units[0]}`
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / 1024 ** i).toFixed(i ? 1 : 0)} ${units[i]}`
+  const n = (bytes / 1024 ** i).toFixed(i ? 1 : 0)
+  return `${en ? n : n.replace('.', ',')} ${units[i]}`
 }
 
 export function formatDuration(seconds: number) {

@@ -109,7 +109,7 @@ export default function FocusPage() {
           <div className="relative mx-auto size-60">
             <svg viewBox="0 0 220 220" className="size-full -rotate-90"><circle cx="110" cy="110" r={R} fill="none" stroke="var(--surface-3)" strokeWidth="10" />
               <circle cx="110" cy="110" r={R} fill="none" stroke={mode === 'focus' ? 'var(--accent)' : 'var(--success)'} strokeWidth="10" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - left / total)} style={{ transition: 'stroke-dashoffset 0.4s linear' }} /></svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="font-mono text-5xl font-semibold tabular-nums tracking-tight">{formatDuration(left)}</span><span className="mt-1 text-xs text-text-3">{t('focus.cycles', { n: sessions })}</span></div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="font-mono text-5xl font-semibold tabular-nums tracking-tight">{formatDuration(left)}</span><span className="mt-1 text-xs text-text-3">{t(sessions === 1 ? 'focus.cycles1' : 'focus.cycles', { n: sessions })}</span></div>
           </div>
           <div className="mt-6 flex justify-center gap-2">
             {running ? <Button size="lg" onClick={pause}><Pause className="size-4" />{t('focus.pause')}</Button> : <Button size="lg" variant="primary" onClick={start}><Play className="size-4" />{t('focus.start')}</Button>}
