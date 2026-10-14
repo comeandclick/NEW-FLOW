@@ -1,6 +1,6 @@
 'use client'
  
-import { HubTabs } from '@/components/shell/hub-tabs'
+import { ReglagesCadre } from '@/components/shell/reglages-cadre'
 import { useState } from 'react'
 import { Plus, Trash2, Workflow, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,8 +34,7 @@ export default function AutomationsPage() {
     setD(null); list.refresh()
   }
   return (
-    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
-      <HubTabs hub="settings" />
+    <ReglagesCadre actif="automations">
       <PageHeader title={t('auto.title')} icon={<Workflow className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setD({ name: '', trigger_type: 'task_done', action_type: 'notify', message: '' })}><Plus className="size-4" />{t('auto.new')}</Button>} />
       {list.data.length === 0 && !list.loading ? <EmptyState icon={<Workflow className="size-5" />} title={t('auto.empty')} hint={t('auto.emptyHint')}
         action={canWrite ? <div className="flex flex-wrap justify-center gap-2">{presets.map((p) => <Button key={p.name} size="sm" onClick={() => setD(p)}><Zap className="size-3.5" />{p.name}</Button>)}</div> : undefined} />
@@ -55,6 +54,6 @@ export default function AutomationsPage() {
           <Field label={t('auto.action')}><Select value={d.action_type} onChange={(e) => setD({ ...d, action_type: e.target.value })}>{ACTIONS.map((x) => <option key={x} value={x}>{t(`auto.action.${x}`)}</option>)}</Select></Field>
           <Field label={t('auto.message')}><Input value={d.message} onChange={(e) => setD({ ...d, message: e.target.value })} /></Field></div>}
       </Dialog>
-    </div>
+    </ReglagesCadre>
   )
 }

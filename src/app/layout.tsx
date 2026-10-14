@@ -1,3 +1,4 @@
+import { MesureVisite } from '@/components/providers/mesure-visite'
 import type { Metadata, Viewport } from 'next'
 import { Geist_Mono, Newsreader } from 'next/font/google'
 import './globals.css'
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <I18nProvider initial={locale}>
             {children}
             <Toaster />
+            <MesureVisite />
           </I18nProvider>
         </ThemeProvider>
       </body>

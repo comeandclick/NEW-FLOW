@@ -1,5 +1,5 @@
 'use client'
-import { HubTabs } from '@/components/shell/hub-tabs'
+import { ReglagesCadre } from '@/components/shell/reglages-cadre'
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -19,8 +19,7 @@ export default function ActivityPage() {
   const [limit, setLimit] = useState(40)
   const { data, loading } = useLive<Activity>('activity_logs', { eq: { workspace_id: ws.id }, order: ['created_at', false], limit })
   return (
-    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
-      <HubTabs hub="settings" />
+    <ReglagesCadre actif="activity">
       <PageHeader title={t('activity.title')} subtitle={t('activity.subtitle')} icon={<ActivityIcon className="size-[18px]" />} />
       {loading ? <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>
         : data.length === 0 ? <EmptyState icon={<ActivityIcon className="size-5" />} title={t('activity.empty')} />
@@ -32,6 +31,6 @@ export default function ActivityPage() {
             <span className="shrink-0 text-[11px] text-text-3">{formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: dfl })}</span>
           </li>))}</ol>}
       {data.length >= limit && <div className="mt-4 text-center"><Button onClick={() => setLimit((l) => l + 40)}>{t('common.more')}</Button></div>}
-    </div>
+    </ReglagesCadre>
   )
 }

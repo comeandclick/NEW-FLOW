@@ -1,17 +1,17 @@
 'use client'
  
-import { HubTabs } from '@/components/shell/hub-tabs'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, Check, Copy, Download, Settings, Trash2 } from 'lucide-react'
+import { Camera, Check, Copy, Download, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Avatar, Badge, PageHeader, Tabs } from '@/components/ui/misc'
+import { Avatar, Badge, PageHeader } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/overlay'
 import { ApiTab } from './api-tab'
 import { StudioTab } from './studio-tab'
 import { BillingTab } from './billing-tab'
+import { NOM_REGLAGE, ReglagesCadre } from '@/components/shell/reglages-cadre'
 import { ProfileTab } from './profile-tab'
 import { PreferencesTab } from './preferences-tab'
 import { Section } from './section'
@@ -32,15 +32,13 @@ const EXPORT_TABLES = ['projects', 'tasks', 'notes', 'events', 'goals', 'crm_con
 function SettingsInner() {
   const { t } = useI18n()
   const q = useSearchParams().get('tab')
-  const [tab, setTab] = useState<Tab>(q === 'members' || q === 'workspace' || q === 'billing' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile')
+  const tab: Tab = q === 'members' || q === 'workspace' || q === 'billing' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile'
+  void t
   return (
-    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
-      <HubTabs hub="settings" />
-      <PageHeader title={t('set.title')} icon={<Settings className="size-[18px]" />} />
-      <Tabs className="mb-6 max-w-full overflow-x-auto" value={tab} onChange={setTab} items={[
-        { value: 'profile', label: t('set.tab.profile') }, { value: 'workspace', label: t('set.tab.workspace') }, { value: 'members', label: t('set.tab.members') }, { value: 'billing', label: 'Abonnement' }, { value: 'preferences', label: t('set.tab.preferences') }, { value: 'api', label: t('set.tab.api') }, { value: 'studio', label: t('set.tab.studio') }]} />
+    <ReglagesCadre actif={tab}>
+      <PageHeader title={NOM_REGLAGE[tab]} />
       {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'members' && <MembersTab />}{tab === 'billing' && <BillingTab />}{tab === 'preferences' && <PreferencesTab />}{tab === 'api' && <ApiTab />}{tab === 'studio' && <StudioTab />}
-    </div>
+    </ReglagesCadre>
   )
 }
 

@@ -96,8 +96,8 @@ export function Sheet({ open, onClose, side = 'left', children, className }: { o
 }
 
 /** Popover menu anchored to a trigger. */
-export function Menu({ trigger, children, align = 'start', width = 220, className }: {
-  trigger: (props: { open: boolean; toggle: () => void }) => ReactNode; children: (close: () => void) => ReactNode; align?: 'start' | 'end'; width?: number; className?: string
+export function Menu({ trigger, children, align = 'start', width = 220, className, anchorClassName }: {
+  trigger: (props: { open: boolean; toggle: () => void }) => ReactNode; children: (close: () => void) => ReactNode; align?: 'start' | 'end'; width?: number; className?: string; anchorClassName?: string
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -134,7 +134,7 @@ export function Menu({ trigger, children, align = 'start', width = 220, classNam
 
   return (
     <>
-      <span ref={anchor} className="inline-flex">{trigger({ open, toggle: () => setOpen((o) => !o) })}</span>
+      <span ref={anchor} className={cn('inline-flex', anchorClassName)}>{trigger({ open, toggle: () => setOpen((o) => !o) })}</span>
       {target && createPortal(
         <AnimatePresence>
           {open && (

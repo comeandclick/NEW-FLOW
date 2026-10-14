@@ -4,11 +4,10 @@ import { usePathname, useRouter } from 'next/navigation'
 import { PairResume } from '@/components/studio/pair-resume'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Check, LayoutGrid, MinusCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, X, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
+import { Activity, Check, ChevronsUpDown, CreditCard, Info, LayoutGrid, MinusCircle, Trash2, User, Zap, PanelLeftClose, PanelLeftOpen, Pencil, Plus, X, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, Kbd } from '@/components/ui/misc'
 import { Menu, MenuItem, MenuSeparator, Sheet } from '@/components/ui/overlay'
-import { LanguageToggle, ThemeToggle } from '@/components/ui/toggles'
 import { useTheme, type ThemePref } from '@/components/providers/theme'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
@@ -23,6 +22,7 @@ import { NotificationsMenu } from './notifications'
 import { WorkspaceSwitcher } from './workspace-switcher'
 import { ShortcutsDialog } from './shortcuts-dialog'
 import { Astuces } from './astuces'
+import { Aide } from './aide'
 import { CallListener } from '@/components/calls/call-listener'
 import { PrefsApplier } from '@/lib/hooks/use-prefs'
 import { registerServiceWorker, useOnline, warmPages } from '@/lib/offline'
@@ -42,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [palette, setPalette] = useState(false)
   const [help, setHelp] = useState(false)
+  const [aide, setAide] = useState(false)
   const base = `/app/${ws.slug}`
   const online = useOnline()
 
@@ -195,16 +196,41 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href={`${base}/settings?tab=billing`} onClick={onNavigate} className="mt-2.5 flex h-8 items-center justify-center rounded-md bg-text text-[12.5px] font-medium text-bg transition-opacity hover:opacity-90">Voir les offres</Link>
         </div>
       )}
-      <div className="mx-2.5 space-y-0.5 border-t border-border py-2.5">
-        {NAV_FOOTER.map((it) => {
-          const active = isActive(it.href)
-          return (
-            <Link key={it.href} href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
-              className={cn('flex h-[34px] items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0', active ? 'bg-text/[0.06] font-medium text-text dark:bg-text/10' : 'text-text-2 hover:bg-text/5 hover:text-text')}>
-              <it.icon className={cn('size-4 shrink-0', active ? 'text-text' : 'text-text-3')} strokeWidth={1.75} />{!compact && <span className="truncate">{t(it.label)}</span>}
-            </Link>
-          )
-        })}
+      {/* bas du menu (14/10/2026) : « i » = aide & support, puis le profil (menu : profil, paramètres, abonnement, automatisations, activité, corbeille…) */}
+      <div className={cn('mx-2.5 flex items-center gap-1 border-t border-border py-2.5', compact && 'flex-col')}>
+        <button onClick={() => { setAide(true); onNavigate?.() }} aria-label="Aide et support" title="Aide et support" className="grid size-[34px] shrink-0 place-items-center rounded-md text-text-3 transition-colors hover:bg-text/5 hover:text-text"><Info className="size-4" strokeWidth={1.75} /></button>
+        <Menu align="start" width={250} anchorClassName={compact ? undefined : 'min-w-0 flex-1'} trigger={({ toggle }) => (
+          <button onClick={toggle} aria-label={t('shell.account')} className={cn('flex min-w-0 flex-1 items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-text/5', compact && 'justify-center')}>
+            <Avatar name={me?.full_name ?? me?.email} src={me?.avatar_url} size={28} status={me?.status} />
+            {!compact && <><span className="min-w-0 flex-1 leading-tight"><span className="block truncate text-[13px] font-medium">{me?.full_name ?? '—'}</span><span className="block truncate text-[11px] text-text-3">{me?.email}</span></span><ChevronsUpDown className="size-3.5 shrink-0 text-text-3" /></>}
+          </button>
+        )}>
+          {(close) => (
+            <>
+              <div className="px-2.5 py-2"><div className="truncate text-[13px] font-medium">{me?.full_name}</div><div className="truncate text-xs text-text-3">{me?.email}</div></div>
+              <MenuSeparator />
+              {([['/settings?tab=profile', User, 'Profil'], ['/settings', Settings, t('nav.settings')], ['/settings?tab=billing', CreditCard, 'Abonnement'], ['/automations', Zap, t('nav.automations')], ['/activity', Activity, t('nav.activity')], ['/trash', Trash2, t('nav.trash')]] as const).map(([href, I, lib]) => (
+                <Link key={href} href={base + href} onClick={() => { close(); onNavigate?.() }}><MenuItem icon={<I className="size-4" />}>{lib}</MenuItem></Link>
+              ))}
+              <MenuSeparator />
+              <div className="flex gap-1 px-1.5 py-1" role="group" aria-label={t('common.theme')}>
+                {themes.map((it) => (
+                  <button key={it.v} onClick={() => setPref(it.v)} aria-label={it.label} aria-pressed={pref === it.v} className={cn('grid h-8 flex-1 place-items-center rounded-md border text-text-2 transition-colors', pref === it.v ? 'border-text/30 bg-text/5 text-text' : 'border-border hover:bg-surface-2')}><it.icon className="size-4" /></button>
+                ))}
+              </div>
+              <div className="flex gap-1 px-1.5 pb-1.5 pt-0.5" role="group" aria-label={t('common.language')}>
+                {(['fr', 'en'] as const).map((l) => (
+                  <button key={l} onClick={() => setLocale(l)} aria-pressed={locale === l} className={cn('flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border text-[12.5px] font-medium transition-colors', locale === l ? 'border-text/30 bg-text/5 text-text' : 'border-border text-text-2 hover:bg-surface-2')}>
+                    {locale === l ? <Check className="size-3.5" /> : <Languages className="size-3.5" />}{l === 'fr' ? 'Français' : 'English'}
+                  </button>
+                ))}
+              </div>
+              <MenuSeparator />
+              <MenuItem icon={<LayoutGrid className="size-4" />} shortcut="?" onClick={() => { close(); setHelp(true) }}>{t('shell.keyboard')}</MenuItem>
+              <MenuItem icon={<LogOut className="size-4" />} danger onClick={() => signOut()}>{t('common.signOut')}</MenuItem>
+            </>
+          )}
+        </Menu>
       </div>
     </div>
   )
@@ -240,41 +266,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setPalette(true)} aria-label={t('common.search')}><Search className="size-[18px]" /></Button>
             <div className="hidden items-center gap-0.5 md:flex">
               <Link href={`${base}/ai`} aria-label={t('nav.ai')} title={t('nav.ai')} className={cn('flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-surface-2', pathname.startsWith(`${base}/ai`) && 'bg-surface-3')}><Sparkles className="size-4 text-text-2" strokeWidth={1.75} /></Link>
-              <LanguageToggle /><ThemeToggle />
             </div>
             <NotificationsMenu />
-            <Menu align="end" width={240} trigger={({ toggle }) => (
-              <button onClick={toggle} className="ml-1 grid size-9 place-items-center rounded-full ring-offset-2 ring-offset-bg transition hover:ring-2 hover:ring-border-strong" aria-label={t('shell.account')}><Avatar name={me?.full_name ?? me?.email} src={me?.avatar_url} size={28} status={me?.status} /></button>
-            )}>
-              {(close) => (
-                <>
-                  <div className="px-2.5 py-2"><div className="truncate text-[13px] font-medium">{me?.full_name}</div><div className="truncate text-xs text-text-3">{me?.email}</div></div>
-                  <MenuSeparator />
-                  <Link href={`${base}/settings`} onClick={close}><MenuItem icon={<Settings className="size-4" />}>{t('nav.settings')}</MenuItem></Link>
-                  <div className="md:hidden">
-                    <Link href={`${base}/ai`} onClick={close}><MenuItem icon={<Sparkles className="size-4" />}>{t('nav.ai')}</MenuItem></Link>
-                    <MenuSeparator />
-                    <div className="flex gap-1 px-1.5 py-1" role="group" aria-label={t('common.theme')}>
-                      {themes.map((it) => (
-                        <button key={it.v} onClick={() => setPref(it.v)} aria-label={it.label} aria-pressed={pref === it.v}
-                          className={cn('grid h-9 flex-1 place-items-center rounded-lg border text-text-2 transition-colors', pref === it.v ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border hover:bg-surface-2')}><it.icon className="size-4" /></button>
-                      ))}
-                    </div>
-                    <div className="flex gap-1 px-1.5 pb-1.5 pt-0.5" role="group" aria-label={t('common.language')}>
-                      {(['fr', 'en'] as const).map((l) => (
-                        <button key={l} onClick={() => setLocale(l)} aria-pressed={locale === l}
-                          className={cn('flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-medium transition-colors', locale === l ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-text-2 hover:bg-surface-2')}>
-                          {locale === l ? <Check className="size-3.5" /> : <Languages className="size-3.5" />}{l === 'fr' ? 'Français' : 'English'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <MenuSeparator />
-                  <MenuItem icon={<LayoutGrid className="size-4" />} shortcut="?" onClick={() => { close(); setHelp(true) }}>{t('shell.keyboard')}</MenuItem>
-                  <MenuItem icon={<LogOut className="size-4" />} danger onClick={() => signOut()}>{t('common.signOut')}</MenuItem>
-                </>
-              )}
-            </Menu>
           </div>
         </header>
 
@@ -302,6 +295,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CallListener />
       <PrefsApplier />
       <Astuces base={base} />
+      <Aide ouvert={aide} fermer={() => setAide(false)} raccourcis={() => setHelp(true)} />
     </div>
   )
 }

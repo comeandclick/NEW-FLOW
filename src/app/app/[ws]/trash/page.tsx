@@ -1,6 +1,6 @@
 'use client'
  
-import { HubTabs } from '@/components/shell/hub-tabs'
+import { ReglagesCadre } from '@/components/shell/reglages-cadre'
 import { useCallback, useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -60,8 +60,7 @@ export default function TrashPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
-      <HubTabs hub="settings" />
+    <ReglagesCadre actif="trash">
       <PageHeader title={t('trash.title')} subtitle={t('trash.subtitle')} icon={<Trash2 className="size-[18px]" />}
         actions={canWrite && items && items.length > 0 && <Button variant="danger" onClick={() => setConfirm('all')}><Trash2 className="size-4" />{t('trash.purgeAll')}</Button>} />
       {!items ? <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
@@ -78,6 +77,6 @@ export default function TrashPage() {
         footer={<><Button onClick={() => setConfirm(null)}>{t('common.cancel')}</Button><Button variant="danger" onClick={() => purge(confirm === 'all' ? items ?? [] : confirm ? [confirm] : [])}>{t('trash.purge')}</Button></>}>
         <p className="text-sm text-text-2">{t('trash.confirm')}</p>
       </Dialog>
-    </div>
+    </ReglagesCadre>
   )
 }
