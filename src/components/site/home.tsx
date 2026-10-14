@@ -33,7 +33,8 @@ export function Hero() {
     const id = setInterval(() => setI((x) => (x + 1) % DEMOS.length), 5200)
     return () => clearInterval(id)
   }, [auto, reduce])
-  const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const } })
+  // titre et sous-titre visibles dès le premier affichage (pas de fondu) : sinon le navigateur attend le JavaScript pour les montrer
+  const rise = (delay: number, fade = true) => ({ initial: reduce ? false : { opacity: fade ? 0 : 1, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const } })
   return (
     <section id="haut" className="mk-night relative overflow-hidden bg-bg pb-16 pt-28 text-text sm:pb-24 sm:pt-36">
       <div aria-hidden className="mk-hero-glow pointer-events-none absolute inset-0" />
@@ -50,10 +51,10 @@ export function Hero() {
             {t('v.hero.pill')}<ArrowRight className="size-3.5" />
           </a>
         </motion.div>
-        <motion.h1 {...rise(0.06)} className="mx-auto mt-7 max-w-[860px] text-[clamp(2.5rem,7vw,5rem)] font-bold leading-[1.02] tracking-[-0.045em] text-text">
+        <motion.h1 {...rise(0.06, false)} className="mx-auto mt-7 max-w-[860px] text-[clamp(2.5rem,7vw,5rem)] font-bold leading-[1.02] tracking-[-0.045em] text-text">
           {t('v.hero.h1a')}<br /><span className="mk-h1-grad">{t('v.hero.h1b')}</span>
         </motion.h1>
-        <motion.p {...rise(0.12)} className="mx-auto mt-6 max-w-[640px] text-[17px] leading-relaxed text-text-2 sm:text-[18px]">{t('v.hero.sub')}</motion.p>
+        <motion.p {...rise(0.12, false)} className="mx-auto mt-6 max-w-[640px] text-[17px] leading-relaxed text-text-2 sm:text-[18px]">{t('v.hero.sub')}</motion.p>
         <motion.div {...rise(0.18)} className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Link href="/register"><Button variant="pill" size="lg" className="h-12 rounded-full bg-white px-8 text-[15px] text-[#05070d]">{t('v.hero.cta1')}</Button></Link>
           <Link href="/demo"><Button variant="glass" size="lg" className="h-12 rounded-full border-transparent bg-surface-2 px-7 text-[15px] text-text hover:bg-surface-3">{t('v.hero.cta2')}</Button></Link>

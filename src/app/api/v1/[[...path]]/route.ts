@@ -532,7 +532,7 @@ async function changelog(ctx: Ctx) {
     groups.get(k)!.tasks.push({ id: t.id as string, title: t.title as string, tags: (t.tags as string[]) ?? [] })
   }
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
-  const md = [`# ${en ? 'Release notes' : 'Notes de version'} — ${fmt(since)} → ${fmt(until)}`, '']
+  const md = [`# ${en ? 'Release notes' : 'Notes de version'} : ${fmt(since)} → ${fmt(until)}`, '']
   for (const g of groups.values()) { md.push(`## ${g.project}`); for (const t of g.tasks) md.push(`- ${t.title}${t.tags.length ? ` _(${t.tags.join(', ')})_` : ''}`); md.push('') }
   if (!groups.size) md.push(en ? 'No task finished in this period.' : 'Aucune tâche terminée sur cette période.')
   return json({ data: { since: since.toISOString(), until: until.toISOString(), count: tasks?.length ?? 0, groups: [...groups.values()], markdown: md.join('\n').trim() } })

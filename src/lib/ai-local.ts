@@ -45,7 +45,7 @@ export async function localAssistant(input: string, ctx: AiContext): Promise<{ t
     const urgent = mine.filter((t) => ['urgent', 'high'].includes(t.priority))
     const pick = [...new Map([...todayTasks, ...urgent, ...mine].map((t) => [t.id, t])).values()].slice(0, 5)
     const ev = snap.events[0]
-    return { text: `${fr ? 'Voici vos priorités' : 'Here are your priorities'} :\n${list(pick) || (fr ? '• Rien d’urgent' : '• Nothing urgent')}${ev ? `\n\n${fr ? 'Prochain événement' : 'Next event'} : ${ev.title} — ${format(new Date(ev.start_at), 'EEE d MMM HH:mm')}` : ''}`, actions: [] }
+    return { text: `${fr ? 'Voici vos priorités' : 'Here are your priorities'} :\n${list(pick) || (fr ? '• Rien d’urgent' : '• Nothing urgent')}${ev ? `\n\n${fr ? 'Prochain événement' : 'Next event'} : ${ev.title}, ${format(new Date(ev.start_at), 'EEE d MMM HH:mm')}` : ''}`, actions: [] }
   }
   if (/r[ée]sum|summar|bilan|overview|statut|status/.test(q)) {
     const done = snap.tasks.filter((t) => t.status === 'done').length

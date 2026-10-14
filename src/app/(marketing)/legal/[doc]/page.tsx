@@ -35,12 +35,12 @@ const DOCS = {
   },
   notice: {
     fr: { title: 'Mentions légales', body: [
-      ['Éditeur', 'Flow — projet édité par son équipe fondatrice. Pour nous joindre, utilisez la page Contact du site.'],
+      ['Éditeur', 'Flow, projet édité par son équipe fondatrice. Pour nous joindre, utilisez la page Contact du site.'],
       ['Hébergement', 'Application hébergée sur Vercel Inc. ; données stockées sur Supabase (région Europe).'],
       ['Propriété intellectuelle', 'Le logo, le design et le code de Flow sont protégés. Le contenu de vos espaces reste votre propriété.'],
     ] },
     en: { title: 'Legal notice', body: [
-      ['Publisher', 'Flow — published by its founding team. To reach us, use the Contact page.'],
+      ['Publisher', 'Flow, published by its founding team. To reach us, use the Contact page.'],
       ['Hosting', 'Application hosted on Vercel Inc.; data stored on Supabase (Europe region).'],
       ['Intellectual property', 'The Flow logo, design and code are protected. The content of your workspaces remains your property.'],
     ] },

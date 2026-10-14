@@ -13,12 +13,12 @@ const SITE = process.env.NEXT_PUBLIC_APP_URL ?? 'https://new-flow-dashboard.verc
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
-  title: { default: 'Flow — Work, in flow.', template: '%s · Flow' },
+  title: { default: 'Flow · Work, in flow.', template: '%s · Flow' },
   description:
     'Flow réunit tâches, notes, messages, appels vidéo, calendrier, CRM et IA dans un seul espace de travail rapide et gratuit. / Tasks, notes, chat, video calls, calendar, CRM and AI in one fast, free workspace.',
   applicationName: 'Flow',
   manifest: '/manifest.webmanifest',
-  openGraph: { title: 'Flow — Work, in flow.', description: 'The all-in-one workspace.', type: 'website', siteName: 'Flow' },
+  openGraph: { title: 'Flow · Work, in flow.', description: 'The all-in-one workspace.', type: 'website', siteName: 'Flow' },
   twitter: { card: 'summary_large_image', title: 'Flow', description: 'The all-in-one workspace.' },
   appleWebApp: { capable: true, title: 'Flow', statusBarStyle: 'black-translucent' },
   icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icons/192', sizes: '192x192', type: 'image/png' }], apple: [{ url: '/icons/180', sizes: '180x180', type: 'image/png' }] },
