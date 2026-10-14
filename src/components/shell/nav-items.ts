@@ -1,4 +1,4 @@
-import { Archive, Bookmark, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Share2, Target, Users, type LucideIcon } from 'lucide-react'
+import { Archive, Bookmark, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Handshake, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Share2, Target, Users, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
 export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages' | 'motion' | 'site'; /** other routes that keep this item highlighted */ also?: string[] }
@@ -21,6 +21,7 @@ export const NAV: NavGroup[] = [
     label: 'nav.group.grow',
     items: [
       { href: '/goals', label: 'nav.goals', icon: Target },
+      { href: '/clients', label: 'nav.clients', icon: Handshake },
       { href: '/crm', label: 'nav.crm', icon: Users, also: ['/finance', '/forms'] },
     ],
   },

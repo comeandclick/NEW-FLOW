@@ -2,7 +2,8 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
 const PUBLIC = ['/', '/features', '/pricing', '/security', '/changelog', '/about', '/contact', '/login', '/register', '/legal/privacy']
-const APP = ['', '/tasks', '/notes', '/calendar', '/messages', '/files', '/projects', '/goals', '/crm', '/finance', '/forms', '/automations', '/whiteboard', '/focus', '/habits', '/ai', '/trash', '/activity', '/settings', '/meetings', '/inbox', '/captures', '/roadmap', '/team', '/feedback', '/releases', '/localization', '/me', '/search?q=a', '/motion', '/site', '/site?tab=projects', '/site?tab=connect', '/library']
+// espace client de la démo (ouvert sans compte) : contrôlé après l'entrée en démo, dans « app pages »
+const APP = ['', '/tasks', '/notes', '/calendar', '/messages', '/files', '/projects', '/goals', '/crm', '/finance', '/forms', '/automations', '/whiteboard', '/focus', '/habits', '/ai', '/trash', '/activity', '/settings', '/meetings', '/inbox', '/captures', '/clients', '/clients/636c6e74-0000-4000-8000-000000000001', '/roadmap', '/team', '/feedback', '/releases', '/localization', '/me', '/search?q=a', '/motion', '/site', '/site?tab=projects', '/site?tab=connect', '/library']
 
 for (const theme of ['dark', 'light'] as const) {
   test.describe(`a11y ${theme}`, () => {
@@ -24,6 +25,9 @@ for (const theme of ['dark', 'light'] as const) {
         const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
         for (const v of r.violations) bad.push(`${p || '/'} · ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target?.join(' ')}`)
       }
+      // la page du client, ouverte par son lien
+      await page.goto('/c/demo'); await page.waitForTimeout(1500)
+      for (const v of (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations) bad.push(`/c/demo · ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target?.join(' ')}`)
       expect(bad).toEqual([])
     })
   })

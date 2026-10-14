@@ -290,10 +290,56 @@ export function createSeed(): DemoDB {
     C(3, 'texte', { title: 'Retour client', note: 'Le client veut pouvoir exporter le tableau de bord en PDF. À discuter au prochain sprint.' }, null, ME, 1440),
   ]
 
+  // Client n° 1 : une vidéo par semaine pour un compte TikTok de cours d'arabe, ouvert par le lien /c/demo
+  const CL = uid('clnt', 1)
+  const clients: Row[] = [{
+    id: CL, workspace_id: WS, name: 'Yanis', company: 'Lisan, cours d’arabe sur TikTok', cadence: 'week', per_period: 1,
+    notes: 'Abonnement : 1 vidéo par semaine, une série de modifications par vidéo. Publication le vendredi.', color: null,
+    access_token: 'demo', token_rotated_at: at(-22), created_by: ME, created_at: at(-22), updated_at: at(-22), deleted_at: null,
+  }]
+  const CF = (n: number, title: string, name: string, mime: string, version: number, status: string, by: 'team' | 'client', when: string, size: number): Row => ({
+    id: uid('clfi', n), workspace_id: WS, client_id: CL, title, name, mime_type: mime, size, storage_path: `/demo/clients/${name}`, version, status,
+    uploaded_by_kind: by, uploaded_by: by === 'team' ? ME : null, created_at: when, updated_at: when, deleted_at: null,
+  })
+  const client_files: Row[] = [
+    CF(1, 'Logo Lisan', 'logo-lisan.svg', 'image/svg+xml', 1, 'recu', 'client', at(-21, 18, 5), 420),
+    CF(2, 'Cours 1 : à moi, à toi', 'cours1-v1.mp4', 'video/mp4', 1, 'modif', 'team', at(-17, 11, 30), 80_042),
+    CF(3, 'Cours 1 : à moi, à toi', 'cours1-v2.mp4', 'video/mp4', 2, 'validee', 'team', at(-15, 16, 0), 84_123),
+    CF(4, 'Cours 2 : ceci, cela', 'cours2-v1.mp4', 'video/mp4', 1, 'livree', 'team', at(-1, 10, 15), 89_379),
+  ]
+  const CM = (n: number, kind: 'team' | 'client', body: string, when: string, file: number | null = null): Row => ({
+    id: uid('clms', n), workspace_id: WS, client_id: CL, author_kind: kind, author_id: kind === 'team' ? ME : null, author_name: kind === 'team' ? 'Alex Demo' : 'Yanis',
+    body, file_id: file ? uid('clfi', file) : null, created_at: when, deleted_at: null,
+  })
+  const client_messages: Row[] = [
+    CM(1, 'client', 'Salut ! Comme convenu, une vidéo par semaine pour le compte Lisan. Je t’envoie le logo.', at(-21, 18, 0)),
+    CM(2, 'team', 'Parfait, merci. Je commence par les possessifs (à moi, à toi). Livraison la semaine prochaine.', at(-21, 19, 10)),
+    CM(3, 'team', 'La première vidéo est en ligne ici. Dis-moi ce que tu en penses.', at(-17, 11, 32)),
+    CM(4, 'client', 'Super ! Juste deux choses : le texte arabe un peu plus gros, et la voix un peu moins rapide à la fin.', at(-16, 9, 40), 2),
+    CM(5, 'team', 'Bien noté, je corrige les deux.', at(-16, 10, 5)),
+    CM(6, 'team', 'Voici la V2 avec le texte plus grand et la fin ralentie.', at(-15, 16, 2)),
+    CM(7, 'client', 'Validée ! Je la publie vendredi matin.', at(-15, 18, 20)),
+    CM(8, 'team', 'Prochaine vidéo : les démonstratifs (ceci, cela). On garde le même fond vert ?', at(-9, 14, 0)),
+    CM(9, 'client', 'Oui, même fond. C’est devenu notre identité.', at(-9, 15, 45)),
+    CM(10, 'team', 'La vidéo 2 est prête. Tu peux la valider ou me demander une modification.', at(-1, 10, 17)),
+  ]
+  const CT = (n: number, title: string, due: number | null, done: boolean): Row => ({
+    id: uid('clto', n), workspace_id: WS, client_id: CL, title, due_date: due === null ? null : day(due), done, done_at: done ? at(due ?? -1) : null,
+    position: n, created_at: at(-21), deleted_at: null,
+  })
+  const client_todos: Row[] = [
+    CT(1, 'Post 1 : à moi, à toi', -14, true),
+    CT(2, 'Envoyer le planning du mois', -20, true),
+    CT(3, 'Post 2 : ceci, cela (attendre la validation)', 1, false),
+    CT(4, 'Post 3 : se présenter', 8, false),
+    CT(5, 'Post 4 : les couleurs', 15, false),
+    CT(6, 'Post 5 : les jours de la semaine', 22, false),
+  ]
+
   const db: DemoDB = {
     profiles, workspaces, workspace_members, invitations: [], projects, tasks, task_comments, notes, note_versions, events, conversations, conversation_members, messages, reactions,
     files, meetings, goals, key_results, crm_contacts, crm_deals, automations, whiteboards, habits, habit_logs, time_entries, invoices, forms, form_responses, notifications,
-    push_subscriptions: [], activity_logs, favorites, meeting_participants: [], captures,
+    push_subscriptions: [], activity_logs, favorites, meeting_participants: [], captures, clients, client_files, client_messages, client_todos,
   }
   addKalimat(db, now)
   return db

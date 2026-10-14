@@ -20,9 +20,10 @@ import { social } from './social'
 import { studio } from './studio'
 import { publish } from './publish'
 import { captures } from './captures'
+import { clients } from './clients'
 import type { Locale } from '../config'
 
-const parts = [common, landing, auth, app, tasks, notes, calendar, messages, meetings, files, misc, settings, growth, personal, site, home, vit, features, social, studio, publish, captures] as const
+const parts = [common, landing, auth, app, tasks, notes, calendar, messages, meetings, files, misc, settings, growth, personal, site, home, vit, features, social, studio, publish, captures, clients] as const
 
 type Merge<T extends readonly { fr: object }[]> = T extends readonly [infer H extends { fr: object }, ...infer R extends readonly { fr: object }[]]
   ? H['fr'] & Merge<R>
