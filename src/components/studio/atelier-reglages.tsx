@@ -8,7 +8,8 @@ import { studioApi, type AtelierEtat, type AtelierReglages, type LiveDevice } fr
 
 /** Paramètres → Atelier (Mac) : réglages du logiciel Atelier et choix de l'agent, modifiables ici.
  *  Chaque changement part au Mac (commande « reglages ») ; l'Atelier l'enregistre et renvoie son état en quelques secondes. */
-const ETAT = { libre: { t: 'Libre', c: 'bg-success' }, occupe: { t: 'Occupé', c: 'bg-warning' }, ferme: { t: 'Fermé', c: 'bg-text-3' } } as const
+const ETAT = { libre: { t: 'Libre', c: 'bg-success' }, occupe: { t: 'Occupé', c: 'bg-warning' }, ferme: { t: 'Fermé', c: 'bg-text-3' }, limite: { t: 'Limite', c: 'bg-danger' } } as const
+const heure = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '')
 const ACCENTS: Record<string, string> = { or: '#cfaa7b', bleu: '#6f9fff', vert: '#5cc48f', violet: '#ad96ff', rose: '#ff8fb1' }
 
 type Brouillon = Partial<AtelierReglages>
@@ -80,8 +81,8 @@ export function AtelierReglagesPanel({ device, onSent }: { device: LiveDevice; o
         <p className="mb-3 text-[13px] text-text-3">{libres ? `${libres} ${libres > 1 ? 'terminaux' : 'terminal'} libre${libres > 1 ? 's' : ''} sur 3.` : 'Aucun terminal libre pour l’instant : une demande attendra qu’un agent se libère.'}{etat.attente ? ` ${etat.attente} demande${etat.attente > 1 ? 's' : ''} en attente.` : ''}</p>
         <Choix valeur={r.compteAgents} onChange={(v) => void regler({ compteAgents: v })}
           options={[{ v: 'auto', t: 'Automatique', sous: 'le premier libre' }, ...etat.agents.map((a) => ({ v: a.compte, t: a.compte, off: a.etat !== 'libre',
-            sous: <span className="flex items-center gap-1.5"><span className={cn('size-2 rounded-full', ETAT[a.etat]?.c)} />{ETAT[a.etat]?.t ?? a.etat} · {a.nom}</span> }))]} />
-        {r.compteAgents !== 'auto' && etat.agents.find((a) => a.compte === r.compteAgents)?.etat !== 'libre' && <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-2">{r.compteAgents} n’est pas libre : la prochaine vidéo attendra qu’il ait fini.</p>}
+            sous: <span className="flex items-center gap-1.5"><span className={cn('size-2 rounded-full', ETAT[a.etat]?.c)} />{a.etat === 'limite' ? `Limite · reprise ${heure(a.reprise)}` : `${ETAT[a.etat]?.t ?? a.etat} · ${a.nom}`}</span> }))]} />
+        {r.compteAgents !== 'auto' && etat.agents.find((a) => a.compte === r.compteAgents)?.etat !== 'libre' && <p className="mt-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-2">{etat.agents.find((a) => a.compte === r.compteAgents)?.etat === 'limite' ? `${r.compteAgents} est à sa limite de session : la prochaine vidéo partira chez le premier agent libre.` : `${r.compteAgents} n’est pas libre : la prochaine vidéo attendra qu’il ait fini.`}</p>}
         {etat.enCours.length > 0 && <ul className="mt-3 space-y-1 border-t border-border pt-3 text-[13px] text-text-2">{etat.enCours.map((x, i) => <li key={i} className="truncate">En cours : {x.titre}{x.compte ? ` · ${x.compte}` : ''}</li>)}</ul>}
         <div className="mt-4 border-t border-border pt-4">
           <p className="mb-2 text-sm font-medium">Où l’agent travaille</p>

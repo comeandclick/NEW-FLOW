@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export type Mode = 'loading' | 'live' | 'demo' | 'setup' | 'anon'
 export type SetupComponent = { id: string; name: string; group: 'ia' | 'motion' | 'outils' | 'site'; state: 'ok' | 'missing' | 'warn' | 'installing' | 'error' | 'waiting'; detail?: string; version?: string; required?: boolean; cost?: 'free' | 'paid'; installable?: boolean; note?: string }
 /** Atelier (Mac) : réglages et agents envoyés par le pont, modifiables depuis Flow (Paramètres → Atelier). */
-export type AtelierAgent = { compte: 'eren' | 'seikqit' | 'lidaf'; nom: string; etat: 'libre' | 'occupe' | 'ferme' }
+export type AtelierAgent = { compte: 'eren' | 'seikqit' | 'lidaf'; nom: string; etat: 'libre' | 'occupe' | 'ferme' | 'limite'; reprise?: string | null }
 export type AtelierReglages = { theme: 'auto' | 'clair' | 'sombre'; accent: string; zoom: number; densite: string; notif: { valider: boolean; voix: boolean; rendu: boolean; demande: boolean }
   flowAuto: boolean; demarrageMac: boolean; pageDemarrage: string; studioPort: number; arreterStudios: boolean; compteAgents: 'auto' | 'eren' | 'seikqit' | 'lidaf'; envoiAgents: 'terminal' | 'cache'; maj?: string; majPar?: string }
 export type AtelierEtat = { reglages: AtelierReglages; agents: AtelierAgent[]; attente: number; enCours: { titre: string; compte: string | null }[]; version: string; maj: string }

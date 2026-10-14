@@ -192,17 +192,17 @@ export function LancerMotion({ onLance }: { onLance?: () => void }) {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[{ compte: 'auto', etat: 'libre', nom: 'le premier libre' }, ...agents].map((a) => {
                 const choisi = (agent ?? agentReglage) === a.compte
-                const etat = a.compte === 'auto' ? null : a.etat === 'libre' ? 'Libre' : a.etat === 'occupe' ? 'Occupé' : 'Fermé'
+                const etat = a.compte === 'auto' ? null : a.etat === 'libre' ? 'Libre' : a.etat === 'occupe' ? 'Occupé' : a.etat === 'limite' ? `Limite · ${'reprise' in a && a.reprise ? new Date(a.reprise).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}` : 'Fermé'
                 return (
                   <button key={a.compte} type="button" onClick={() => setAgent(a.compte)} aria-pressed={choisi}
                     className={cn('rounded-xl border px-3 py-2 text-left transition-colors', choisi ? 'border-accent bg-accent-soft ring-1 ring-accent' : 'border-border hover:bg-surface-2', a.compte !== 'auto' && a.etat !== 'libre' && !choisi && 'opacity-60')}>
                     <span className="block text-sm font-semibold">{a.compte === 'auto' ? 'Automatique' : a.compte}</span>
-                    <span className="flex items-center gap-1.5 text-xs text-text-3">{etat && <span className={cn('size-2 rounded-full', a.etat === 'libre' ? 'bg-success' : a.etat === 'occupe' ? 'bg-warning' : 'bg-text-3')} />}{etat ?? a.nom}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-text-3">{etat && <span className={cn('size-2 rounded-full', a.etat === 'libre' ? 'bg-success' : a.etat === 'occupe' ? 'bg-warning' : a.etat === 'limite' ? 'bg-danger' : 'bg-text-3')} />}{etat ?? a.nom}</span>
                   </button>
                 )
               })}
             </div>
-            {(agent ?? agentReglage) !== 'auto' && agents.find((a) => a.compte === (agent ?? agentReglage))?.etat !== 'libre' && <p className="text-xs text-text-2">Cet agent n&apos;est pas libre : la vidéo attendra qu&apos;il ait fini.</p>}
+            {(agent ?? agentReglage) !== 'auto' && agents.find((a) => a.compte === (agent ?? agentReglage))?.etat !== 'libre' && <p className="text-xs text-text-2">{agents.find((a) => a.compte === (agent ?? agentReglage))?.etat === 'limite' ? 'Cet agent est à sa limite : la vidéo partira chez le premier agent libre.' : 'Cet agent n\'est pas libre : la vidéo attendra qu\'il ait fini.'}</p>}
           </Etape>
         )}
 
