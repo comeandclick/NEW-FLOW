@@ -3,14 +3,14 @@
 // + des widgets (tâches, clients en attente, vidéo, agenda, productions). Sans clé ou en démo, la compréhension locale prend le relais.
 // La bulle « réflexion » se transforme (morphose) en réponse puis en widget.
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, CalendarDays, CheckSquare, Film, Handshake, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowUp, BarChart3, CalendarDays, CalendarPlus, CheckSquare, Film, Handshake, RotateCcw, Sparkles } from 'lucide-react'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { localAssistant, runAction, type AiAction } from '@/lib/ai-local'
 import { useLive } from '@/lib/hooks/use-live'
-import { comprendre, type Widget } from '@/lib/ai-widgets'
+import { comprendre, resumeWidget, type Widget } from '@/lib/ai-widgets'
 import { WidgetAssistant } from '@/components/ai/widgets'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
@@ -40,7 +40,9 @@ export default function AiPage() {
   const video = videosQ.data.find((v) => v.video_nom)
   const SUGGESTIONS = [
     { I: CheckSquare, t: 'Qu\'est-ce que je dois faire aujourd\'hui ?' },
-    clientsQ.data[0] ? { I: Handshake, t: `Où en est ${clientsQ.data[0].name} ?` } : { I: Handshake, t: 'Quels clients attendent quelque chose ?' },
+    clientsQ.data[0] ? { I: Handshake, t: `Où en est ${clientsQ.data[0].name} ?` } : { I: Handshake, t: 'Quels sont mes clients ?' },
+    { I: CalendarPlus, t: 'Ajoute une tâche demain à 12h avec un agent IA dispo' },
+    { I: BarChart3, t: 'Fais-moi le bilan de la semaine' },
     video ? { I: Film, t: `Montre-moi la vidéo « ${video.titre} »` } : { I: Film, t: 'Résume ma semaine' },
     { I: CalendarDays, t: 'Mon agenda de la semaine' },
   ]
@@ -56,7 +58,7 @@ export default function AiPage() {
       let reply = '', actions: AiAction[] = [], widgets: Widget[] = []
       if (!isDemo) {
         // l'historique garde la trace des widgets déjà montrés, pour que la conversation continue normalement
-        const histo = next.map(({ role, content, widgets }) => ({ role, content: content || (widgets?.length ? `[widget affiché : ${widgets.map((w) => w.type).join(', ')}]` : '…') }))
+        const histo = next.map(({ role, content, widgets }) => ({ role, content: [content, ...(widgets ?? []).map(resumeWidget)].filter(Boolean).join('\n') || '…' }))
         const res = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: histo, wsId: ws.id, locale }) })
         if (res.ok) { const j = await res.json(); const p = parseActions(j.text ?? ''); reply = p.clean; actions = p.actions; widgets = j.widgets ?? []; setIa(true) } else setIa(false)
       } else setIa(false)

@@ -17,10 +17,12 @@ import type { CalEvent, Task } from '@/lib/types'
 import type { Widget } from '@/lib/ai-widgets'
 import { Avatar } from '@/components/ui/misc'
 import { cn } from '@/lib/utils'
+import { WidgetPlus } from '@/components/ai/widgets-plus'
+import { WidgetCreation } from '@/components/ai/widget-creation'
 
-const ligne = { hidden: { opacity: 0, y: 6, filter: 'blur(4px)' }, show: (i: number) => ({ opacity: 1, y: 0, filter: 'blur(0px)', transition: { delay: 0.12 + i * 0.045, type: 'spring' as const, stiffness: 420, damping: 34 } }) }
+export const ligne = { hidden: { opacity: 0, y: 6, filter: 'blur(4px)' }, show: (i: number) => ({ opacity: 1, y: 0, filter: 'blur(0px)', transition: { delay: 0.12 + i * 0.045, type: 'spring' as const, stiffness: 420, damping: 34 } }) }
 
-function Cadre({ icone: I, titre, compte, lien, children }: { icone: typeof CheckSquare; titre: string; compte?: number; lien?: { href: string; lib: string }; children: React.ReactNode }) {
+export function Cadre({ icone: I, titre, compte, lien, children }: { icone: typeof CheckSquare; titre: string; compte?: number; lien?: { href: string; lib: string }; children: React.ReactNode }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
@@ -32,7 +34,7 @@ function Cadre({ icone: I, titre, compte, lien, children }: { icone: typeof Chec
     </div>
   )
 }
-const Vide = ({ texte }: { texte: string }) => <p className="px-4 py-6 text-center text-[13px] text-text-3">{texte}</p>
+export const Vide = ({ texte }: { texte: string }) => <p className="px-4 py-6 text-center text-[13px] text-text-3">{texte}</p>
 
 /* ── Tâches ── */
 const PRIO: Record<string, string> = { urgent: 'bg-danger', high: 'bg-warning', medium: 'bg-info', low: 'bg-text/30' }
@@ -70,7 +72,7 @@ function WidgetTaches({ periode }: { periode: 'jour' | 'semaine' | 'retard' | 't
 }
 
 /* ── Clients en attente (tiroir par client) ── */
-function WidgetClients() {
+function WidgetClients({ filtre }: { filtre: 'tous' | 'attente' }) {
   const { ws } = useWorkspace()
   const clients = useLive<ClientRow>('clients', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
   const files = useLive<ClientFile>('client_files', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
@@ -87,10 +89,10 @@ function WidgetClients() {
     const dernier = msgs.data.filter((m) => m.client_id === c.id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
     const repondre = dernier?.author_kind === 'client' ? dernier : null
     return { c, aValider, modifs, ouvertes, retard, repondre, poids: modifs.length * 3 + retard.length * 3 + (repondre ? 2 : 0) + aValider.length }
-  }).filter((r) => r.poids > 0 || r.ouvertes.length).sort((a, b) => b.poids - a.poids), [clients.data, files.data, todos.data, msgs.data, auj])
+  }).filter((r) => filtre === 'tous' || r.poids > 0 || r.ouvertes.length).sort((a, b) => b.poids - a.poids || a.c.name.localeCompare(b.c.name)), [clients.data, files.data, todos.data, msgs.data, auj, filtre])
   return (
-    <Cadre icone={Handshake} titre="Clients en attente" compte={rangs.length} lien={{ href: `/app/${ws.slug}/clients`, lib: 'Clients' }}>
-      {!clients.loading && !rangs.length ? <Vide texte="Aucun client n'attend quoi que ce soit." /> : (
+    <Cadre icone={Handshake} titre={filtre === 'tous' ? 'Tes clients' : 'Clients en attente'} compte={rangs.length} lien={{ href: `/app/${ws.slug}/clients`, lib: 'Clients' }}>
+      {!clients.loading && !rangs.length ? <Vide texte={filtre === 'tous' ? 'Aucun client pour l\'instant.' : 'Aucun client n\'attend quoi que ce soit.'} /> : (
         <ul className="divide-y divide-border">
           {rangs.map((r, i) => { const o = ouvert === r.c.id
             return (
@@ -98,8 +100,8 @@ function WidgetClients() {
                 <button onClick={() => setOuvert(o ? null : r.c.id)} aria-expanded={o} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/60">
                   <Avatar name={r.c.name} size={30} />
                   <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] font-medium">{r.c.name}</span>
-                    <span className="block truncate text-xs text-text-3">{[r.modifs.length && `${r.modifs.length} modif.`, r.aValider.length && `${r.aValider.length} à valider`, r.retard.length && `${r.retard.length} en retard`, r.repondre && 'attend ta réponse'].filter(Boolean).join(' · ') || `${r.ouvertes.length} tâche(s)`}</span></span>
-                  {(r.modifs.length > 0 || r.retard.length > 0) && <TriangleAlert className="size-4 shrink-0 text-warning" />}
+                    <span className="block truncate text-xs text-text-3">{[r.modifs.length && `${r.modifs.length} modif.`, r.aValider.length && `${r.aValider.length} à valider`, r.retard.length && `${r.retard.length} en retard`, r.repondre && 'attend ta réponse'].filter(Boolean).join(' · ') || (r.ouvertes.length ? `${r.ouvertes.length} tâche(s) en cours` : r.c.company || 'Rien en attente')}</span></span>
+                  <EtatClient r={r} />
                   <ChevronDown className={cn('size-4 shrink-0 text-text-3 transition-transform', o && 'rotate-180')} />
                 </button>
                 <AnimatePresence initial={false}>
@@ -108,7 +110,7 @@ function WidgetClients() {
                       <div className="space-y-1 bg-surface-2/50 px-4 pb-3 pt-1">
                         {[...r.modifs.map((f) => ({ k: f.id, I: Film, t: `Modification demandée : ${f.title}`, c: 'text-warning' })), ...r.retard.map((x) => ({ k: x.id, I: TriangleAlert, t: `En retard : ${x.title}`, c: 'text-danger' })),
                           ...r.aValider.map((f) => ({ k: f.id, I: Film, t: `À valider par le client : ${f.title}`, c: 'text-text-2' })), ...(r.repondre ? [{ k: 'm', I: MessageSquare, t: `« ${r.repondre.body.slice(0, 80)} »`, c: 'text-text-2' }] : []),
-                          ...r.ouvertes.filter((x) => !r.retard.includes(x)).slice(0, 4).map((x) => ({ k: x.id, I: CheckSquare, t: x.title, c: 'text-text-2' }))].map((e) => (
+                          ...r.ouvertes.filter((x) => !r.retard.includes(x)).slice(0, 4).map((x) => ({ k: x.id, I: CheckSquare, t: x.title, c: 'text-text-2' })), { k: 'fiche', I: Handshake, t: 'Ouvrir la fiche client', c: 'text-text-3' }].map((e) => (
                           <Link key={e.k} href={`/app/${ws.slug}/clients/${r.c.id}`} className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors hover:bg-text/5">
                             <e.I className={cn('size-3.5 shrink-0', e.c)} /><span className="min-w-0 flex-1 truncate">{e.t}</span><ArrowUpRight className="size-3.5 shrink-0 text-text-3" />
                           </Link>
@@ -126,7 +128,7 @@ function WidgetClients() {
 }
 
 /* ── Vidéo (Productions de l'Atelier + Fichiers) ── */
-type Prod = { projet: string; titre: string; client: string; serie: string | null; numero: number | null; video_chemin: string | null; video_nom: string | null; statut: string; avancement: number }
+export type Prod = { projet: string; titre: string; client: string; serie: string | null; numero: number | null; video_chemin: string | null; video_nom: string | null; statut: string; avancement: number }
 type Fic = { id: string; name: string; storage_path: string; mime_type: string | null }
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const mots = (s: string) => norm(s).split(/[^a-z0-9]+/).filter((m) => m.length > 1 && !['le', 'la', 'les', 'du', 'de', 'des', 'un', 'une', 'en', 'cours', 'video', 'tiktok', 'moi', 'donne', 'comment'].includes(m))
@@ -201,10 +203,21 @@ function WidgetProductions({ statut }: { statut?: string }) {
   )
 }
 
+// état d'un client, en une pastille : la chose la plus urgente d'abord
+function EtatClient({ r }: { r: { modifs: unknown[]; retard: unknown[]; repondre: unknown; aValider: unknown[]; ouvertes: unknown[] } }) {
+  const [lib, c] = r.modifs.length ? ['Modifs demandées', 'bg-warning/15 text-warning'] : r.retard.length ? ['En retard', 'bg-danger/15 text-danger'] : r.repondre ? ['Attend ta réponse', 'bg-info/15 text-info']
+    : r.aValider.length ? ['À valider', 'bg-text/10 text-text-2'] : r.ouvertes.length ? ['En cours', 'bg-text/10 text-text-2'] : ['À jour', 'bg-success/15 text-success']
+  return <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', c)}>{lib}</span>
+}
+
 export function WidgetAssistant({ w }: { w: Widget }) {
-  if (w.type === 'taches') return <WidgetTaches periode={w.periode} />
-  if (w.type === 'clients') return <WidgetClients />
-  if (w.type === 'video') return <WidgetVideo recherche={w.recherche} />
-  if (w.type === 'agenda') return <WidgetAgenda periode={w.periode} />
-  return <WidgetProductions statut={w.statut} />
+  switch (w.type) {
+    case 'taches': return <WidgetTaches periode={w.periode} />
+    case 'clients': return <WidgetClients filtre={w.filtre ?? 'attente'} />
+    case 'video': return <WidgetVideo recherche={w.recherche} />
+    case 'agenda': return <WidgetAgenda periode={w.periode} />
+    case 'productions': return <WidgetProductions statut={w.statut} />
+    case 'creation': return <WidgetCreation c={w.c} />
+    default: return <WidgetPlus w={w} />
+  }
 }
