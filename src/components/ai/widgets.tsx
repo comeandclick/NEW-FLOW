@@ -19,6 +19,7 @@ import { Avatar } from '@/components/ui/misc'
 import { cn } from '@/lib/utils'
 import { WidgetPlus } from '@/components/ai/widgets-plus'
 import { WidgetCreation } from '@/components/ai/widget-creation'
+import { WidgetModeleMotion, WidgetVideoDemande } from '@/components/ai/widget-video'
 
 export const ligne = { hidden: { opacity: 0, y: 6, filter: 'blur(4px)' }, show: (i: number) => ({ opacity: 1, y: 0, filter: 'blur(0px)', transition: { delay: 0.12 + i * 0.045, type: 'spring' as const, stiffness: 420, damping: 34 } }) }
 
@@ -218,6 +219,8 @@ export function WidgetAssistant({ w }: { w: Widget }) {
     case 'agenda': return <WidgetAgenda periode={w.periode} />
     case 'productions': return <WidgetProductions statut={w.statut} />
     case 'creation': return <WidgetCreation c={w.c} />
+    case 'video_demande': return <WidgetVideoDemande d={w.d} />
+    case 'modele_motion': return <WidgetModeleMotion client={w.client} titre={w.titre} idee={w.idee} format={w.format} duree={w.duree} />
     default: return <WidgetPlus w={w} />
   }
 }

@@ -9,6 +9,7 @@ import { Avatar, EmptyState } from '@/components/ui/misc'
 import { Dialog, Menu, MenuItem } from '@/components/ui/overlay'
 import { ClientSpace } from '@/components/clients/client-space'
 import { EtatClient } from '@/components/clients/etat-client'
+import { DossierPrive } from '@/components/clients/dossier-prive'
 import { ClientFormDialog, cadenceLabel, type ClientFields } from '@/components/clients/client-form'
 import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
@@ -145,7 +146,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
           )}
         </div>
       </div>
-      {client.notes && <p className="mb-4 whitespace-pre-wrap rounded-xl border border-border bg-surface-2/50 px-4 py-3 text-[13px] text-text-2">{client.notes}</p>}
+      <DossierPrive key={client.id} client={client} onSaved={() => void clientQ.refresh()} />
 
       <EtatClient cadence={client.cadence} files={files.data} todos={todos.data} messages={messages.data} />
       <div className="h-5" />

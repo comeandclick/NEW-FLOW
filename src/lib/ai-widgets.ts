@@ -5,6 +5,7 @@ export type Creation = {
   objet: 'tache' | 'evenement' | 'note'
   titre?: string; date?: string; heure?: string; duree?: number; assigne?: string; avec?: string; lieu?: string; priorite?: string; contenu?: string; client?: string
 }
+export type DemandeVideo = { client: string; modele?: string; sujet?: string; publication?: string; duree?: number; note?: string }
 export type Widget =
   | { type: 'taches'; periode: 'jour' | 'semaine' | 'retard' | 'toutes' }
   | { type: 'clients'; filtre: 'tous' | 'attente' }
@@ -23,6 +24,8 @@ export type Widget =
   | { type: 'projets' }
   | { type: 'focus' }
   | { type: 'creation'; c: Creation }
+  | { type: 'video_demande'; d: DemandeVideo }
+  | { type: 'modele_motion'; client: string; titre: string; idee: string; format?: string; duree?: number }
 
 const obj = (props: Record<string, unknown> = {}, required: string[] = []) => ({ type: 'object', properties: props, required })
 const choix = (valeurs: string[]) => ({ type: 'string', enum: valeurs })
@@ -44,6 +47,10 @@ export const OUTILS = [
   { name: 'afficher_bilan', description: 'Bilan chiffré (tâches faites, retards, rendez-vous, clients en attente, temps de focus) du jour ou de la semaine.', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
   { name: 'afficher_projets', description: 'Projets de l\'espace avec leur avancement (tâches faites / total) et leur état.', input_schema: obj() },
   { name: 'afficher_focus', description: 'Temps de travail concentré (focus) du jour et des 7 derniers jours.', input_schema: obj() },
+  { name: 'preparer_video', description: 'Prépare le lancement d\'une vidéo motion design pour un client (envoyée à l\'Atelier, qui la confie à un agent IA). « la vidéo de demain pour le TikTok de X » = client X, publication demain, modèle habituel (laisse modele VIDE si tu ne sais pas : le widget propose le modèle habituel ou fait choisir). modele = titre d\'un modèle connu (Mini-cours, Pub produit, Teaser, Post réseaux, ou un modèle motion maison du dossier du client). publication = AAAA-MM-JJ. duree en secondes.',
+    input_schema: obj({ client: { type: 'string' }, ...Object.fromEntries(['modele', 'sujet', 'publication', 'duree', 'note'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['client']) },
+  { name: 'proposer_modele_motion', description: 'Propose un NOUVEAU modèle (template) de vidéo motion pour un client, imaginé à partir de son dossier privé (description du projet, notes, idées). idee = le déroulé précis en quelques lignes : format, durée, scènes dans l\'ordre, texte à l\'écran, voix, musique, ce qui revient à chaque épisode. L\'utilisateur peut l\'enregistrer dans le dossier du client puis lancer une vidéo avec.',
+    input_schema: obj({ client: { type: 'string' }, titre: { type: 'string' }, idee: { type: 'string' }, ...Object.fromEntries(['format', 'duree'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['client', 'titre', 'idee']) },
   { name: 'preparer_creation', description: 'Prépare la création d\'une tâche, d\'un rendez-vous (evenement) ou d\'une note, dans un formulaire que l\'utilisateur valide. Remplis tout ce qui est dit ou déductible ; laisse VIDE ce qui manque (le formulaire le demandera). date = AAAA-MM-JJ, heure = HH:MM (heure de Paris). assigne = nom exact d\'un membre, ou « agent IA » pour un agent IA disponible. avec = personnes invitées (membres ou clients). duree en minutes. priorite = low, medium, high ou urgent. Omets un champ inconnu.',
     input_schema: obj({ objet: choix(['tache', 'evenement', 'note']), ...Object.fromEntries(['titre', 'date', 'heure', 'duree', 'assigne', 'avec', 'lieu', 'priorite', 'contenu', 'client'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['objet']) },
 ] as const
@@ -68,6 +75,9 @@ export function versWidget(nom: string, e: Record<string, unknown>): Widget | nu
     case 'afficher_bilan': return { type: 'bilan', periode: parmi(e.periode, ['jour', 'semaine'], 'jour') }
     case 'afficher_projets': return { type: 'projets' }
     case 'afficher_focus': return { type: 'focus' }
+    case 'preparer_video': return str(e.client) ? { type: 'video_demande', d: { client: str(e.client, 80)!, modele: str(e.modele, 80), sujet: str(e.sujet, 300), note: str(e.note, 1000),
+      publication: str(e.publication, 10) && /^\d{4}-\d{2}-\d{2}$/.test(str(e.publication, 10)!) ? str(e.publication, 10) : undefined, duree: Number(e.duree) >= 5 && Number(e.duree) <= 600 ? Math.round(Number(e.duree)) : undefined } } : null
+    case 'proposer_modele_motion': return str(e.client) && str(e.idee) ? { type: 'modele_motion', client: str(e.client, 80)!, titre: str(e.titre, 100) ?? 'Nouveau modèle', idee: str(e.idee, 3000)!, format: str(e.format, 12), duree: Number(e.duree) >= 5 && Number(e.duree) <= 600 ? Math.round(Number(e.duree)) : undefined } : null
     case 'preparer_creation': {
       const date = str(e.date, 10), heure = str(e.heure, 5)
       return { type: 'creation', c: {
@@ -83,6 +93,8 @@ export function versWidget(nom: string, e: Record<string, unknown>): Widget | nu
 
 /** Résumé d'un widget pour l'historique de la conversation (l'IA sait ce qui est affiché, et ce qui manque à un formulaire). */
 export function resumeWidget(w: Widget): string {
+  if (w.type === 'video_demande') return `[widget de lancement de vidéo affiché : ${JSON.stringify(w.d)} ; si l'utilisateur précise quelque chose, rappelle preparer_video avec TOUS les champs]`
+  if (w.type === 'modele_motion') return `[modèle motion proposé pour ${w.client} : « ${w.titre} » : ${w.idee.slice(0, 400)}]`
   if (w.type !== 'creation') return `[widget affiché : ${w.type}${'periode' in w ? ' ' + w.periode : ''}${'filtre' in w ? ' ' + w.filtre : ''}${'nom' in w ? ' ' + w.nom : ''}]`
   const { objet, ...champs } = w.c
   return `[formulaire de création (${objet}) affiché avec : ${JSON.stringify(champs)} ; si l'utilisateur donne les infos manquantes, rappelle preparer_creation avec TOUS les champs]`
@@ -103,6 +115,11 @@ export function comprendre(texte: string): { texte: string; widgets: Widget[] } 
     const avec = texte.match(/avec\s+([A-ZÀ-Ý][\wÀ-ÿ-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ-]+)?)/)?.[1]
     const titre = texte.replace(/^.*?(t[âa]che|rendez-vous|rdv|r[ée]union|[ée]v[ée]nement|appel|note)\s*(:|pour|de|d'|qui)?\s*/i, '').replace(/\s*(demain|aujourd'hui|apr[èe]s-demain|la semaine prochaine|[àa]\s*\d{1,2}\s*h\s*\d{0,2}|avec un agent ia.*|avec\s+\S+).*$/i, '').trim()
     return { texte: 'Je prépare ça, vérifie et complète si besoin :', widgets: [{ type: 'creation', c: { objet, titre: titre || undefined, date, heure: h ? `${h[1].padStart(2, '0')}:${h[2] ?? '00'}` : undefined, avec: objet === 'evenement' ? avec : undefined, assigne: /agent ia/.test(t) ? 'agent IA' : undefined } }] }
+  }
+  const lanceVideo = t.match(/(?:cree|creer|lance|prepare|fais)\s+(?:moi\s+)?(?:la|une)\s+(?:nouvelle\s+)?(?:video|tiktok)(?:\s+de\s+(demain|aujourd'hui))?.*?(?:pour|de)\s+(?:le\s+tiktok\s+de\s+|l'?|la\s+|le\s+)?([a-z0-9][\w-]*)/)
+  if (lanceVideo) {
+    const d = new Date(Date.now() + (lanceVideo[1] === 'demain' ? 864e5 : 0)), iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return { texte: 'Je prépare la vidéo :', widgets: [{ type: 'video_demande', d: { client: lanceVideo[2], publication: lanceVideo[1] ? iso : undefined } }] }
   }
   if (/(video|tiktok|reel|cours|mini-cours)/.test(t) && /(donne|montre|affiche|trouve|ou est|envoie|telecharge|le |la |du )/.test(t)) {
     const guillemets = texte.match(/[«"“]([^»"”]+)[»"”]/)?.[1]
