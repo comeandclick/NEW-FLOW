@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { ArrowLeft, Check, History, Link2, Pin, PinOff, Star, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, FileText, History, Link2, Pin, PinOff, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge, Skeleton } from '@/components/ui/misc'
@@ -133,7 +133,7 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
       </div>
 
       <div className="mb-2 flex items-center gap-3">
-        <Menu width={232} trigger={({ toggle }) => <button disabled={!canWrite} onClick={toggle} className="flex size-12 items-center justify-center rounded-xl text-3xl transition-colors hover:bg-surface-2" aria-label="Icon">{note.icon ?? '📄'}</button>}>
+        <Menu width={232} trigger={({ toggle }) => <button disabled={!canWrite} onClick={toggle} className="flex size-12 items-center justify-center rounded-xl text-3xl transition-colors hover:bg-surface-2" aria-label="Icon">{note.icon ?? <FileText className="size-6 text-text-3" />}</button>}>
           {(close) => <div className="grid grid-cols-5 gap-1 p-1">{EMOJIS.map((e) => <button key={e} onClick={() => { void instant({ icon: e }); close() }} className="flex size-9 items-center justify-center rounded-lg text-xl hover:bg-surface-2">{e}</button>)}</div>}
         </Menu>
         <input value={title} readOnly={!canWrite} onChange={(e) => { setTitle(e.target.value); queue({ title: e.target.value }) }} placeholder={t('notes.untitled')}

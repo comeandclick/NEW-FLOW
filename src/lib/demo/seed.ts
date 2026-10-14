@@ -100,8 +100,8 @@ export function createSeed(): DemoDB {
     T(13, 'Choisir le fournisseur d’emailing', 'done', 'medium', ME, P2, -6, ['outils']),
     T(14, 'Planifier le sprint 12', 'todo', 'medium', ME, null, 3, ['équipe']),
   ]
-  tasks.push({ ...T(15, 'Écran 1 — bienvenue', 'done', 'low', SOPHIE, P1, -1), parent_id: uid('task', 1) })
-  tasks.push({ ...T(16, 'Écran 2 — création de l’espace', 'in_progress', 'medium', SOPHIE, P1, 1), parent_id: uid('task', 1) })
+  tasks.push({ ...T(15, 'Écran 1 : bienvenue', 'done', 'low', SOPHIE, P1, -1), parent_id: uid('task', 1) })
+  tasks.push({ ...T(16, 'Écran 2 : création de l’espace', 'in_progress', 'medium', SOPHIE, P1, 1), parent_id: uid('task', 1) })
 
   const task_comments: Row[] = [
     { id: uid('tcom', 1), workspace_id: WS, task_id: uid('task', 1), user_id: LEA, content: 'J’ai ajouté les textes pour l’écran 3.', created_at: ago(300) },
@@ -113,12 +113,12 @@ export function createSeed(): DemoDB {
     created_by: ME, created_at: at(-10 + n), updated_at: at(-n), deleted_at: null,
   })
   const notes: Row[] = [
-    N(1, 'Réunion de lancement du projet', doc(h(2, 'Objectifs'), p('Définir la roadmap du trimestre, aligner les équipes et établir les indicateurs de succès.'), h(2, 'Décisions'), bullets('Lancement public le 15 du mois prochain', 'Budget marketing validé', 'Sprint de stabilisation avant la release'), h(2, 'Actions'), todos(['Envoyer le compte rendu', true], ['Réserver la salle de démo', false], ['Valider le planning avec Léa', false])), ['projet', 'réunion'], 'note', true, P1, '📌'),
-    N(2, 'Idées produit — brainstorm', doc(h(2, 'Pistes'), bullets('Améliorer l’onboarding', 'Tableau de bord personnalisable', 'Notifications intelligentes', 'Mode hors-ligne')), ['produit', 'idées'], 'note', false, null, '💡'),
-    N(3, 'Architecture technique v2', doc(h(1, 'Architecture v2'), p('Phase 1 : API Gateway. Phase 2 : bus d’événements. Phase 3 : migration des services de messagerie.')), ['tech'], 'doc', true, null, '🧱'),
-    N(4, 'Retours utilisateurs — sprint 11', doc(h(2, 'Synthèse'), p('Retours très positifs sur la vitesse. Points d’amélioration : navigation mobile et recherche.')), ['ux', 'feedback']),
-    N(5, 'Guide de style rédactionnel', doc(h(2, 'Ton'), p('Clair, direct, chaleureux. Phrases courtes, pas de jargon inutile.')), ['marketing'], 'wiki', false, P2, '✍️'),
-    N(6, 'Bienvenue dans l’équipe', doc(h(1, 'Bienvenue 👋'), p('Ce wiki rassemble tout ce qu’il faut savoir pour démarrer : outils, rituels, contacts utiles.'), bullets('Standup chaque matin à 9h', 'Sprint de deux semaines', 'Revue de code sous 24h')), ['onboarding'], 'wiki', true, null, '🚀'),
+    N(1, 'Réunion de lancement du projet', doc(h(2, 'Objectifs'), p('Définir la roadmap du trimestre, aligner les équipes et établir les indicateurs de succès.'), h(2, 'Décisions'), bullets('Lancement public le 15 du mois prochain', 'Budget marketing validé', 'Sprint de stabilisation avant la release'), h(2, 'Actions'), todos(['Envoyer le compte rendu', true], ['Réserver la salle de démo', false], ['Valider le planning avec Léa', false])), ['projet', 'réunion'], 'note', true, P1),
+    N(2, 'Idées produit : brainstorm', doc(h(2, 'Pistes'), bullets('Améliorer l’onboarding', 'Tableau de bord personnalisable', 'Notifications intelligentes', 'Mode hors-ligne')), ['produit', 'idées'], 'note', false, null),
+    N(3, 'Architecture technique v2', doc(h(1, 'Architecture v2'), p('Phase 1 : API Gateway. Phase 2 : bus d’événements. Phase 3 : migration des services de messagerie.')), ['tech'], 'doc', true, null),
+    N(4, 'Retours utilisateurs : sprint 11', doc(h(2, 'Synthèse'), p('Retours très positifs sur la vitesse. Points d’amélioration : navigation mobile et recherche.')), ['ux', 'feedback']),
+    N(5, 'Guide de style rédactionnel', doc(h(2, 'Ton'), p('Clair, direct, chaleureux. Phrases courtes, pas de jargon inutile.')), ['marketing'], 'wiki', false, P2),
+    N(6, 'Bienvenue dans l’équipe', doc(h(1, 'Bienvenue'), p('Ce wiki rassemble tout ce qu’il faut savoir pour démarrer : outils, rituels, contacts utiles.'), bullets('Standup chaque matin à 9h', 'Sprint de deux semaines', 'Revue de code sous 24h')), ['onboarding'], 'wiki', true, null),
   ]
   const note_versions: Row[] = [
     { id: uid('nv', 1), workspace_id: WS, note_id: uid('note', 1), title: 'Réunion de lancement du projet', content: doc(h(2, 'Objectifs'), p('Première version.')), saved_by: ME, created_at: ago(2880) },
@@ -156,7 +156,7 @@ export function createSeed(): DemoDB {
   })
   const wave = Array.from({ length: 40 }, (_, i) => Math.round(25 + 60 * Math.abs(Math.sin(i * 0.7) * Math.cos(i * 0.31))))
   const messages: Row[] = [
-    M(1, C_GEN, ME, 'Bienvenue sur Flow 👋 Voici l’espace de démonstration.', 600, { is_pinned: true }),
+    M(1, C_GEN, ME, 'Bienvenue sur Flow. Voici l’espace de démonstration.', 600, { is_pinned: true }),
     M(2, C_GEN, LEA, 'Super ! Le nouveau design du tableau de bord est vraiment propre.', 580),
     M(3, C_GEN, KARIM, 'Je merge la correction de synchronisation cet après-midi.', 120),
     M(4, C_GEN, SOPHIE, 'Les maquettes du profil sont prêtes pour relecture.', 30),
@@ -239,7 +239,7 @@ export function createSeed(): DemoDB {
   ;[0, 1, 2, 3, 4, 5, 6].forEach((d, i) => habit_logs.push({ id: uid('hl', 40 + i), habit_id: uid('hab', 3), workspace_id: WS, day: day(-d) }))
 
   const time_entries: Row[] = [
-    { id: uid('te', 1), workspace_id: WS, user_id: ME, task_id: uid('task', 1), project_id: P1, note: 'Onboarding — écrans 1 à 3', kind: 'work', started_at: at(-1, 9, 0), ended_at: at(-1, 11, 30), created_at: created },
+    { id: uid('te', 1), workspace_id: WS, user_id: ME, task_id: uid('task', 1), project_id: P1, note: 'Onboarding : écrans 1 à 3', kind: 'work', started_at: at(-1, 9, 0), ended_at: at(-1, 11, 30), created_at: created },
     { id: uid('te', 2), workspace_id: WS, user_id: ME, task_id: uid('task', 2), project_id: P1, note: 'Slides démo', kind: 'work', started_at: at(-1, 14, 0), ended_at: at(-1, 15, 45), created_at: created },
     { id: uid('te', 3), workspace_id: WS, user_id: ME, task_id: null, project_id: null, note: null, kind: 'focus', started_at: at(0, 8, 30), ended_at: at(0, 8, 55), created_at: created },
   ]
@@ -278,10 +278,22 @@ export function createSeed(): DemoDB {
     { id: uid('fav', 1), user_id: ME, workspace_id: WS, entity_type: 'note', entity_id: uid('note', 1), title: 'Réunion de lancement du projet', url: `/app/${DEMO_WORKSPACE_SLUG}/notes/${uid('note', 1)}`, created_at: created },
   ]
 
+  // Captures d'exemple : un lien TikTok, une image et une note, pour montrer la fonction aux visiteurs
+  const C = (n: number, kind: string, fields: Partial<Row>, project: string | null, by: string, minutes: number): Row => ({
+    id: uid('capt', n), workspace_id: WS, project_id: project, project_ids: project ? [project] : [], kind, url: null, file_id: null, title: null, note: null,
+    status: 'nouveau', ai_analysis: false, preview: null, summary: null, knowledge: null, task_ids: [], obsidian_note: null,
+    created_by: by, created_at: ago(minutes), updated_at: ago(minutes), processed_at: null, deleted_at: null, ...fields,
+  })
+  const captures: Row[] = [
+    C(1, 'tiktok', { url: 'https://www.tiktok.com/@tiktok', title: 'Idée de format vidéo', note: 'Le rythme des sous-titres est bien : à reprendre pour nos vidéos de lancement.' }, P2, LEA, 35),
+    C(2, 'image', { file_id: uid('file', 3), title: 'Maquette onboarding', note: 'Version validée par Sophie, écran 2 à revoir.', status: 'vu' }, P1, SOPHIE, 240),
+    C(3, 'texte', { title: 'Retour client', note: 'Le client veut pouvoir exporter le tableau de bord en PDF. À discuter au prochain sprint.' }, null, ME, 1440),
+  ]
+
   const db: DemoDB = {
     profiles, workspaces, workspace_members, invitations: [], projects, tasks, task_comments, notes, note_versions, events, conversations, conversation_members, messages, reactions,
     files, meetings, goals, key_results, crm_contacts, crm_deals, automations, whiteboards, habits, habit_logs, time_entries, invoices, forms, form_responses, notifications,
-    push_subscriptions: [], activity_logs, favorites, meeting_participants: [],
+    push_subscriptions: [], activity_logs, favorites, meeting_participants: [], captures,
   }
   addKalimat(db, now)
   return db

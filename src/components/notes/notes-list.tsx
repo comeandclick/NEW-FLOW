@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { FileText, LayoutTemplate, Lightbulb, Pin, Plus, Search, Tag as TagIcon, UserCheck } from 'lucide-react'
+import { BookOpen, FileText, LayoutTemplate, Lightbulb, Pin, Plus, Search, Tag as TagIcon, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { HubTabs } from '@/components/shell/hub-tabs'
 import { Button } from '@/components/ui/button'
@@ -75,7 +75,7 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
   const Card = ({ n, i }: { n: Note; i: number }) => (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.03 }}>
       <Link href={`${base}/${n.id}`} className="group flex h-full flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
-        <div className="flex items-center gap-2"><span className="text-lg">{n.icon ?? (n.kind === 'note' ? '📄' : '📘')}</span>{n.is_pinned && <Pin className="size-3 text-accent-ink" />}<span className="flex-1" />
+        <div className="flex items-center gap-2">{n.icon ? <span className="text-lg">{n.icon}</span> : n.kind === 'note' ? <FileText className="size-4 text-text-3" /> : <BookOpen className="size-4 text-text-3" />}{n.is_pinned && <Pin className="size-3 text-accent-ink" />}<span className="flex-1" />
           {n.kind !== 'note' && <Badge>{t(`notes.kind.${n.kind}`)}</Badge>}</div>
         <h3 className="line-clamp-2 text-[14px] font-semibold leading-snug">{n.title || t('notes.untitled')}</h3>
         <p className="line-clamp-3 flex-1 text-[13px] leading-relaxed text-text-2">{plain(n) || '—'}</p>

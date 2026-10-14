@@ -65,7 +65,7 @@ export const common = {
     'common.exitDemo': 'Quitter la démo',
     'common.signOut': 'Se déconnecter',
     'common.soon': 'Bientôt',
-    'status.backlog': 'Backlog',
+    'status.backlog': 'À planifier',
     'status.todo': 'À faire',
     'status.in_progress': 'En cours',
     'status.in_review': 'En revue',

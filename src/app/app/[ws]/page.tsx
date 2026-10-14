@@ -134,7 +134,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between border-b border-border px-4 py-3"><h2 className="text-sm font-semibold">{t('home.recentNotes')}</h2></div>
             <ul className="p-2">{notesQ.data.map((n) => (
               <li key={n.id}><Link href={`/app/${ws.slug}/notes/${n.id}`} className="flex items-center gap-2.5 rounded-lg p-2.5 hover:bg-surface-2">
-                <span className="text-base">{n.icon ?? '📄'}</span><span className="min-w-0 flex-1 truncate text-[13px]">{n.title || '—'}</span>
+                {n.icon ? <span className="text-base">{n.icon}</span> : <FileText className="size-4 shrink-0 text-text-3" />}<span className="min-w-0 flex-1 truncate text-[13px]">{n.title || '—'}</span>
                 <span className="shrink-0 text-[11px] text-text-3">{formatDistanceToNow(new Date(n.updated_at), { locale: dfl })}</span>
               </Link></li>
             ))}</ul>

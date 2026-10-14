@@ -25,11 +25,11 @@ type T = { title: string; status: KStatus; priority?: KPriority; project: 'v2' |
 /** `due` = days from today. Sources are cited in each description. */
 export const tasks: T[] = [
   // ── 2.0 : fait (✅ dans TODO.md) ──
-  { title: 'Parcours d’arrivée : mode invité, onboarding 13 étapes, étape abonnement', status: 'done', project: 'v2', tags: ['onboarding'], description: 'TODO.md §B.1 et §B.3 — vérifié sur simulateur vierge.' },
+  { title: 'Parcours d’arrivée : mode invité, onboarding 13 étapes, étape abonnement', status: 'done', project: 'v2', tags: ['onboarding'], description: 'TODO.md §B.1 et §B.3, vérifié sur simulateur vierge.' },
   { title: 'Alphabet et Chiffres (pages + accès depuis Cours)', status: 'done', project: 'v2', tags: ['contenu'], description: 'TODO.md §C.' },
   { title: 'Kalimat AI : discussion, exercices guidés, traduction, mode vocal', status: 'done', priority: 'high', project: 'v2', tags: ['ia'], description: 'Mode vocal (speech_to_text ar-SA) ajouté ; dictée réelle non testée faute de micro sur le simulateur. TODO.md §-5.' },
   { title: 'Lecture interactive (liste, texte, analyse de mot par IA, mini-quiz)', status: 'done', project: 'v2', tags: ['contenu', 'ia'], description: 'TODO.md §C.' },
-  { title: 'Exercices : phrase à compléter, remettre en ordre, dialogues, mini-jeux (mémoire, chasse, tri, combo, intrus)', status: 'done', project: 'v2', tags: ['exercices'], description: 'TODO.md §D — modules enregistrés sous `phrase` (contrainte DB de la 1.0).' },
+  { title: 'Exercices : phrase à compléter, remettre en ordre, dialogues, mini-jeux (mémoire, chasse, tri, combo, intrus)', status: 'done', project: 'v2', tags: ['exercices'], description: 'TODO.md §D, modules enregistrés sous `phrase` (contrainte DB de la 1.0).' },
   { title: 'Leçons de grammaire et d’alphabet avant les cercles', status: 'done', project: 'v2', tags: ['exercices'], description: 'TODO.md §D.' },
   { title: 'Gamification : séries, gel et réparation de série, quêtes, défis, succès, boutique, pass', status: 'done', project: 'v2', tags: ['gamification'], description: 'TODO.md §B.6 et §E.' },
   { title: 'Notifications : liste temps réel + rappels locaux (phrase du jour, série en danger, récap)', status: 'done', project: 'v2', tags: ['notifications'], description: 'TODO.md §B.7.' },
@@ -38,7 +38,7 @@ export const tasks: T[] = [
   { title: 'Parrainage', status: 'done', project: 'v2', tags: ['gamification'], description: 'Page dédiée, vérifié en direct. Bug `attempts` 42501 corrigé en prod via trigger SECURITY DEFINER.' },
   { title: 'Reprise d’une session d’exercices interrompue', status: 'done', project: 'v2', tags: ['exercices'] },
   { title: 'Polices arabes : Système / Amiri / Lateef (comme la 1.0)', status: 'done', project: 'v2', tags: ['design'], description: 'Choix dans Réglages > Accessibilité > Police arabe.' },
-  { title: 'Chargement : les 4 onglets se préchargent en parallèle pendant le splash', status: 'done', project: 'v2', tags: ['perf'], description: 'core/providers/warmup.dart — Accueil et Carnet s’affichent déjà remplis.' },
+  { title: 'Chargement : les 4 onglets se préchargent en parallèle pendant le splash', status: 'done', project: 'v2', tags: ['perf'], description: 'core/providers/warmup.dart, Accueil et Carnet s’affichent déjà remplis.' },
   { title: 'Quiz en direct (PIN, lobby, compte à rebours serveur, classement)', status: 'done', project: 'v2', tags: ['social', 'temps-réel'], description: 'Réécrit sur l’API publique, vérifié contre une vraie salle. TODO.md §-8.' },
   { title: 'Forum (liste, questions, réponses, signaler/bloquer)', status: 'done', project: 'v2', tags: ['social'], description: 'Écriture (publier) non testée sur la base de prod.' },
   { title: 'Thèmes de vocabulaire (7 thèmes)', status: 'done', project: 'v2', tags: ['contenu'] },
@@ -72,8 +72,8 @@ export const tasks: T[] = [
   { title: 'Lien externe vers la page don du site (clarifier)', status: 'backlog', priority: 'low', project: 'v2', tags: ['paiements'], description: 'Hors scope mobile : StoreKit ne couvre que Premium.' },
   { title: 'Écrire les tests automatisés (sessions, parcours, calcul XP/série)', status: 'todo', priority: 'high', project: 'v2', tags: ['qualité'], due: 14, description: 'PLAN.md §13 : tests sur chaque fonctionnalité critique (auth, écriture d’attempts, XP/série).' },
   { title: 'Icône, écran de lancement, nom définitif', status: 'todo', project: 'v2', tags: ['design'], due: 10, description: 'flutter_launcher_icons + flutter_native_splash. TODO.md §G.' },
-  { title: 'Phase 21 : accessibilité, biométrie, polish final', status: 'backlog', project: 'v2', tags: ['accessibilité'], description: 'PLAN.md — dernière phase avant « app finie ».' },
-  { title: 'Déployer les modifications du prompt IA (aiChat.ts) — actuellement locales', status: 'todo', priority: 'medium', project: 'v2', tags: ['ia'], description: 'Guidage par exercice, mode vocal, modèle gpt-oss-120b + repli 20b. Non commité/déployé : demander l’accord.' },
+  { title: 'Phase 21 : accessibilité, biométrie, polish final', status: 'backlog', project: 'v2', tags: ['accessibilité'], description: 'PLAN.md, dernière phase avant « app finie ».' },
+  { title: 'Déployer les modifications du prompt IA (aiChat.ts), actuellement locales', status: 'todo', priority: 'medium', project: 'v2', tags: ['ia'], description: 'Guidage par exercice, mode vocal, modèle gpt-oss-120b + repli 20b. Non commité/déployé : demander l’accord.' },
   { title: 'Compte de test à 0 min de quota IA gratuit : réalimenter', status: 'todo', priority: 'low', project: 'v2', tags: ['ia', 'qa'] },
 
   // ── 1.0 / web ──
@@ -81,7 +81,7 @@ export const tasks: T[] = [
   { title: 'Web : vérifier zéro emoji dans l’interface', status: 'todo', project: 'v1', tags: ['parité', 'design'] },
   { title: 'Web phase 2 : Accueil/Parcours, Révision, Cours, Profil au design mobile', status: 'in_progress', priority: 'high', project: 'v1', tags: ['parité', 'design'], description: 'Palette sombre alignée, système de relief et boutons faits (phase 1).' },
   { title: 'Web phase 3 : Paramètres, Boutique, Abonnement, Alphabet, Dictionnaire, Films, Forum, Amis, Classement…', status: 'backlog', project: 'v1', tags: ['parité'] },
-  { title: 'Boutique : perf d’ouverture — une seule route batchée cache-first', status: 'backlog', project: 'v1', tags: ['perf'], description: 'Aujourd’hui 3 requêtes parallèles (gems, cosmétiques, offre flash).' },
+  { title: 'Boutique : perf d’ouverture, une seule route batchée cache-first', status: 'backlog', project: 'v1', tags: ['perf'], description: 'Aujourd’hui 3 requêtes parallèles (gems, cosmétiques, offre flash).' },
   { title: 'Pass Kalimat : refonte visuelle des paliers', status: 'backlog', project: 'v1', tags: ['design'], description: 'Demande de passe design avec maquettes.' },
   { title: 'Auditer les autres écrans pour l’anti-pattern `.in(\'course_id\', ...)` sur grandes listes', status: 'backlog', project: 'v1', tags: ['perf'] },
   { title: 'Test de placement adaptatif à 15 questions branché sur `placement_niveau`', status: 'backlog', project: 'v1', tags: ['gamification'], description: 'Aujourd’hui : auto-déclaratif à 11 choix, déconnecté du test d’onboarding.' },
@@ -99,7 +99,7 @@ export const tasks: T[] = [
   { title: 'Créer l’app dans App Store Connect (com.kalimat.new.app)', status: 'backlog', project: 'launch', tags: ['apple'] },
   { title: 'Archive Xcode + upload du premier build TestFlight', status: 'backlog', project: 'launch', tags: ['apple'] },
   { title: 'Inviter le collègue testeur (TestFlight interne)', status: 'backlog', project: 'launch', tags: ['apple', 'qa'] },
-  { title: 'Vérifier le compte de démonstration apple.review@kalimat.site', status: 'todo', project: 'launch', tags: ['qa'], description: 'TESTFLIGHT_PREPARATION.md — checklist avant envoi aux testeurs.' },
+  { title: 'Vérifier le compte de démonstration apple.review@kalimat.site', status: 'todo', project: 'launch', tags: ['qa'], description: 'TESTFLIGHT_PREPARATION.md, checklist avant envoi aux testeurs.' },
   { title: 'Tenir la promesse de modération du forum sous 24 h', status: 'todo', project: 'launch', tags: ['légal'] },
   { title: 'Mentions légales : compléter SIRET et siège social', status: 'todo', priority: 'high', project: 'launch', tags: ['légal'] },
   { title: 'Checklist finale App Store Connect + tableau App Privacy', status: 'backlog', project: 'launch', tags: ['apple', 'légal'], description: 'AUDIT_PROGRESS.md : ~83 tables pas encore inspectées pour la confidentialité.' },
@@ -155,7 +155,7 @@ export const goals = [
   },
   {
     title: 'Parité fonctionnelle 2.0 avec la 1.0', color: '#6366f1', due: 45, target: 100, current: 80, unit: '%',
-    description: 'Phases 1–21 du plan. Estimation à partir des ✅ de TODO.md ; les blocs sociaux et classes restent non testés en réel.',
+    description: 'Phases 1–21 du plan. Estimation à partir des cases cochées de TODO.md ; les blocs sociaux et classes restent non testés en réel.',
     krs: [
       { title: 'Auth, onboarding, exercices, gamification', target: 100, current: 95, unit: '%' },
       { title: 'Social : amis, clans, forum, duels, quiz', target: 100, current: 85, unit: '%' },
@@ -202,11 +202,11 @@ export const files = [
   { name: 'CHANGELOG.md', folder: '/Kalimat 1.0', src: 'Developer/kalimat/CHANGELOG.md', mime: 'text/markdown' },
 ] as const
 
-type N = { title: string; icon: string; kind: 'note' | 'doc' | 'wiki'; tags: string[]; pinned?: boolean; project?: 'v2' | 'v1' | 'launch'; md: string }
+type N = { title: string; icon: string | null; kind: 'note' | 'doc' | 'wiki'; tags: string[]; pinned?: boolean; project?: 'v2' | 'v1' | 'launch'; md: string }
 
 export const notes: N[] = [
   {
-    title: 'Kalimat : vue d’ensemble', icon: '🧭', kind: 'wiki', tags: ['référence'], pinned: true, md: `# Kalimat : vue d’ensemble
+    title: 'Kalimat : vue d’ensemble', icon: null, kind: 'wiki', tags: ['référence'], pinned: true, md: `# Kalimat : vue d’ensemble
 Application pour apprendre l’arabe, pensée pour les francophones : gamification façon Duolingo, mais avec une vraie progression grammaticale, les voyelles (harakat) affichées et un alphabet complet.
 
 ## Les trois produits
@@ -223,7 +223,7 @@ Application pour apprendre l’arabe, pensée pour les francophones : gamificati
 - 10 chapitres, 275 cours, 1 938 mots vérifiés, 12 modes d’exercices.
 - Révision espacée, ligues, quêtes, séries, boutique, pass.` },
   {
-    title: 'Règles dures et décisions', icon: '🔒', kind: 'wiki', tags: ['référence', 'règles'], pinned: true, md: `# Règles dures et décisions
+    title: 'Règles dures et décisions', icon: null, kind: 'wiki', tags: ['référence', 'règles'], pinned: true, md: `# Règles dures et décisions
 ## À ne jamais casser sans demander
 - **Ne jamais toucher à l’app 1.0** (\`~/kalimat\` et \`kalimat-mobile\`) depuis le projet 2.0 : lecture seule, copier en lisant, jamais en éditant.
 - **Jamais d’envoi sur App Store Connect** sans autorisation explicite.
@@ -245,7 +245,7 @@ Application pour apprendre l’arabe, pensée pour les francophones : gamificati
 - Animations : flutter_animate, Hero, Rive si besoin. Thème custom via \`ThemeExtension\`, pas le Material par défaut.
 - Qualité : very_good_analysis, \`dart format\`.` },
   {
-    title: 'Plan de développement 2.0 (22 phases)', icon: '🗺️', kind: 'doc', tags: ['plan'], project: 'v2', md: `# Plan de développement 2.0
+    title: 'Plan de développement 2.0 (22 phases)', icon: null, kind: 'doc', tags: ['plan'], project: 'v2', md: `# Plan de développement 2.0
 ## Phases
 - Phase 1 : fondations techniques
 - Phase 2 : auth (login, register, OAuth, invité, mot de passe oublié)
@@ -277,7 +277,7 @@ Application pour apprendre l’arabe, pensée pour les francophones : gamificati
 - 0 warning \`flutter analyze\`, 0 code mort, tests sur chaque fonctionnalité critique.
 - La phase 22 (monétisation) est exclue tant que tu ne redonnes pas le feu vert.` },
   {
-    title: 'Relancer une session de travail', icon: '▶️', kind: 'wiki', tags: ['procédure'], project: 'v2', md: `# Relancer une session
+    title: 'Relancer une session de travail', icon: null, kind: 'wiki', tags: ['procédure'], project: 'v2', md: `# Relancer une session
 ## Un clic
 L’icône « Kalimat2 Dev » au Dock lance \`scripts/start_session.sh\` : \`git pull\`, \`flutter pub get\`, VS Code, simulateur iOS, émulateur Android (\`Kalimat2_Pixel\`), puis \`flutter run\` en hot reload.
 
@@ -296,7 +296,7 @@ L’icône « Kalimat2 Dev » au Dock lance \`scripts/start_session.sh\` : \`git
 - Avec \`LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8\` sinon CocoaPods plante.
 - Déploiement web : \`vercel deploy --prod --yes\` depuis la racine.` },
   {
-    title: 'Journal de reprise : 8 octobre 2026', icon: '📓', kind: 'note', tags: ['journal'], project: 'v2', pinned: true, md: `# Journal de reprise : 8 octobre 2026
+    title: 'Journal de reprise : 8 octobre 2026', icon: null, kind: 'note', tags: ['journal'], project: 'v2', pinned: true, md: `# Journal de reprise : 8 octobre 2026
 ## Nettoyage
 - Tirets longs retirés des textes, doublons Phonétique/Voyelles et verrouillage biométrique supprimés des Réglages, étoile Premium visible sur l’abonnement.
 - Compte de test en abonnement actif jusqu’au 2027-10-08.
@@ -322,7 +322,7 @@ L’icône « Kalimat2 Dev » au Dock lance \`scripts/start_session.sh\` : \`git
 - Les modifications IA (\`aiChat.ts\`, \`route.ts\`) restent locales, non déployées.
 - Compte de test à 0 minute de quota IA gratuit.` },
   {
-    title: 'Préparation TestFlight', icon: '✈️', kind: 'doc', tags: ['publication'], project: 'launch', md: `# Préparation TestFlight
+    title: 'Préparation TestFlight', icon: null, kind: 'doc', tags: ['publication'], project: 'launch', md: `# Préparation TestFlight
 ## Ordre des opérations (compte Apple Developer actif)
 - [ ] Vérifier l’adhésion sur developer.apple.com et noter le Team ID
 - [ ] Inviter le collègue dans App Store Connect (rôle Développeur ou Marketing)
@@ -348,7 +348,7 @@ L’icône « Kalimat2 Dev » au Dock lance \`scripts/start_session.sh\` : \`git
 ## En attendant
 Tester via le site (kalimat.site) ou via un build Xcode sur l’iPhone du testeur (expire au bout de 7 jours).` },
   {
-    title: 'Business plan : résumé', icon: '💶', kind: 'doc', tags: ['business'], project: 'launch', md: `# Business plan : résumé
+    title: 'Business plan : résumé', icon: null, kind: 'doc', tags: ['business'], project: 'launch', md: `# Business plan : résumé
 ## Positionnement
 Entre Duolingo (cours d’arabe limité) et les méthodes académiques : rigueur pédagogique (harakat, vraie grammaire, alphabet complet) et expérience motivante et moderne.
 
@@ -376,7 +376,7 @@ Entre Duolingo (cours d’arabe limité) et les méthodes académiques : rigueur
 - Concurrence des plateformes gratuites
 - Un seul développeur actif, pas de compte Apple payant` },
   {
-    title: 'Audit App Store : ce qui reste', icon: '🔎', kind: 'doc', tags: ['publication', 'qualité'], project: 'launch', md: `# Audit App Store : ce qui reste
+    title: 'Audit App Store : ce qui reste', icon: null, kind: 'doc', tags: ['publication', 'qualité'], project: 'launch', md: `# Audit App Store : ce qui reste
 ## Restant à faire
 - Accessibilité : passage exhaustif (pas seulement un échantillon de 25 fichiers)
 - iPad : 17 usages de \`Dimensions.get('window')\` à vérifier sur simulateur iPad
@@ -396,7 +396,7 @@ Entre Duolingo (cours d’arabe limité) et les méthodes académiques : rigueur
 - Sécurité : 202 routes API passées en revue, routes admin protégées par rôle, cron et push par secret
 - Crashs : deux causes racines fermées (skew de version et course entre refresh et hydratation)` },
   {
-    title: 'Parité web et mobile', icon: '🎨', kind: 'note', tags: ['design', 'parité'], project: 'v1', md: `# Parité design web ↔ mobile
+    title: 'Parité web et mobile', icon: null, kind: 'note', tags: ['design', 'parité'], project: 'v1', md: `# Parité design web ↔ mobile
 ## Convention
 Le web reprend le design de l’app mobile : palette sombre alignée, système de relief (« lip »), boutons à relief par variante.
 
@@ -415,7 +415,7 @@ Le web reprend le design de l’app mobile : palette sombre alignée, système d
 - [ ] Défis et duels temps réel, quêtes du jour, multi-compte web
 - [ ] Passage de bugs et thème clair/sombre page par page` },
   {
-    title: 'Idées en vrac', icon: '💡', kind: 'note', tags: ['idées'], md: `# Idées en vrac
+    title: 'Idées en vrac', icon: null, kind: 'note', tags: ['idées'], md: `# Idées en vrac
 - Test de placement adaptatif à 15 questions branché sur \`placement_niveau\`
 - Coffre de fin de chapitre sur mobile
 - Boutique : route unique batchée et cache-first

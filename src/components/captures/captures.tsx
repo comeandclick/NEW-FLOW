@@ -15,6 +15,7 @@ import { MAX_FILE_BYTES, signedUrl, uploadToBucket } from '@/lib/storage'
 import { captureLabel, cleanCaptureUrl, currentProjectOf, embedUrl, inferCaptureKind, MAX_CAPTURE_NOTE, projectsOf, type CapturePreview } from '@/lib/captures'
 import { projectPath, projectTree } from '@/lib/projects'
 import { cn } from '@/lib/utils'
+import { isDemoBrowser } from '@/lib/demo/runtime'
 import { useI18n } from '@/i18n/provider'
 import type { Capture, FileRow } from '@/lib/types'
 
@@ -206,7 +207,8 @@ function Media({ capture, file }: { capture: Capture; file?: FileRow }) {
   const [prev, setPrev] = useState<CapturePreview | null>(stored ? { ...stored, thumbnail: stored.thumbnail ? `/api/captures/thumb?id=${capture.id}` : null } : null)
   const [broken, setBroken] = useState(false)
   useEffect(() => {
-    if (!social || prev) return
+    // mode démo : pas de session côté serveur pour chercher l'aperçu
+    if (!social || prev || isDemoBrowser()) return
     let alive = true
     fetch(`/api/captures/preview?id=${capture.id}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive && j?.preview) setPrev(j.preview) }).catch(() => {})
     return () => { alive = false }
@@ -253,7 +255,7 @@ function Media({ capture, file }: { capture: Capture; file?: FileRow }) {
     )
   }
   if (isImage) return src
-    ? <a href={src} target="_blank" rel="noopener noreferrer" className="block w-fit"><img src={src} alt="" className="max-h-80 w-auto max-w-full rounded-xl bg-surface-3 object-contain" /></a> // eslint-disable-line @next/next/no-img-element
+    ? <a href={src} target="_blank" rel="noopener noreferrer" aria-label={`${t('cap.openFile')} : ${captureLabel(capture)}`} className="block w-fit"><img src={src} alt="" className="max-h-80 w-auto max-w-full rounded-xl bg-surface-3 object-contain" /></a> // eslint-disable-line @next/next/no-img-element
     : <div className="skeleton h-40 w-40" />
   return null
 }
