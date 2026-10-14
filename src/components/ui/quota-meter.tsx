@@ -11,7 +11,7 @@ export function QuotaMeter({ titre, utilise, total, unite = '', reprise, classNa
     <div className={cn('rounded-xl border border-border bg-surface p-4 shadow-sm', className)}>
       <div className="flex items-center justify-between gap-3 text-xs"><span className="font-medium text-text-2">{titre}</span>{reprise && <span className="text-text-3">{reprise}</span>}</div>
       <div className="mt-1.5 flex items-baseline gap-1.5"><span className={cn('text-2xl font-semibold tabular-nums tracking-tight', couleur)}>{f(afficher === 'restant' ? reste : utilise)}{unite}</span><span className="text-xs text-text-3">{afficher === 'restant' ? `/ ${f(total)}${unite} restants` : `utilisés sur ${f(total)}${unite}`}</span></div>
-      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-text/10"><div className={cn('h-full rounded-full transition-[width] duration-700', barre)} style={{ width: `${Math.round(part * 100)}%` }} /></div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-text/10"><div className={cn('h-full rounded-full transition-[width] duration-700', barre)} style={{ width: `${Math.round((afficher === 'restant' ? part : Math.min(1, utilise / Math.max(total, 1e-9))) * 100)}%` }} /></div>
     </div>
   )
 }
