@@ -19,8 +19,8 @@ function limited(id: string) {
 
 export async function POST(req: Request) {
   if (!sameOrigin(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return NextResponse.json({ error: 'no_key' }, { status: 501 })
+  const key = process.env.ANTHROPIC_API_KEY, groq = process.env.GROQ_API_KEY
+  if (!key && !groq) return NextResponse.json({ error: 'no_key' }, { status: 501 })
   const db = await getServerDb()
   const { data: { user } } = await db.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -39,18 +39,40 @@ Ex. « mes tâches du jour » → une phrase courte (« Voici tes tâches du jou
 Pour créer quelque chose, ajoute une ligne exacte <action>{"type":"create_task","title":"..."}</action> (ou create_note avec "body", create_event avec "at" en ISO-8601), seulement si l'utilisateur le demande.
 Aperçu de l'espace (JSON) : ${JSON.stringify(body.context ?? {}).slice(0, 12000)}`
 
+  // 1) Claude (clé Anthropic) si elle existe ; 2) sinon Groq (gratuit) : une seule clé, et on passe au modèle suivant quand l'un atteint
+  //    sa limite (les limites gratuites de Groq sont par compte ET par modèle) ; 3) sinon la page bascule sur la compréhension locale.
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1200, system, messages, tools: OUTILS, tool_choice: { type: 'auto' } }),
-    })
-    if (!r.ok) return NextResponse.json({ error: 'upstream', status: r.status }, { status: 502 })
-    const data = await r.json()
-    const blocs = (data.content ?? []) as { type: string; text?: string; name?: string; input?: Record<string, unknown> }[]
-    const text = blocs.filter((c) => c.type === 'text').map((c) => c.text).join('\n')
-    const widgets = blocs.filter((c) => c.type === 'tool_use').map((c) => versWidget(c.name ?? '', c.input ?? {})).filter(Boolean)
-    return NextResponse.json({ text, widgets })
+    if (key) {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: MODEL, max_tokens: 1200, system, messages, tools: OUTILS, tool_choice: { type: 'auto' } }),
+      })
+      if (r.ok) {
+        const data = await r.json()
+        const blocs = (data.content ?? []) as { type: string; text?: string; name?: string; input?: Record<string, unknown> }[]
+        const text = blocs.filter((c) => c.type === 'text').map((c) => c.text).join('\n')
+        const widgets = blocs.filter((c) => c.type === 'tool_use').map((c) => versWidget(c.name ?? '', c.input ?? {})).filter(Boolean)
+        return NextResponse.json({ text, widgets, moteur: 'claude' })
+      }
+      if (!groq) return NextResponse.json({ error: 'upstream', status: r.status }, { status: 502 })
+    }
+    const modeles = (process.env.GROQ_MODELES ?? 'llama-3.3-70b-versatile,openai/gpt-oss-120b,qwen/qwen3-32b,llama-3.1-8b-instant').split(',').map((m) => m.trim()).filter(Boolean)
+    const outils = OUTILS.map((o) => ({ type: 'function', function: { name: o.name, description: o.description, parameters: o.input_schema } }))
+    for (const modele of modeles) {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${groq}` },
+        body: JSON.stringify({ model: modele, max_tokens: 1200, temperature: 0.4, messages: [{ role: 'system', content: system }, ...messages], tools: outils, tool_choice: 'auto' }),
+      })
+      if (r.status === 429 || r.status === 404 || r.status === 400 || r.status >= 500) continue // limite atteinte ou modèle indisponible → modèle suivant
+      if (!r.ok) return NextResponse.json({ error: 'upstream', status: r.status }, { status: 502 })
+      const data = await r.json()
+      const m = data.choices?.[0]?.message ?? {}
+      const widgets = ((m.tool_calls ?? []) as { function: { name: string; arguments: string } }[]).map((c) => { try { return versWidget(c.function.name, JSON.parse(c.function.arguments || '{}')) } catch { return null } }).filter(Boolean)
+      const text = String(m.content ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+      return NextResponse.json({ text, widgets, moteur: `groq:${modele}` })
+    }
+    return NextResponse.json({ error: 'limite' }, { status: 429 })
   } catch {
     return NextResponse.json({ error: 'network' }, { status: 502 })
   }
