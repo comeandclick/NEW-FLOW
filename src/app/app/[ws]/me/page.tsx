@@ -176,7 +176,7 @@ function CalendarTab() {
 
       <div className="min-w-0 space-y-4">
         <section>
-          <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-semibold capitalize">{format(picked, 'EEEE d MMMM', { locale: dfl })}</h2>
+          <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-semibold first-letter:uppercase">{format(picked, 'EEEE d MMMM', { locale: dfl })}</h2>
             <Button size="sm" variant="primary" onClick={() => openNew(picked)}><Plus className="size-3.5" />{t('perso.newEvent')}</Button></div>
           {dayEvents.length ? <ul className="space-y-1.5">{dayEvents.map(row)}</ul> : <p className="rounded-xl border border-dashed border-border px-3 py-5 text-center text-sm text-text-3">{t('perso.noEvents')}</p>}
         </section>

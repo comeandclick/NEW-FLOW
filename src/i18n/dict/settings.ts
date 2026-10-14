@@ -85,7 +85,7 @@ export const settings = {
     'set.notif.events': 'Calendrier',
     'set.notif.events.hint': 'Invitations et rappels d’événements.',
     'set.notif.remindBefore': 'Rappel 5 minutes avant',
-    'set.notif.remindBefore.hint': '« Dans 5 min : … » avant chacune de tes tâches et événements à heure fixe.',
+    'set.notif.remindBefore.hint': '« Dans 5 min : … » avant chacune de vos tâches et événements à heure fixe.',
     'set.notif.remindNow': 'Rappel à l’heure',
     'set.notif.remindNow.hint': '« C’est l’heure : … » au moment prévu.',
     'set.notif.agents': 'Session de travail des agents',

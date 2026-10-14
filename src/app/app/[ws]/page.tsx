@@ -66,7 +66,7 @@ export default function HomePage() {
       <motion.div {...fade(0)} className="mb-7 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{greeting}, {me?.full_name?.split(' ')[0] ?? ''}</h1>
-          <p className="mt-1 text-sm capitalize text-text-3">{format(new Date(), 'EEEE d MMMM yyyy', { locale: dfl })}</p>
+          <p className="mt-1 text-sm text-text-3 first-letter:uppercase">{format(new Date(), 'EEEE d MMMM yyyy', { locale: dfl })}</p>
         </div>
         <DigestButton tasks={tasksQ.data} />
       </motion.div>

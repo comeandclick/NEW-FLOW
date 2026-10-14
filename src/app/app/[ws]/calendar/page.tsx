@@ -222,7 +222,7 @@ function CalendarPage() {
       {view === 'month' && (
         <section aria-label={format(picked, 'PPPP', { locale: dfl })} className="mt-3 shrink-0 sm:hidden">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold capitalize">{format(picked, 'EEEE d MMMM', { locale: dfl })}</h2>
+            <h2 className="text-sm font-semibold first-letter:uppercase">{format(picked, 'EEEE d MMMM', { locale: dfl })}</h2>
             {canWrite && <Button size="sm" onClick={() => openNew(picked, true)}><Plus className="size-3.5" />{t('cal.newEvent')}</Button>}
           </div>
           <ul className="space-y-1.5">
