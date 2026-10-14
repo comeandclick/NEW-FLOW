@@ -11,8 +11,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ size: st
   const tile = maskable ? px : Math.round(px * 0.8)
   return new ImageResponse(
     (
-      <div style={{ width: px, height: px, display: 'flex', alignItems: 'center', justifyContent: 'center', background: maskable || px === 180 ? '#5b5fe0' : 'transparent' }}>
-        <div style={{ width: tile, height: tile, borderRadius: maskable || px === 180 ? 0 : tile * 0.24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#8b90f5,#4f52c8)', color: 'white', fontSize: tile * 0.62, fontWeight: 800, fontFamily: 'sans-serif' }}>F</div>
+      <div style={{ width: px, height: px, display: 'flex', alignItems: 'center', justifyContent: 'center', background: maskable || px === 180 ? '#0a0a0a' : 'transparent' }}>
+        <div style={{ width: tile, height: tile, borderRadius: maskable || px === 180 ? 0 : tile * 0.24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#262626,#0a0a0a)', color: 'white', fontSize: tile * 0.62, fontWeight: 800, fontFamily: 'sans-serif' }}>F</div>
       </div>
     ),
     { width: px, height: px },

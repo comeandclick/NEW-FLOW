@@ -6,7 +6,8 @@ import { DndContext, DragOverlay, PointerSensor, TouchSensor, useDraggable, useD
 import { format, isPast, isToday } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { CheckSquare, ChevronDown, Columns3, List, Plus, Search } from 'lucide-react'
+import { CheckSquare, ChevronDown, Columns3, List, Plus, Search, Table2 } from 'lucide-react'
+import { TableauTaches } from '@/components/tasks/tableau-taches'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -83,7 +84,7 @@ function TasksPage() {
   const params = useSearchParams()
   const { ws, projects, canWrite, log, notifyUser } = useWorkspace()
   const { userId } = useSession()
-  const [view, setView] = useState<'list' | 'board'>('list')
+  const [view, setView] = useState<'list' | 'board' | 'table'>('list')
   const [scope, setScope] = useState<'all' | 'mine'>('all')
   const [project, setProject] = useState('')
   const [q, setQ] = useState('')
@@ -96,7 +97,7 @@ function TasksPage() {
   const { data, setData, loading, refresh } = useLive<Task>('tasks', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['position', true] })
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }))
 
-  useEffect(() => { try { const v = localStorage.getItem('flow_tasks_view'); if (v === 'board' || v === 'list') setView(v) } catch {} }, [])
+  useEffect(() => { try { const v = localStorage.getItem('flow_tasks_view'); if (v === 'board' || v === 'list' || v === 'table') setView(v) } catch {} }, [])
   useEffect(() => { if (params.get('new') === '1') { document.getElementById('quick-add')?.focus(); router.replace(`/app/${ws.slug}/tasks`) } }, [params, router, ws.slug])
   useEffect(() => { const o = params.get('open'); if (o) setOpenId(o) }, [params])
 
@@ -149,7 +150,7 @@ function TasksPage() {
         <HubTabs hub="tasks" />
         <PageHeader title={t('tasks.title')} subtitle={t('tasks.subtitle', { n: filtered.length })} icon={<CheckSquare className="size-[18px]" />}
           actions={<><CsvMenu kind="tasks" onDone={refresh} /><Tabs value={view} onChange={(v) => { setView(v); try { localStorage.setItem('flow_tasks_view', v) } catch {} }}
-            items={[{ value: 'list', label: t('tasks.view.list'), icon: <List className="size-3.5" /> }, { value: 'board', label: t('tasks.view.board'), icon: <Columns3 className="size-3.5" /> }]} /></>} />
+            items={[{ value: 'list', label: t('tasks.view.list'), icon: <List className="size-3.5" /> }, { value: 'board', label: t('tasks.view.board'), icon: <Columns3 className="size-3.5" /> }, { value: 'table', label: 'Tableau', icon: <Table2 className="size-3.5" /> }]} /></>} />
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative min-w-40 flex-1 sm:max-w-xs"><Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-text-3" /><Input className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('tasks.search')} /></div>
           <Tabs value={scope} onChange={setScope} items={[{ value: 'all', label: t('tasks.filter.all') }, { value: 'mine', label: t('tasks.filter.mine') }]} />
@@ -168,6 +169,7 @@ function TasksPage() {
       <div className="min-h-0 flex-1 overflow-auto px-4 pb-8 sm:px-6">
         {loading ? <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-11" />)}</div>
           : filtered.length === 0 ? <EmptyState icon={<CheckSquare className="size-5" />} title={t('tasks.empty')} hint={t('tasks.emptyHint')} />
+          : view === 'table' ? <TableauTaches tasks={filtered} onOpen={open} canWrite={canWrite} refresh={refresh} />
           : view === 'list' ? (
             <div className="space-y-4">
               {STATUSES.filter((s) => byStatus[s].length > 0).map((s) => (
