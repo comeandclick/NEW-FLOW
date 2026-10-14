@@ -28,7 +28,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
   const router = useRouter()
-  const { ws, canWrite, log, notifyUser, me, nameOf } = useWorkspace()
+  const { ws, canWrite, log, notifyUser, me, nameOf, projects } = useWorkspace()
+  const clientsQ = useLive<{ id: string; name: string }>('clients', { select: 'id,name', eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['name', true] })
   const tagMeta = useTagMeta(ws.id)
   const { userId } = useSession()
   const [note, setNote] = useState<Note | null>(null)
@@ -146,12 +147,23 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         <span className="text-[11px] text-text-3">· {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: dfl })}</span>
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-2 pl-1">
+        <span className="text-xs font-medium text-text-3">Dossier</span>
+        <select disabled={!canWrite} aria-label="Dossier de la note" value={note.project_id ? `projet:${note.project_id}` : note.tags.find((x) => x.startsWith('client:')) ?? ''}
+          onChange={(e) => { const v = e.target.value, sansClient = note.tags.filter((x) => !x.startsWith('client:') && x !== 'client-interne')
+            void instant(v.startsWith('projet:') ? { project_id: v.slice(7), tags: sansClient } : v.startsWith('client:') ? { project_id: null, tags: [...sansClient, 'client-interne', v] } : { project_id: null, tags: sansClient }) }}
+          className="h-7 rounded-md border border-border bg-surface px-2 text-base sm:text-xs">
+          <option value="">Sans dossier</option>
+          {projects.length > 0 && <optgroup label="Projets">{projects.map((p) => <option key={p.id} value={`projet:${p.id}`}>{p.name}</option>)}</optgroup>}
+          {clientsQ.data.length > 0 && <optgroup label="Clients (dossier privé)">{clientsQ.data.map((c) => <option key={c.id} value={`client:${c.id}`}>{c.name}</option>)}</optgroup>}
+        </select>
+      </div>
       <div className="mb-5 flex flex-wrap items-center gap-2 pl-1" data-testid="note-assignees">
         <span className="text-xs font-medium text-text-3">{t('asg.label')}</span>
         <PeoplePicker label={t('asg.pick')} value={assigneesOf(note.tags)} disabled={!canWrite} onChange={(ids) => void setAssignees(ids)} />
       </div>
 
-      <RichEditor content={note.content} editable={canWrite} resetKey={resetKey}
+      <RichEditor content={note.content} editable={canWrite} resetKey={resetKey} noteId={note.id}
         onChange={(json, text) => { setWords(text.split(/\s+/).filter(Boolean).length); if (JSON.stringify(json) !== JSON.stringify(note.content)) queue({ content: json }) }} />
 
       <Dialog open={history} onClose={() => setHistory(false)} title={t('notes.history')} footer={canWrite ? <Button variant="primary" onClick={saveVersion}>{t('notes.saveVersion')}</Button> : undefined}>

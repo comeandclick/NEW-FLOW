@@ -14,9 +14,11 @@ const HEX = /^#[0-9a-f]{6}$/i
 
 export const isAssign = (tag: string) => tag.startsWith(ASSIGN_PREFIX)
 export const assigneesOf = (tags: readonly string[]) => tags.filter(isAssign).map((t) => t.slice(ASSIGN_PREFIX.length))
-export const visibleTags = (tags: readonly string[]) => tags.filter((t) => !isAssign(t))
+/** étiquettes techniques (dossier privé d'un client) : gardées dans la note, jamais montrées comme badges */
+const technique = (t: string) => t.startsWith('client:') || t === 'client-interne'
+export const visibleTags = (tags: readonly string[]) => tags.filter((t) => !isAssign(t) && !technique(t))
 /** Replaces the assignee entries of a tag list, keeping the real tags untouched. */
-export const withAssignees = (tags: readonly string[], ids: readonly string[]) => [...visibleTags(tags), ...[...new Set(ids)].map((i) => ASSIGN_PREFIX + i)]
+export const withAssignees = (tags: readonly string[], ids: readonly string[]) => [...tags.filter((t) => !isAssign(t)), ...[...new Set(ids)].map((i) => ASSIGN_PREFIX + i)]
 
 export const cleanTagName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 40)
 

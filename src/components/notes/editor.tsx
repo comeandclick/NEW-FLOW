@@ -8,9 +8,10 @@ import Link from '@tiptap/extension-link'
 import { useEffect } from 'react'
 import { Bold, Code, Heading1, Heading2, Heading3, Italic, LinkIcon, List, ListChecks, ListOrdered, Minus, Quote, Redo2, Strikethrough, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AmeliorerSelection, RedigerIA } from '@/components/notes/ia-redaction'
 import { useT } from '@/i18n/provider'
 
-type Props = { content: Record<string, unknown>; editable: boolean; onChange: (json: Record<string, unknown>, text: string) => void; resetKey?: string }
+type Props = { content: Record<string, unknown>; editable: boolean; onChange: (json: Record<string, unknown>, text: string) => void; resetKey?: string; noteId?: string }
 
 function ToolbarBtn({ on, active, label, icon: Icon, disabled }: { on: () => void; active?: boolean; label: string; icon: typeof Bold; disabled?: boolean }) {
   return (
@@ -21,7 +22,7 @@ function ToolbarBtn({ on, active, label, icon: Icon, disabled }: { on: () => voi
   )
 }
 
-export function RichEditor({ content, editable, onChange, resetKey }: Props) {
+export function RichEditor({ content, editable, onChange, resetKey, noteId }: Props) {
   const t = useT()
   const editor = useEditor({
     immediatelyRender: false,
@@ -57,6 +58,7 @@ export function RichEditor({ content, editable, onChange, resetKey }: Props) {
     <div>
       {editable && (
         <div className="sticky top-0 z-10 -mx-1 mb-3 flex gap-0.5 overflow-x-auto rounded-xl border border-border bg-surface/90 p-1 backdrop-blur [scrollbar-width:none]">
+          {noteId && <><RedigerIA editor={editor} noteId={noteId} /><span className="mx-1 my-1.5 w-px shrink-0 bg-border" /></>}
           <ToolbarBtn on={() => editor.chain().focus().undo().run()} label={t('ed.undo')} icon={Undo2} disabled={!editor.can().undo()} />
           <ToolbarBtn on={() => editor.chain().focus().redo().run()} label={t('ed.redo')} icon={Redo2} disabled={!editor.can().redo()} />
           <span className="mx-1 my-1.5 w-px shrink-0 bg-border" />
@@ -77,7 +79,10 @@ export function RichEditor({ content, editable, onChange, resetKey }: Props) {
           <ToolbarBtn on={() => editor.chain().focus().setHorizontalRule().run()} label={t('ed.divider')} icon={Minus} />
         </div>
       )}
-      <EditorContent editor={editor} />
+      <div className="relative">
+        {editable && noteId && <AmeliorerSelection editor={editor} noteId={noteId} />}
+        <EditorContent editor={editor} />
+      </div>
     </div>
   )
 }

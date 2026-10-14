@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { BookOpen, FileText, LayoutTemplate, Lightbulb, Pin, Plus, Search, Tag as TagIcon, UserCheck } from 'lucide-react'
+import { BookOpen, FileText, Folder, FolderOpen, Handshake, Inbox, LayoutTemplate, Lightbulb, Pin, Plus, Search, Tag as TagIcon, UserCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { HubTabs } from '@/components/shell/hub-tabs'
 import { Button } from '@/components/ui/button'
@@ -36,7 +37,11 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
   const dfl = locale === 'fr' ? fr : enUS
   const router = useRouter()
   const params = useSearchParams()
-  const { ws, canWrite, log, profileOf } = useWorkspace()
+  const { ws, canWrite, log, profileOf, projects } = useWorkspace()
+  const clientsQ = useLive<{ id: string; name: string }>('clients', { select: 'id,name', eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['name', true] })
+  // dossier choisi (comme Apple Notes) : projet:<id>, client:<id>, aucun, ou rien = toutes les notes, rangées par dossier
+  const dossier = params.get('dossier')
+  const choisir = (d: string | null) => router.replace(d ? `?dossier=${encodeURIComponent(d)}` : '?', { scroll: false })
   const tagMeta = useTagMeta(ws.id)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [mineOnly, setMineOnly] = useState(false)
@@ -49,7 +54,8 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
 
   const create = async () => {
     if (!userId) return
-    const { data: row, error } = await getDb().from('notes').insert({ workspace_id: ws.id, created_by: userId, kind: icon === 'doc' ? 'doc' : 'note', title: '', content: {} }).select().single()
+    const dans = dossier?.startsWith('projet:') ? { project_id: dossier.slice(7) } : dossier?.startsWith('client:') ? { tags: ['client-interne', dossier, 'note'] } : {}
+    const { data: row, error } = await getDb().from('notes').insert({ workspace_id: ws.id, created_by: userId, kind: icon === 'doc' ? 'doc' : 'note', title: '', content: {}, ...dans }).select().single()
     if (error || !row) { toast.error(t('common.error')); return }
     log('note.created', 'note', row.id, { title: t('notes.untitled') })
     router.push(`${base}/${row.id}`)
@@ -67,8 +73,17 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
   const scoped = useMemo(() => data.filter((n) => kinds.includes(n.kind)), [data, kinds])
   const tags = useMemo(() => [...new Set(scoped.flatMap((n) => visibleTags(n.tags)))].slice(0, 12), [scoped])
   const mineCount = useMemo(() => scoped.filter((n) => userId && assigneesOf(n.tags).includes(userId)).length, [scoped, userId])
-  const filtered = useMemo(() => scoped.filter((n) => (kind === 'all' || n.kind === kind) && (!tag || n.tags.includes(tag)) && (!mineOnly || (!!userId && assigneesOf(n.tags).includes(userId)))
-    && (!q.trim() || `${n.title} ${plain(n)}`.toLowerCase().includes(q.trim().toLowerCase()))), [scoped, kind, tag, q, mineOnly, userId])
+  const dossierDe = (n: Note) => (n.project_id ? `projet:${n.project_id}` : n.tags.find((x) => x.startsWith('client:')) ?? 'aucun')
+  const filtered = useMemo(() => scoped.filter((n) => (!dossier || dossierDe(n) === dossier) && (kind === 'all' || n.kind === kind) && (!tag || n.tags.includes(tag)) && (!mineOnly || (!!userId && assigneesOf(n.tags).includes(userId)))
+    && (!q.trim() || `${n.title} ${plain(n)}`.toLowerCase().includes(q.trim().toLowerCase()))), [scoped, kind, tag, q, mineOnly, userId, dossier])
+  const nomDossier = (d: string) => d === 'aucun' ? 'Sans dossier' : d.startsWith('projet:') ? projects.find((p) => p.id === d.slice(7))?.name ?? 'Projet' : clientsQ.data.find((c) => `client:${c.id}` === d)?.name ?? 'Client'
+  const compte = (d: string) => scoped.filter((n) => dossierDe(n) === d).length
+  const dossiers = [
+    ...projects.filter((p) => p.status !== 'archived').map((p) => ({ id: `projet:${p.id}`, nom: p.name, I: Folder, couleur: p.color as string | undefined })),
+    ...clientsQ.data.map((c) => ({ id: `client:${c.id}`, nom: c.name, I: Handshake, couleur: undefined })),
+  ].filter((d) => compte(d.id) > 0 || d.id.startsWith('projet:'))
+  // accueil : toutes les notes, rangées par dossier (dossiers les plus récemment modifiés en premier)
+  const groupes = useMemo(() => { const m = new Map<string, Note[]>(); for (const n of filtered) { const d = dossierDe(n); m.set(d, [...(m.get(d) ?? []), n]) } return [...m] }, [filtered]) // eslint-disable-line react-hooks/exhaustive-deps
   const pinned = filtered.filter((n) => n.is_pinned)
   const rest = filtered.filter((n) => !n.is_pinned)
 
@@ -86,10 +101,29 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
     </motion.div>
   )
 
+  const Lien = ({ id, nom, I, n, couleur }: { id: string | null; nom: string; I: typeof Folder; n: number; couleur?: string }) => { const actif = dossier === id
+    return (
+      <button onClick={() => choisir(id)} aria-current={actif ? 'page' : undefined} className={cn('flex w-full shrink-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13.5px] transition-colors max-md:w-auto max-md:rounded-full max-md:border max-md:border-border', actif ? 'bg-text text-bg max-md:border-transparent' : 'text-text-2 hover:bg-surface-2 hover:text-text')}>
+        <I className="size-4 shrink-0" style={couleur && !actif ? { color: couleur } : undefined} strokeWidth={1.75} /><span className="min-w-0 flex-1 truncate">{nom}</span><span className={cn('text-xs tabular-nums', actif ? 'text-bg/70' : 'text-text-3')}>{n}</span>
+      </button>) }
+  const grille = (liste: Note[]) => <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{liste.map((n, i) => <Card key={n.id} n={n} i={i} />)}</div>
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <div className="flex min-h-full w-full max-md:flex-col">
+      <aside className="shrink-0 border-border md:sticky md:top-0 md:max-h-dvh md:self-start md:w-60 md:overflow-y-auto md:border-r md:px-3 md:py-6 max-md:px-4 max-md:pt-4">
+        <p className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-3 max-md:hidden">Dossiers</p>
+        <nav className="flex gap-1 md:flex-col max-md:-mx-4 max-md:overflow-x-auto max-md:px-4 max-md:pb-1 max-md:[scrollbar-width:none]" aria-label="Dossiers de notes">
+          <Lien id={null} nom="Toutes les notes" I={FolderOpen} n={scoped.length} />
+          {dossiers.filter((d) => d.id.startsWith('projet:')).length > 0 && <p className="mb-1 mt-4 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-3 max-md:hidden">Projets</p>}
+          {dossiers.filter((d) => d.id.startsWith('projet:')).map((d) => <Lien key={d.id} id={d.id} nom={d.nom} I={d.I} n={compte(d.id)} couleur={d.couleur} />)}
+          {dossiers.filter((d) => d.id.startsWith('client:')).length > 0 && <p className="mb-1 mt-4 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-text-3 max-md:hidden">Clients</p>}
+          {dossiers.filter((d) => d.id.startsWith('client:')).map((d) => <Lien key={d.id} id={d.id} nom={d.nom} I={d.I} n={compte(d.id)} />)}
+          {compte('aucun') > 0 && <><span className="mt-3 max-md:hidden" /><Lien id="aucun" nom="Sans dossier" I={Inbox} n={compte('aucun')} /></>}
+        </nav>
+      </aside>
+    <div className="min-w-0 flex-1 px-4 py-6 sm:px-6">
       <HubTabs hub="notes" />
-      <PageHeader title={t(title)} subtitle={`${filtered.length}`} icon={icon === 'doc' ? <Lightbulb className="size-[18px]" /> : <FileText className="size-[18px]" />}
+      <PageHeader title={dossier ? nomDossier(dossier) : t(title)} subtitle={`${filtered.length}`} icon={icon === 'doc' ? <Lightbulb className="size-[18px]" /> : <FileText className="size-[18px]" />}
         actions={canWrite && <>
           <Menu align="end" width={250} trigger={({ toggle }) => <Button onClick={toggle} aria-label={t('notes.templates')}><LayoutTemplate className="size-4" /><span className="hidden sm:inline">{t('notes.templates')}</span></Button>}>
             {(close) => NOTE_TEMPLATES.map((tp) => <MenuItem key={tp.id} icon={<span aria-hidden>{tp.icon}</span>} onClick={() => { close(); void fromTemplate(tp) }}>{tp.name[locale === 'en' ? 'en' : 'fr']}</MenuItem>)}
@@ -103,12 +137,24 @@ function List({ kinds, title, newLabel, icon }: { kinds: Note['kind'][]; title: 
       </div>
       {loading ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-40" />)}</div>
         : filtered.length === 0 ? <EmptyState icon={<FileText className="size-5" />} title={t('notes.empty')} hint={t('notes.emptyHint')} action={canWrite ? <Button variant="primary" onClick={create}><Plus className="size-4" />{t(newLabel)}</Button> : undefined} />
-        : <div className="space-y-7">
-          {pinned.length > 0 && <section><h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-text-3"><Pin className="size-3" />{t('notes.pinned')}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{pinned.map((n, i) => <Card key={n.id} n={n} i={i} />)}</div></section>}
-          {rest.length > 0 && <section>{pinned.length > 0 && <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-3">{t('notes.recent')}</h2>}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{rest.map((n, i) => <Card key={n.id} n={n} i={i} />)}</div></section>}
+        : dossier ? <div className="space-y-7">
+          {pinned.length > 0 && <section><h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-text-3"><Pin className="size-3" />{t('notes.pinned')}</h2>{grille(pinned)}</section>}
+          {rest.length > 0 && <section>{pinned.length > 0 && <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-3">{t('notes.recent')}</h2>}{grille(rest)}</section>}
+        </div>
+        : <div className="space-y-8">
+          {pinned.length > 0 && <section><h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-text-3"><Pin className="size-3" />{t('notes.pinned')}</h2>{grille(pinned)}</section>}
+          {groupes.map(([d, liste]) => { const l = liste.filter((n) => !n.is_pinned); if (!l.length) return null
+            return (
+              <section key={d}>
+                <button onClick={() => choisir(d)} className="group mb-3 flex items-center gap-2 text-left">
+                  {d.startsWith('client:') ? <Handshake className="size-4 text-text-3" /> : d === 'aucun' ? <Inbox className="size-4 text-text-3" /> : <Folder className="size-4 text-text-3" />}
+                  <h2 className="text-[15px] font-semibold tracking-tight group-hover:underline">{nomDossier(d)}</h2><span className="text-xs text-text-3">{l.length}</span>
+                </button>
+                {grille(l.slice(0, 6))}
+                {l.length > 6 && <button onClick={() => choisir(d)} className="mt-2 text-xs text-text-3 hover:text-text">Voir les {l.length} notes</button>}
+              </section>) })}
         </div>}
+    </div>
       <TagManager open={tagsOpen} onClose={() => setTagsOpen(false)} notes={data} meta={tagMeta.meta} save={tagMeta.save} onChanged={() => {}} />
     </div>
   )
