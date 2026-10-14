@@ -32,7 +32,7 @@ export function AlertsWidget() {
   return (
     <Card className="overflow-hidden" data-testid="alerts-widget">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold"><Bell className="size-4 text-text-3" />{t('alw.title')}{unread.length > 0 && <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-5 text-white tabular-nums">{unread.length}</span>}</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold"><Bell className="size-4 text-text-3" />{t('alw.title')}{unread.length > 0 && <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-5 text-accent-text tabular-nums">{unread.length}</span>}</h2>
         <div className="flex items-center gap-3 text-xs">
           {unread.length > 0 && <button onClick={markAll} className="inline-flex items-center gap-1 text-text-3 hover:text-text"><Check className="size-3" />{t('inbox.markAll')}</button>}
           <Link href={`/app/${ws.slug}/inbox`} className="text-text-3 hover:text-text">{t('common.all')}</Link>

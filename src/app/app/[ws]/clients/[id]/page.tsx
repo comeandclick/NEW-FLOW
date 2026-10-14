@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, EmptyState } from '@/components/ui/misc'
 import { Dialog, Menu, MenuItem } from '@/components/ui/overlay'
 import { ClientSpace } from '@/components/clients/client-space'
+import { EtatClient } from '@/components/clients/etat-client'
 import { ClientFormDialog, cadenceLabel, type ClientFields } from '@/components/clients/client-form'
 import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
@@ -146,6 +147,8 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
       </div>
       {client.notes && <p className="mb-4 whitespace-pre-wrap rounded-xl border border-border bg-surface-2/50 px-4 py-3 text-[13px] text-text-2">{client.notes}</p>}
 
+      <EtatClient cadence={client.cadence} files={files.data} todos={todos.data} messages={messages.data} />
+      <div className="h-5" />
       <ClientSpace viewer="team" clientId={client.id} cadence={client.cadence} perPeriod={client.per_period} removeFile={canWrite ? removeFile : undefined} workspaceName={ws.name} messages={messages.data} files={files.data} todos={todos.data}
         authorName={authorName} send={send} upload={upload} urlOf={urlOf} todo={todo} />
 

@@ -180,7 +180,7 @@ function PreparePage() {
 
   const StepIndicator = ({ n, label }: { n: Step; label: string }) => (
     <div className={cn('flex items-center gap-2 text-[13px]', step >= n ? 'text-text' : 'text-text-3')}>
-      <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold', step > n ? 'bg-success text-white' : step === n ? 'bg-accent text-white' : 'bg-surface-3 text-text-3')}>
+      <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold', step > n ? 'bg-success text-accent-text' : step === n ? 'bg-accent text-accent-text' : 'bg-surface-3 text-text-3')}>
         {step > n ? <CheckCircle className="size-3.5" /> : n}
       </span>
       <span className="hidden sm:inline">{label}</span>
@@ -199,7 +199,7 @@ function PreparePage() {
           {([1, 2, 3, 4, 5] as Step[]).map((n, i) => (
             <div key={n} className="flex flex-1 items-center">
               <div className="flex flex-col items-center gap-1">
-                <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors', step > n ? 'bg-success text-white' : step === n ? 'bg-accent text-white' : 'bg-surface-3 text-text-3')}>
+                <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors', step > n ? 'bg-success text-accent-text' : step === n ? 'bg-accent text-accent-text' : 'bg-surface-3 text-text-3')}>
                   {step > n ? <CheckCircle className="size-3.5" /> : n}
                 </span>
                 <span className={cn('hidden text-[11px] sm:block', step >= n ? 'text-text-2' : 'text-text-3')}>{STEP_LABELS[i]}</span>

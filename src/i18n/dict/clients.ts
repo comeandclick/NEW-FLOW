@@ -3,6 +3,7 @@ export const clients = {
   fr: {
     'nav.clients': 'Clients',
     'cli.title': 'Mes clients',
+    'cli.open': 'Ouvrir la fiche', 'cli.col.client': 'Client', 'cli.col.cadence': 'Rythme', 'cli.col.status': 'Statut', 'cli.col.content': 'Contenu', 'cli.col.activity': 'Dernière activité', 'cli.col.actions': 'Actions',
     'cli.new.badge': 'Nouveau',
     'cli.home.title': 'Clients qui attendent',
     'cli.home.all': 'Tous',
@@ -107,6 +108,7 @@ export const clients = {
   en: {
     'nav.clients': 'Clients',
     'cli.title': 'My clients',
+    'cli.open': 'Open', 'cli.col.client': 'Client', 'cli.col.cadence': 'Cadence', 'cli.col.status': 'Status', 'cli.col.content': 'Content', 'cli.col.activity': 'Last activity', 'cli.col.actions': 'Actions',
     'cli.new.badge': 'New',
     'cli.home.title': 'Clients waiting',
     'cli.home.all': 'All',

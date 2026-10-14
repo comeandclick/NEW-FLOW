@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { Handshake, Plus } from 'lucide-react'
+import { Eye, Handshake, Link2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Avatar, Badge, Card, EmptyState, PageHeader } from '@/components/ui/misc'
+import { Avatar, Card, EmptyState, PageHeader } from '@/components/ui/misc'
+import { cn } from '@/lib/utils'
 import { ClientFormDialog, cadenceLabel, type ClientFields } from '@/components/clients/client-form'
 import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
@@ -15,6 +16,14 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import { getSeen, groupFiles, newClientToken, type ClientFile, type ClientMessage, type ClientRow, type ClientTodo } from '@/lib/clients'
+
+// une seule pastille par client, la plus utile : à valider > modifications demandées > nouveautés > à jour
+function statut(s: { changes: number; toReview: number } | undefined, nouveautes?: number) {
+  if (s?.toReview) return { lib: `${s.toReview} à valider`, cls: 'bg-warning/15 text-warning' }
+  if (s?.changes) return { lib: 'Modifications', cls: 'bg-danger/10 text-danger' }
+  if (nouveautes) return { lib: `${nouveautes} nouveauté(s)`, cls: 'bg-info/10 text-info' }
+  return { lib: 'À jour', cls: 'bg-success/10 text-success' }
+}
 
 export default function ClientsPage() {
   const { t, locale } = useI18n()
@@ -69,7 +78,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-4 md:p-6">
+    <div className="mx-auto max-w-6xl p-4 md:p-6">
       <PageHeader title={t('cli.title')} subtitle={t('cli.sub')} icon={<Handshake className="size-4" />}
         actions={canWrite && <Button variant="primary" size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />{t('cli.new')}</Button>} />
       {clients.loading && !clients.data.length
@@ -78,9 +87,40 @@ export default function ClientsPage() {
           ? <EmptyState icon={<Handshake className="size-5" />} title={t('cli.empty')} hint={t('cli.emptyHint')}
               action={canWrite && <Button variant="primary" size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />{t('cli.new')}</Button>} />
           : (
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <>
+              {/* tableau d'après 21st.dev « heroui-table / custom-cells » (14/10/2026) : avatar + nom, rythme, statut en pastille,
+                  contenu, dernière activité, actions (voir, copier le lien de l'espace client). Cartes sur téléphone. */}
+              <div className="hidden overflow-hidden rounded-xl border border-border bg-surface shadow-sm md:block">
+                <table className="w-full text-left text-[13px]">
+                  <thead className="bg-surface-2 text-[12px] text-text-3">
+                    <tr><th className="px-4 py-2.5 font-medium">{t('cli.col.client')}</th><th className="px-4 py-2.5 font-medium">{t('cli.col.cadence')}</th><th className="px-4 py-2.5 font-medium">{t('cli.col.status')}</th>
+                      <th className="px-4 py-2.5 font-medium">{t('cli.col.content')}</th><th className="px-4 py-2.5 font-medium">{t('cli.col.activity')}</th><th className="px-4 py-2.5 text-right font-medium">{t('cli.col.actions')}</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {clients.data.map((c) => {
+                      const s = stats.get(c.id), st = statut(s, fresh.get(c.id))
+                      return (
+                        <tr key={c.id} className="cursor-pointer transition-colors hover:bg-surface-2/60" onClick={() => router.push(`/app/${ws.slug}/clients/${c.id}`)}>
+                          <td className="px-4 py-3"><div className="flex items-center gap-3"><Avatar name={c.name} size={32} />
+                            <div className="min-w-0"><div className="truncate font-medium text-text">{c.name}</div>{c.company && <div className="truncate text-[12px] text-text-3">{c.company}</div>}</div></div></td>
+                          <td className="px-4 py-3 text-text-2">{cadenceLabel(t, c)}</td>
+                          <td className="px-4 py-3"><span className={cn('inline-flex rounded-md px-1.5 py-0.5 text-[11px] font-medium', st.cls)}>{st.lib}</span></td>
+                          <td className="px-4 py-3 text-text-2">{t('cli.counts', { f: s?.files ?? 0, t: s?.todo ?? 0 })}</td>
+                          <td className="px-4 py-3 text-text-3">{s?.last ? formatDistanceToNow(new Date(s.last), { addSuffix: true, locale: dfl }) : '—'}</td>
+                          <td className="px-4 py-3"><div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Link href={`/app/${ws.slug}/clients/${c.id}`} title={t('cli.open')} aria-label={t('cli.open')} className="grid size-7 place-items-center rounded-md bg-surface-2 text-text-2 transition-colors hover:bg-surface-3 hover:text-text"><Eye className="size-3.5" /></Link>
+                            <button title={t('cli.copyLink')} aria-label={t('cli.copyLink')} onClick={() => { void navigator.clipboard.writeText(`${window.location.origin}/c/${c.access_token}`); toast.success(t('cli.linkCopied')) }}
+                              className="grid size-7 place-items-center rounded-md bg-surface-2 text-text-2 transition-colors hover:bg-surface-3 hover:text-text"><Link2 className="size-3.5" /></button>
+                          </div></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <ul className="grid gap-3 md:hidden">
               {clients.data.map((c) => {
-                const s = stats.get(c.id)
+                const s = stats.get(c.id), st = statut(s, fresh.get(c.id))
                 return (
                   <li key={c.id}>
                     <Link href={`/app/${ws.slug}/clients/${c.id}`} className="block h-full">
@@ -89,9 +129,7 @@ export default function ClientsPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h2 className="truncate text-[15px] font-semibold">{c.name}</h2>
-                            {!!fresh.get(c.id) && <Badge color="#6366f1">{t('cli.newActivity', { n: fresh.get(c.id)! })}</Badge>}
-                            {!!s?.changes && <Badge color="#f59e0b">{t('cli.st.modif')}</Badge>}
-                            {!!s?.toReview && <Badge color="#6366f1">{t('cli.toReview', { n: s.toReview })}</Badge>}
+                            <span className={cn('inline-flex rounded-md px-1.5 py-0.5 text-[11px] font-medium', st.cls)}>{st.lib}</span>
                           </div>
                           {c.company && <p className="truncate text-[13px] text-text-2">{c.company}</p>}
                           <p className="mt-1 text-[12px] text-text-3">{cadenceLabel(t, c)}</p>
@@ -105,7 +143,8 @@ export default function ClientsPage() {
                   </li>
                 )
               })}
-            </ul>
+              </ul>
+            </>
           )}
       <ClientFormDialog open={creating} onClose={() => setCreating(false)} onSubmit={create} title={t('cli.new')} submitLabel={t('cli.create')} />
     </div>

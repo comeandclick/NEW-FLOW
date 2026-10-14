@@ -43,7 +43,7 @@ export function CallCard({ video, onJoin, name }: { video: boolean; onJoin: () =
     <div className="flex w-72 max-w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
       <span className="flex size-9 items-center justify-center rounded-full bg-success/15 text-success">{video ? <Video className="size-4" /> : <Phone className="size-4" />}</span>
       <span className="min-w-0 flex-1 text-[13px]"><span className="font-medium">{name}</span> <span className="text-text-2">{t('msg.callStarted')}</span></span>
-      <button onClick={onJoin} className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover">{t('msg.joinCall')}</button>
+      <button onClick={onJoin} className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-text hover:bg-accent-hover">{t('msg.joinCall')}</button>
     </div>
   )
 }

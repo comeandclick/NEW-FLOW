@@ -59,10 +59,10 @@ export default function AiPage() {
             {!remote && <p className="mt-6 text-xs text-text-3">{t('ai.simulated')}</p>}</div>)}
         {msgs.map((m, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={cn('flex gap-3', m.role === 'user' && 'flex-row-reverse')}>
-            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', m.role === 'user' ? 'bg-surface-3' : 'bg-accent text-white')}>{m.role === 'user' ? <User className="size-4" /> : <Bot className="size-4" />}</span>
-            <div className={cn('max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed', m.role === 'user' ? 'bg-accent text-white' : 'bg-surface-2')}>{m.content}</div>
+            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', m.role === 'user' ? 'bg-surface-3' : 'bg-accent text-accent-text')}>{m.role === 'user' ? <User className="size-4" /> : <Bot className="size-4" />}</span>
+            <div className={cn('max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed', m.role === 'user' ? 'bg-accent text-accent-text' : 'bg-surface-2')}>{m.content}</div>
           </motion.div>))}
-        {busy && <div className="flex items-center gap-3 text-sm text-text-3"><span className="flex size-8 items-center justify-center rounded-full bg-accent text-white"><Bot className="size-4" /></span><span className="animate-pulse">{t('ai.thinking')}</span></div>}
+        {busy && <div className="flex items-center gap-3 text-sm text-text-3"><span className="flex size-8 items-center justify-center rounded-full bg-accent text-accent-text"><Bot className="size-4" /></span><span className="animate-pulse">{t('ai.thinking')}</span></div>}
         <div ref={end} />
       </div>
       <form onSubmit={(e) => { e.preventDefault(); void ask(input) }} className="flex gap-2 rounded-2xl border border-border-strong bg-surface p-1.5 focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">

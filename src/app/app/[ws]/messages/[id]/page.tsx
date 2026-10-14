@@ -13,7 +13,7 @@ import { Dialog, Menu } from '@/components/ui/overlay'
 import { AttachmentView, CallCard } from '@/components/chat/message-view'
 import { VoiceRecorder } from '@/components/chat/voice'
 import { ChannelInfo } from '@/components/chat/channel-info'
-import { readers, SeenButton, SeenDialog, Ticks, TypingLine } from '@/components/chat/receipts'
+import { readers, SeenDialog, TypingLine } from '@/components/chat/receipts'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
@@ -214,34 +214,39 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             return (
               <div key={m.id}>
                 {newDay && <div className="my-4 flex items-center gap-3 text-[11px] text-text-3"><span className="h-px flex-1 bg-border" />{isSameDay(new Date(m.created_at), new Date()) ? t('msg.today') : format(new Date(m.created_at), 'EEEE d MMMM', { locale: dfl })}<span className="h-px flex-1 bg-border" /></div>}
-                <div data-selectable className={cn('group relative flex gap-3 rounded-lg px-2 py-0.5 hover:bg-surface-2/60', grouped ? 'mt-0' : 'mt-3')}
+                {/* bulles d'après 21st.dev « c-message-3 » et « bubble4 » (14/10/2026) : les autres à gauche (gris), moi à droite (sombre) */}
+                <div data-selectable className={cn('group relative flex gap-2.5 px-1 py-0.5', mine && 'flex-row-reverse', grouped ? 'mt-0.5' : 'mt-4')}
                   onDoubleClick={(e) => { if (!m.deleted_at && canWrite && !(e.target as HTMLElement).closest('button,a,input,textarea,video,audio')) void react(m, '❤️') }}
                   onTouchStart={() => { if (m.deleted_at || !canWrite) return; press.current = setTimeout(() => { navigator.vibrate?.(10); setActionFor(m) }, 450) }}
                   onTouchEnd={() => press.current && clearTimeout(press.current)} onTouchMove={() => press.current && clearTimeout(press.current)} onTouchCancel={() => press.current && clearTimeout(press.current)}
                   onContextMenu={(e) => { if (m.deleted_at || !canWrite || (e.target as HTMLElement).closest('a,input,textarea')) return; e.preventDefault(); setActionFor(m) }}>
-                  {mine && !m.deleted_at && <span className="absolute -left-0.5 -top-1 z-[1]"><SeenButton onClick={() => setSeenFor(m)} /></span>}
-                  <div className="w-8 shrink-0">{!grouped && <Avatar name={author?.full_name} src={author?.avatar_url} size={32} />}</div>
-                  <div className="min-w-0 flex-1">
-                    {!grouped && <div className="flex items-baseline gap-2"><span className="text-[13px] font-semibold">{author?.full_name ?? '—'}</span><span className="text-[11px] text-text-3">{format(new Date(m.created_at), 'HH:mm')}</span></div>}
-                    {mine && !m.deleted_at && (() => { const r = readers(m, cmembers.data, m.user_id); return r.total > 0 ? <span className="absolute bottom-1 right-2"><Ticks all={r.unseen.length === 0} /></span> : null })()}
+                  {!mine && <div className="w-8 shrink-0 self-end">{!grouped && <Avatar name={author?.full_name} src={author?.avatar_url} size={28} />}</div>}
+                  <div className={cn('flex min-w-0 max-w-[78%] flex-col sm:max-w-[68%]', mine ? 'items-end' : 'items-start')}>
+                    {!grouped && !mine && <div className="mb-1 flex items-baseline gap-1.5 px-1 text-[11px] text-text-3"><span className="font-medium text-text-2">{author?.full_name ?? '—'}</span><span>·</span><span>{format(new Date(m.created_at), 'HH:mm')}</span></div>}
                     {parent && <div className="mb-1 truncate border-l-2 border-border-strong pl-2 text-xs text-text-3">{nameOf(parent.user_id)}: {parent.content ?? (parent.kind === 'voice' ? `🎤 ${t('msg.voiceNote')}` : '📎')}</div>}
                     {m.deleted_at ? <p className="text-[13px] italic text-text-3">{t('msg.deleted')}</p>
                       : editing?.id === m.id ? (
                         <form onSubmit={send} className="flex gap-2"><Input autoFocus value={editing.text} onChange={(e) => setEditing({ id: m.id, text: e.target.value })} onKeyDown={(e) => e.key === 'Escape' && setEditing(null)} /><Button type="submit" variant="primary" size="sm">{t('common.save')}</Button></form>
                       ) : (
                         <>
-                          {m.content && m.kind !== 'call' && <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{m.content.split(/(@[\p{L}][\p{L} ]+?)(?=\s|$|[.,!?])/u).map((part, k) => part.startsWith('@') && members.some((x) => `@${x.profile?.full_name}` === part) ? <span key={k} className="rounded bg-accent-soft px-1 font-medium text-accent-ink">{part}</span> : <span key={k}>{part}</span>)}{m.is_edited && <span className="ml-1.5 text-[11px] text-text-3">({t('msg.edited')})</span>}</p>}
+                          {m.content && m.kind !== 'call' && <p className={cn('whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed', mine ? 'bg-text text-bg' : 'bg-surface-2 text-text dark:bg-surface-3')}>{m.content.split(/(@[\p{L}][\p{L} ]+?)(?=\s|$|[.,!?])/u).map((part, k) => part.startsWith('@') && members.some((x) => `@${x.profile?.full_name}` === part) ? <span key={k} className={cn('rounded px-1 font-medium', mine ? 'bg-bg/15' : 'bg-text/10')}>{part}</span> : <span key={k}>{part}</span>)}</p>}
                           {m.kind === 'call' && <CallCard video={m.content === 'video'} name={author?.full_name ?? ''} onJoin={() => router.push(`/app/${ws.slug}/meetings/${m.attachments[0]?.path}?audio=${m.content === 'video' ? 0 : 1}`)} />}
                           {m.kind !== 'call' && m.attachments.length > 0 && <div className="mt-1 flex flex-col items-start gap-1.5">{m.attachments.map((a, k) => <AttachmentView key={k} att={a} mine={false} />)}</div>}
                         </>
                       )}
-                    {groupedReacts.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{groupedReacts.map((e) => {
+                    {groupedReacts.length > 0 && <div className={cn('relative z-[1] -mt-2 flex flex-wrap gap-1', mine ? 'mr-2 justify-end' : 'ml-2')}>{groupedReacts.map((e) => {
                       const list = mr.filter((r) => r.emoji === e); const iMine = list.some((r) => r.user_id === userId)
-                      return <button key={e} onClick={() => react(m, e)} className={cn('flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors', iMine ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border hover:border-border-strong')}>{e}<span className="tabular-nums">{list.length}</span></button>
+                      return <button key={e} onClick={() => react(m, e)} className={cn('flex h-6 items-center gap-1 rounded-full border bg-surface px-1.5 text-xs shadow-sm transition-colors', iMine ? 'border-text/30' : 'border-border hover:border-border-strong')}>{e}{list.length > 1 && <span className="font-medium tabular-nums">+{list.length - 1}</span>}</button>
                     })}</div>}
+                    {/* sous la bulle : « Lu 09:41 » pour mes messages, « Modifié » quand le texte a changé */}
+                    {!m.deleted_at && (mine || m.is_edited) && (() => { const r = mine ? readers(m, cmembers.data, m.user_id) : null; const lu = !!r && r.total > 0 && r.unseen.length === 0
+                      return <div className={cn('mt-1 flex items-center gap-1 px-1 text-[11px] text-text-3', mine && 'flex-row-reverse')}>
+                        {mine && <button onClick={() => setSeenFor(m)} className="hover:text-text">{lu ? `${t('rcp.read')} ${format(new Date(m.created_at), 'HH:mm')}` : format(new Date(m.created_at), 'HH:mm')}</button>}
+                        {m.is_edited && <span>{mine ? '· ' : ''}{t('msg.edited')}</span>}
+                      </div> })()}
                   </div>
                   {!m.deleted_at && canWrite && (
-                    <div className="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5 shadow-md group-hover:flex group-focus-within:flex">
+                    <div className={cn('absolute -top-3 hidden items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5 shadow-md group-hover:flex group-focus-within:flex', mine ? 'left-2' : 'right-2')}>
                       <Menu width={190} trigger={({ toggle }) => <button onClick={toggle} className="rounded-md p-1.5 text-text-3 hover:bg-surface-2 hover:text-text" aria-label="React"><SmilePlus className="size-3.5" /></button>}>
                         {(close) => <div className="flex justify-between p-1">{QUICK.map((e) => <button key={e} onClick={() => { void react(m, e); close() }} className="rounded-lg p-1.5 text-lg hover:bg-surface-2">{e}</button>)}</div>}
                       </Menu>

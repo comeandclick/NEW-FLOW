@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { PairResume } from '@/components/studio/pair-resume'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Check, ChevronsLeft, ChevronsRight, LayoutGrid, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
+import { Check, LayoutGrid, PanelLeftClose, PanelLeftOpen, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, Kbd } from '@/components/ui/misc'
 import { Menu, MenuItem, MenuSeparator, Sheet } from '@/components/ui/overlay'
@@ -114,15 +114,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-full flex-col">
       <div className="p-2.5"><WorkspaceSwitcher collapsed={compact} /></div>
       <div className="px-2.5 pb-2">
-        <button onClick={() => { setPalette(true); onNavigate?.() }}
-          className={cn('flex h-8 w-full items-center gap-2 rounded-lg border border-border bg-surface-2/60 px-2.5 text-[13px] text-text-3 transition-colors hover:border-border-strong hover:text-text-2', compact && 'justify-center px-0')}>
-          <Search className="size-3.5" />{!compact && <><span className="flex-1 text-left">{t('common.search')}</span><Kbd>⌘K</Kbd></>}
+        <button onClick={() => { setPalette(true); onNavigate?.() }} title={compact ? t('common.search') : undefined}
+          className={cn('group flex h-[34px] w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] text-text-2 transition-colors hover:bg-text/5 hover:text-text', compact && 'justify-center px-0')}>
+          <Search className="size-4 text-text-3 group-hover:text-text-2" />{!compact && <><span className="flex-1 text-left">{t('common.search')}</span><Kbd className="opacity-70">⌘K</Kbd></>}
         </button>
       </div>
-      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2.5 pb-3 pt-1" aria-label="Workspace">
+      <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-2.5 pb-3 pt-1" aria-label="Workspace">
         {NAV.map((g, gi) => (
           <div key={gi}>
-            {g.label && !compact && <div className="px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-text-3">{t(g.label)}</div>}
+            {g.label && !compact && <div className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-3/70">{t(g.label)}</div>}
             {g.label && compact && <div className="mx-2 my-1 h-px bg-border" />}
             <ul className="space-y-0.5">
               {g.items.map((it) => {
@@ -132,12 +132,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 return (
                   <li key={it.href}>
                     <Link href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
-                      className={cn('group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0',
-                        active ? 'bg-surface-3 font-medium text-text' : 'text-text-2 hover:bg-surface-2 hover:text-text')}>
-                      {active && <motion.span layoutId={compact ? 'nav-pill-c' : 'nav-pill'} className="absolute left-0 h-4 w-0.5 rounded-full bg-accent" />}
-                      <it.icon className={cn('size-4 shrink-0', active ? 'text-accent-ink' : 'text-text-3 group-hover:text-text-2')} />
-                      {!compact && <span className="flex-1 truncate">{t(it.label)}</span>}
-                      {badge > 0 && <span className={cn('rounded-full px-1.5 text-[10px] font-semibold leading-4 text-white', ask ? 'bg-[#c2410c]' : 'bg-accent', compact && 'absolute right-1 top-0.5 px-1')} title={ask ? '1 question' : undefined}>{badge > 99 ? '99+' : badge}</span>}
+                      className={cn('group relative flex h-[34px] items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0',
+                        active ? 'font-medium text-text' : 'text-text-2 hover:bg-text/5 hover:text-text')}>
+                      {active && <motion.span layoutId={compact ? 'nav-pill-c' : 'nav-pill'} className="absolute inset-0 rounded-md bg-text/[0.06] dark:bg-text/10" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+                      <it.icon className={cn('relative size-4 shrink-0', active ? 'text-text' : 'text-text-3 group-hover:text-text-2')} strokeWidth={1.75} />
+                      {!compact && <span className="relative flex-1 truncate">{t(it.label)}</span>}
+                      {badge > 0 && <span className={cn('relative grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[10px] font-medium', ask ? 'bg-warning/15 text-warning' : 'bg-text/10 text-text', compact && 'absolute right-0.5 top-0 h-4 min-w-4 px-1')} title={ask ? '1 question' : undefined}>{badge > 99 ? '99+' : badge}</span>}
                     </Link>
                   </li>
                 )
@@ -146,13 +146,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ))}
       </nav>
-      <div className="space-y-0.5 border-t border-border p-2.5">
+      <div className="mx-2.5 space-y-0.5 border-t border-border py-2.5">
         {NAV_FOOTER.map((it) => {
           const active = isActive(it.href)
           return (
             <Link key={it.href} href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
-              className={cn('flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0', active ? 'bg-surface-3 font-medium text-text' : 'text-text-2 hover:bg-surface-2 hover:text-text')}>
-              <it.icon className={cn('size-4 shrink-0', active ? 'text-accent-ink' : 'text-text-3')} />{!compact && <span className="truncate">{t(it.label)}</span>}
+              className={cn('flex h-[34px] items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors', compact && 'justify-center px-0', active ? 'bg-text/[0.06] font-medium text-text dark:bg-text/10' : 'text-text-2 hover:bg-text/5 hover:text-text')}>
+              <it.icon className={cn('size-4 shrink-0', active ? 'text-text' : 'text-text-3')} strokeWidth={1.75} />{!compact && <span className="truncate">{t(it.label)}</span>}
             </Link>
           )
         })}
@@ -163,29 +163,34 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-ui fixed inset-0 flex overflow-hidden bg-bg">
       <PairResume />
-      <aside className={cn('hidden shrink-0 border-r border-border bg-bg-subtle transition-[width] duration-200 ease-out md:block', collapsed ? 'w-[60px]' : 'w-[248px]')}>{sidebar(collapsed)}</aside>
+      <aside className={cn('hidden shrink-0 border-r border-border bg-surface transition-[width] duration-200 ease-out md:block dark:bg-bg-subtle', collapsed ? 'w-[60px]' : 'w-[260px]')}>{sidebar(collapsed)}</aside>
       <Sheet open={mobileOpen} onClose={() => setMobileOpen(false)}>{sidebar(false, () => setMobileOpen(false))}</Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col safe-top">
         {isDemo && (
-          <div className="flex items-center justify-center gap-3 border-b border-border bg-accent-soft px-3 py-1.5 text-center text-xs text-accent-ink">
+          <div className="flex items-center justify-center gap-3 border-b border-border bg-surface-2 px-3 py-1.5 text-center text-xs text-text-2">
             <span className="truncate"><span className="hidden sm:inline">{t('common.demoBanner')}</span><span className="sm:hidden">{t('common.demoShort')}</span></span>
             <button className="shrink-0 font-semibold underline underline-offset-2" onClick={() => { exitDemo(true); window.location.href = '/register' }}>{t('nav.start')}</button>
           </div>
         )}
         {!online && <div role="status" className="flex items-center justify-center gap-2 border-b border-border bg-surface-3 px-3 py-1.5 text-center text-xs font-medium text-text">{t('off.banner')}</div>}
-        <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-3 md:px-4">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-bg px-3 md:px-5">
           <div className="flex min-w-0 items-center gap-1">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(true)} aria-label="Menu"><MenuIcon className="size-5" /></Button>
-            <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={toggleCollapsed} aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}>
-              {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
+            <Button variant="ghost" size="icon" className="hidden text-text-3 md:inline-flex" onClick={toggleCollapsed} aria-label={collapsed ? t('shell.expand') : t('shell.collapse')}>
+              {collapsed ? <PanelLeftOpen className="size-4" strokeWidth={1.75} /> : <PanelLeftClose className="size-4" strokeWidth={1.75} />}
             </Button>
+            {/* fil d'Ariane « Espace / Page », comme la référence 21st.dev */}
+            <nav aria-label="Fil d'Ariane" className="ml-1 hidden min-w-0 items-center gap-2 text-[13px] md:flex">
+              <Link href={base} className="truncate text-text-3 transition-colors hover:text-text">{ws.name}</Link>
+              {pathname !== base && <><span className="text-text-3/60">/</span><span className="truncate font-medium text-text">{pageTitle}</span></>}
+            </nav>
             <span className="truncate text-[15px] font-semibold tracking-tight md:hidden" aria-hidden>{pageTitle}</span>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setPalette(true)} aria-label={t('common.search')}><Search className="size-[18px]" /></Button>
             <div className="hidden items-center gap-0.5 md:flex">
-              <Link href={`${base}/ai`} aria-label={t('nav.ai')} title={t('nav.ai')} className={cn('flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-surface-2', pathname.startsWith(`${base}/ai`) && 'bg-surface-3')}><Sparkles className="size-4 text-accent-ink" /></Link>
+              <Link href={`${base}/ai`} aria-label={t('nav.ai')} title={t('nav.ai')} className={cn('flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-surface-2', pathname.startsWith(`${base}/ai`) && 'bg-surface-3')}><Sparkles className="size-4 text-text-2" strokeWidth={1.75} /></Link>
               <LanguageToggle /><ThemeToggle />
             </div>
             <NotificationsMenu />
@@ -232,10 +237,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             const active = isActive(href)
             const badge = item.badge === 'messages' ? unread.count : 0
             return (
-              <Link key={href} href={base + href} aria-current={active ? 'page' : undefined} className={cn('relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors active:bg-surface-2', active ? 'text-accent-ink' : 'text-text-3')}>
-                {active && <motion.span layoutId="tab-line" className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-accent" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+              <Link key={href} href={base + href} aria-current={active ? 'page' : undefined} className={cn('relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors active:bg-surface-2', active ? 'text-text' : 'text-text-3')}>
+                {active && <motion.span layoutId="tab-line" className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-text" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
                 <item.icon className="size-5" />{t(item.label)}
-                {badge > 0 && <span className="absolute right-[26%] top-1 rounded-full bg-accent px-1 text-[9px] font-semibold leading-4 text-white">{badge}</span>}
+                {badge > 0 && <span className="absolute right-[26%] top-1 rounded-full bg-text px-1 text-[9px] font-semibold leading-4 text-bg">{badge}</span>}
               </Link>
             )
           })}

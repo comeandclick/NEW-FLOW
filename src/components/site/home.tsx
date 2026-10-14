@@ -2,7 +2,8 @@
 import Link from 'next/link'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, Check, Hash } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, Hash, Sparkles } from 'lucide-react'
+import { PricingCard, type Offre } from './pricing-card'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/misc'
 import { Reveal, Container, Faq } from './blocks'
@@ -36,41 +37,37 @@ export function Hero() {
   // titre et sous-titre visibles dès le premier affichage (pas de fondu) : sinon le navigateur attend le JavaScript pour les montrer
   const rise = (delay: number, fade = true) => ({ initial: reduce ? false : { opacity: fade ? 0 : 1, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const } })
   return (
-    <section id="haut" className="mk-night relative overflow-hidden bg-bg pb-16 pt-28 text-text sm:pb-24 sm:pt-36">
-      <div aria-hidden className="mk-hero-glow pointer-events-none absolute inset-0" />
-      {/* Blurred product screens behind the headline, like phones behind the title on the reference page. */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 hidden h-[680px] select-none overflow-hidden md:block">
-        <div className="absolute left-[3%] top-24 w-[290px] -rotate-3 opacity-45 blur-[3px] [mask-image:linear-gradient(to_bottom,#000_35%,transparent_92%)] xl:left-[7%]"><ChatMock /></div>
-        <div className="absolute right-[3%] top-16 w-[310px] rotate-3 opacity-45 blur-[3px] [mask-image:linear-gradient(to_bottom,#000_35%,transparent_92%)] xl:right-[7%]"><AppWindow><TasksMock /></AppWindow></div>
-        <div className="absolute inset-0 bg-[radial-gradient(48%_55%_at_50%_42%,var(--bg)_28%,transparent_100%)]" />
-      </div>
+    // d'après 21st.dev « hero-1 » (14/10/2026) : grille fine, titre en dégradé blanc → gris, grand arc lumineux sous l'aperçu
+    <section id="haut" className="mk-night mk-hero-fond relative isolate overflow-hidden rounded-b-xl pb-40 pt-32 text-text sm:pb-56 sm:pt-40">
+      <div aria-hidden className="mk-hero-grille pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] opacity-80" />
+      <div aria-hidden className="mk-hero-arc pointer-events-none absolute left-1/2 top-[calc(100%-110px)] -z-10 h-[500px] w-[700px] -translate-x-1/2 rounded-[100%] md:w-[1100px] lg:top-[calc(100%-170px)] lg:h-[750px] lg:w-[140%]" />
 
       <div className="relative mx-auto max-w-[1120px] px-5 text-center">
         <motion.div {...rise(0)}>
-          <a href="#tarif" className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/70 px-4 py-1.5 text-[13px] text-text-2 backdrop-blur transition-colors hover:text-text">
-            {t('v.hero.pill')}<ArrowRight className="size-3.5" />
+          <a href="#tarif" className="group mx-auto inline-flex w-fit items-center rounded-3xl border-2 border-white/5 bg-gradient-to-tr from-zinc-300/5 via-gray-400/5 to-transparent px-5 py-2 text-[13px] uppercase tracking-tight text-text-2 transition-colors hover:text-text">
+            {t('v.hero.pill')}<ChevronRight className="ml-2 size-4 transition-transform duration-300 group-hover:translate-x-1" />
           </a>
         </motion.div>
-        <motion.h1 {...rise(0.06, false)} className="mx-auto mt-7 max-w-[860px] text-[clamp(2.5rem,7vw,5rem)] font-bold leading-[1.02] tracking-[-0.045em] text-text">
-          {t('v.hero.h1a')}<br /><span className="mk-h1-grad">{t('v.hero.h1b')}</span>
+        <motion.h1 {...rise(0.06, false)} className="mk-h1-grad mx-auto max-w-[980px] text-balance py-6 text-5xl font-semibold leading-none tracking-tighter sm:text-6xl md:text-7xl lg:text-[5.5rem]">
+          {t('v.hero.h1a')} {t('v.hero.h1b')}
         </motion.h1>
-        <motion.p {...rise(0.12, false)} className="mx-auto mt-6 max-w-[640px] text-[17px] leading-relaxed text-text-2 sm:text-[18px]">{t('v.hero.sub')}</motion.p>
-        <motion.div {...rise(0.18)} className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/register"><Button variant="pill" size="lg" className="h-12 rounded-full bg-white px-8 text-[15px] text-[#05070d]">{t('v.hero.cta1')}</Button></Link>
-          <Link href="/demo"><Button variant="glass" size="lg" className="h-12 rounded-full border-transparent bg-surface-2 px-7 text-[15px] text-text hover:bg-surface-3">{t('v.hero.cta2')}</Button></Link>
+        <motion.p {...rise(0.12, false)} className="mx-auto max-w-[640px] text-balance text-lg tracking-tight text-text-2 md:text-xl">{t('v.hero.sub')}</motion.p>
+        <motion.div {...rise(0.18)} className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/register" className="inline-flex h-11 items-center rounded-md bg-white px-8 text-[15px] font-medium tracking-tight text-black shadow-sm transition-colors hover:bg-white/90">{t('v.hero.cta1')}</Link>
+          <Link href="/demo" className="inline-flex h-11 items-center rounded-md border border-white/10 px-6 text-[15px] font-medium tracking-tight text-text transition-colors hover:bg-white/5">{t('v.hero.cta2')}</Link>
         </motion.div>
-        <p className="mt-5 text-[13.5px] text-text-3">{t('v.hero.fine')}</p>
+        <p className="mt-5 text-[13px] text-text-3">{t('v.hero.fine')}</p>
 
-        <div className="relative mx-auto mt-14 max-w-[960px] text-left sm:mt-20">
+        <div className="relative mx-auto mt-20 max-w-[960px] text-left sm:mt-28 [perspective:2000px]">
           <motion.span initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
             className="absolute -top-4 right-2 z-10 inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-[13px] font-medium shadow-lg sm:right-6">
-            <span className="size-2 rounded-full bg-[#34d399]" />{t('v.hero.badge')}
+            <span className="size-2 rounded-full bg-[#4ade80]" />{t('v.hero.badge')}
           </motion.span>
           <div role="tablist" aria-label="Aperçu" className="mb-3 flex justify-center gap-1">
             {DEMOS.map((d, k) => (
               <button key={d.id} role="tab" aria-selected={i === k} onClick={() => { setI(k); setAuto(false) }}
-                className={cn('relative rounded-full px-4 py-1.5 text-[13.5px] font-medium transition-colors', i === k ? 'text-text' : 'text-text-3 hover:text-text')}>
-                {i === k && <motion.span layoutId="hero-tab" className="absolute inset-0 rounded-full bg-surface-3" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+                className={cn('relative rounded-md px-4 py-1.5 text-[13.5px] font-medium transition-colors', i === k ? 'text-text' : 'text-text-3 hover:text-text')}>
+                {i === k && <motion.span layoutId="hero-tab" className="absolute inset-0 rounded-md bg-white/10" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
                 <span className="relative">{t(d.key)}</span>
               </button>
             ))}
@@ -78,7 +75,7 @@ export function Hero() {
           <div className="relative min-h-[300px] sm:min-h-[400px]" onMouseEnter={() => setAuto(false)}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={DEMOS[i].id} role="tabpanel" initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.28 }}
-                className="[&>*]:shadow-[0_30px_80px_-30px_rgba(40,80,220,0.55)]">{DEMOS[i].node}</motion.div>
+                className="[&>*]:shadow-[0_40px_100px_-30px_rgba(255,255,255,0.18)]">{DEMOS[i].node}</motion.div>
             </AnimatePresence>
           </div>
         </div>
@@ -204,19 +201,17 @@ export function Rules() {
 /* ───────────── Pricing ───────────── */
 export function PricingBox() {
   const t = useT()
+  const offre: Offre = { icon: Sparkles, nom: 'Flow', pastille: t('v.price.badge'), prix: t('v.price.big'), periode: t('v.price.per'), cta: t('v.price.cta'), href: '/register', principale: true,
+    pour: t('v.price.text'), inclus: ([1, 2, 3, 4] as const).map((n) => t(`v.price.${n}` as Key)) }
   return (
     <Container id="tarif" className="scroll-mt-16 py-16 sm:py-24">
       <Reveal>
-        <div className="grid gap-10 rounded-lg border border-border-strong bg-surface p-7 sm:p-12 lg:grid-cols-[1fr_1fr] lg:items-center">
+        <div className="grid items-center gap-10 lg:grid-cols-[1fr_auto]">
           <div>
             <H2>{t('v.price.title')}</H2>
-            <p className="mt-4 max-w-sm text-[16px] leading-relaxed text-text-2">{t('v.price.text')}</p>
-            <div className="mt-8 flex items-baseline gap-3"><span className="font-display text-[clamp(3.5rem,8vw,5.5rem)] leading-none">{t('v.price.big')}</span><span className="text-[14px] text-text-3">{t('v.price.per')}</span></div>
+            <p className="mt-4 max-w-md text-[16px] leading-relaxed text-text-2">{t('v.price.text')}</p>
           </div>
-          <div>
-            <ul className="space-y-3 border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">{([1, 2, 3, 4] as const).map((n) => <li key={n} className="flex items-center gap-3 text-[15.5px]"><Check className="size-4 text-accent-ink" strokeWidth={2.4} />{t(`v.price.${n}` as Key)}</li>)}</ul>
-            <Link href="/register" className="mt-8 inline-block lg:ml-10"><Button variant="primary" size="lg" className="h-12 rounded-md px-7 text-[15px]">{t('v.price.cta')}</Button></Link>
-          </div>
+          <PricingCard o={offre} className="mx-auto lg:mx-0" />
         </div>
       </Reveal>
     </Container>

@@ -98,13 +98,13 @@ function CalendarPage() {
           <div className="flex items-center rounded-lg border border-border bg-surface p-0.5">
             <button
               onClick={() => setView('list')}
-              className={cn('flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] font-medium transition-colors', view === 'list' ? 'bg-accent text-white' : 'text-text-2 hover:text-text')}
+              className={cn('flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] font-medium transition-colors', view === 'list' ? 'bg-accent text-accent-text' : 'text-text-2 hover:text-text')}
             >
               <List className="size-3.5" />Liste
             </button>
             <button
               onClick={() => setView('calendar')}
-              className={cn('flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] font-medium transition-colors', view === 'calendar' ? 'bg-accent text-white' : 'text-text-2 hover:text-text')}
+              className={cn('flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] font-medium transition-colors', view === 'calendar' ? 'bg-accent text-accent-text' : 'text-text-2 hover:text-text')}
             >
               <CalendarRange className="size-3.5" />Calendrier
             </button>
@@ -153,7 +153,7 @@ function CalendarPage() {
                       !isSameMonth(d, cursor) && 'bg-surface-2/40 text-text-3',
                     )}
                   >
-                    <span className={cn('mb-0.5 flex size-5 items-center justify-center self-end rounded-full text-[11px] tabular-nums sm:size-6 sm:text-xs', isToday(d) && 'bg-accent font-semibold text-white')}>
+                    <span className={cn('mb-0.5 flex size-5 items-center justify-center self-end rounded-full text-[11px] tabular-nums sm:size-6 sm:text-xs', isToday(d) && 'bg-accent font-semibold text-accent-text')}>
                       {format(d, 'd')}
                     </span>
                     <div className="flex flex-col gap-0.5">

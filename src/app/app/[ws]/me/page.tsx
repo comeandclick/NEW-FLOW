@@ -165,7 +165,7 @@ function CalendarTab() {
             return (
               <div key={d.toISOString()} onClick={() => setPicked(d)} onDoubleClick={() => openNew(d)}
                 className={cn('flex min-h-[56px] cursor-pointer flex-col items-center gap-1 border-b border-r border-border/70 p-1 transition-colors hover:bg-surface-2/60 sm:min-h-[72px]', !isSameMonth(d, cursor) && 'bg-bg-subtle/60 text-text-3', isSameDay(d, picked) && 'bg-accent-soft/50')}>
-                <span className={cn('flex size-6 items-center justify-center rounded-full text-xs tabular-nums', isToday(d) && 'bg-accent font-semibold text-white')}>{format(d, 'd')}</span>
+                <span className={cn('flex size-6 items-center justify-center rounded-full text-xs tabular-nums', isToday(d) && 'bg-accent font-semibold text-accent-text')}>{format(d, 'd')}</span>
                 {evs.length > 0 && <span className="flex gap-0.5">{evs.slice(0, 3).map((e) => <span key={e.id} className="size-1.5 rounded-full" style={{ background: PERSO_COLOR }} />)}</span>}
               </div>
             )

@@ -23,7 +23,7 @@ export function AppWindow({ children, active = 1, wide }: { children: React.Reac
     <Frame>
       <div className={cn('grid grid-cols-[48px_1fr]', wide && 'sm:grid-cols-[176px_1fr]')}>
         <aside className="space-y-0.5 border-r border-border bg-bg-subtle p-2 sm:p-2.5">
-          <div className={cn('mb-2.5 hidden items-center gap-2 px-1.5 text-[13px] font-semibold', wide && 'sm:flex')}><span className="flex size-5 items-center justify-center rounded-md bg-accent text-[10px] font-bold text-white">F</span>Flow</div>
+          <div className={cn('mb-2.5 hidden items-center gap-2 px-1.5 text-[13px] font-semibold', wide && 'sm:flex')}><span className="flex size-5 items-center justify-center rounded-md bg-accent text-[10px] font-bold text-accent-text">F</span>Flow</div>
           {items.map(([Icon, label], i) => (
             <div key={label} className={cn('flex items-center justify-center gap-2 rounded-md p-2 text-[12px]', i === active ? 'bg-surface-3 font-medium text-text' : 'text-text-3', wide && 'sm:justify-start sm:px-2 sm:py-1.5')}>
               <Icon className={cn('size-4', i === active && 'text-accent-ink')} /><span className={cn('hidden', wide && 'sm:inline')}>{label}</span></div>))}
@@ -45,7 +45,7 @@ export function TasksMock() {
     <div>
       <div className="mb-3 flex items-center justify-between"><div className="text-[14px] font-semibold">{t('nav.tasks')}</div>
         <div className="flex items-center gap-2"><span className="hidden h-7 w-32 items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2 text-[11px] text-text-3 sm:flex"><Search className="size-3" />{t('common.search')}</span>
-          <span className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-white">+ {t('common.new')}</span></div></div>
+          <span className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-text">+ {t('common.new')}</span></div></div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         {cols.map((col) => (
           <div key={col.k} className="min-w-0 rounded-lg [&:nth-child(3)]:hidden sm:[&:nth-child(3)]:block border border-border bg-surface-2/60 p-1.5 sm:p-2">
@@ -69,10 +69,10 @@ export function ChatMock() {
         <div className="flex gap-2.5"><Avatar name="Léa Martin" size={26} /><div><div className="text-[11px] font-semibold">Léa Martin <span className="font-normal text-text-3">10:42</span></div><div className="mt-0.5 text-text-2">{L('Le nouveau parcours est prêt à tester.', 'The new flow is ready to test.')}</div>
           <div className="mt-1 flex gap-1"><span className="rounded-full border border-accent bg-accent-soft px-1.5 text-[11px] text-accent-ink">👍 2</span><span className="rounded-full border border-border px-1.5 text-[11px]">🎉 1</span></div></div></div>
         <div className="flex gap-2.5"><Avatar name="Karim Benali" size={26} /><div className="min-w-0"><div className="text-[11px] font-semibold">Karim Benali <span className="font-normal text-text-3">10:44</span></div>
-          <div className="mt-1 flex w-52 max-w-full items-center gap-2 rounded-2xl bg-surface-2 px-2.5 py-1.5"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Play className="size-3 translate-x-px fill-current" /></span>
+          <div className="mt-1 flex w-52 max-w-full items-center gap-2 rounded-2xl bg-surface-2 px-2.5 py-1.5"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-text"><Play className="size-3 translate-x-px fill-current" /></span>
             <div className="flex h-6 flex-1 items-center gap-[2px]">{WAVE.map((v, i) => <span key={i} className={cn('w-[2px] flex-1 rounded-full', i < 9 ? 'bg-accent' : 'bg-text-3/50')} style={{ height: `${v}%` }} />)}</div><span className="text-[10px] tabular-nums text-text-3">0:18</span></div></div></div>
         <div className="flex gap-2.5"><Avatar name="Sophie Dubois" size={26} /><div><div className="text-[11px] font-semibold">Sophie Dubois <span className="font-normal text-text-3">10:51</span></div>
-          <div className="mt-1 flex w-60 max-w-full items-center gap-2.5 rounded-xl border border-border px-3 py-2"><span className="flex size-7 items-center justify-center rounded-full bg-success/15 text-success"><Video className="size-3.5" /></span><span className="flex-1 text-[11.5px]">{L('Appel vidéo lancé', 'Video call started')}</span><span className="rounded-md bg-accent px-2 py-1 text-[10px] font-semibold text-white">{L('Rejoindre', 'Join')}</span></div></div></div>
+          <div className="mt-1 flex w-60 max-w-full items-center gap-2.5 rounded-xl border border-border px-3 py-2"><span className="flex size-7 items-center justify-center rounded-full bg-success/15 text-success"><Video className="size-3.5" /></span><span className="flex-1 text-[11.5px]">{L('Appel vidéo lancé', 'Video call started')}</span><span className="rounded-md bg-accent px-2 py-1 text-[10px] font-semibold text-accent-text">{L('Rejoindre', 'Join')}</span></div></div></div>
       </div>
       <div className="m-3 mt-0 flex items-center gap-2 rounded-xl border border-border-strong bg-surface-2/60 px-3 py-2 text-[12px] text-text-3">{L('Message dans #produit', 'Message #produit')}<Mic className="ml-auto size-4" /></div>
     </Frame>
@@ -86,7 +86,7 @@ export function CalendarMock() {
   return (
     <AppWindow active={3}>
       <div className="mb-3 flex items-center justify-between"><div className="text-[14px] font-semibold">{L('Octobre 2026', 'October 2026')}</div><div className="flex gap-1 text-[11px]"><span className="rounded-md bg-surface-3 px-2 py-1">{L('Semaine', 'Week')}</span></div></div>
-      <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] uppercase text-text-3">{days.map((d, i) => <div key={d}>{d}<div className={cn('mx-auto mt-0.5 flex size-5 items-center justify-center rounded-full text-[11px] normal-case tabular-nums', i === 2 ? 'bg-accent text-white' : 'text-text')}>{6 + i}</div></div>)}</div>
+      <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] uppercase text-text-3">{days.map((d, i) => <div key={d}>{d}<div className={cn('mx-auto mt-0.5 flex size-5 items-center justify-center rounded-full text-[11px] normal-case tabular-nums', i === 2 ? 'bg-accent text-accent-text' : 'text-text')}>{6 + i}</div></div>)}</div>
       <div className="relative mt-2 grid h-44 grid-cols-5 gap-1.5 border-t border-border pt-2">
         {days.map((d, i) => <div key={d} className="relative border-l border-border/60">{ev.filter((e) => e.d === i).map((e) => (
           <div key={e.n} className="absolute inset-x-0.5 overflow-hidden rounded-md border-l-2 px-1 py-0.5 text-[9.5px] font-medium leading-tight sm:text-[10.5px]" style={{ top: e.t, height: e.h, background: `color-mix(in srgb, ${e.c} 22%, var(--surface))`, borderColor: e.c }}>
@@ -106,7 +106,7 @@ export function NotesMock() {
       <ul className="mb-3 list-disc space-y-1 pl-5 text-[12px] text-text-2"><li>{L('Lancement public le 15', 'Public launch on the 15th')}</li><li>{L('Budget marketing validé', 'Marketing budget approved')}</li></ul>
       <div className="mb-2 text-[14px] font-semibold">{L('Actions', 'Actions')}</div>
       <div className="space-y-1.5 text-[12px]">{[[L('Envoyer le compte rendu', 'Send the minutes'), true], [L('Réserver la salle', 'Book the room'), false], [L('Valider le planning', 'Confirm the schedule'), false]].map(([t, c]) => (
-        <div key={String(t)} className="flex items-center gap-2"><span className={cn('flex size-3.5 items-center justify-center rounded-[4px] border text-[9px]', c ? 'border-accent bg-accent text-white' : 'border-border-strong')}>{c ? '✓' : ''}</span><span className={c ? 'text-text-3 line-through' : ''}>{String(t)}</span></div>))}</div>
+        <div key={String(t)} className="flex items-center gap-2"><span className={cn('flex size-3.5 items-center justify-center rounded-[4px] border text-[9px]', c ? 'border-accent bg-accent text-accent-text' : 'border-border-strong')}>{c ? '✓' : ''}</span><span className={c ? 'text-text-3 line-through' : ''}>{String(t)}</span></div>))}</div>
     </AppWindow>
   )
 }

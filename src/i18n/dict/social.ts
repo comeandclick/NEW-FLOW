@@ -1,7 +1,7 @@
 /** Chat details (receipts, channel settings), assignments, note tags, personal area. */
 export const social = {
   fr: {
-    'rcp.sent': 'Envoyé', 'rcp.sending': 'Envoi', 'rcp.seenAll': 'Vu par tout le monde', 'rcp.info': 'Qui a vu ce message', 'rcp.title': 'Vu par',
+    'rcp.sent': 'Envoyé', 'rcp.read': 'Lu', 'rcp.sending': 'Envoi', 'rcp.seenAll': 'Vu par tout le monde', 'rcp.info': 'Qui a vu ce message', 'rcp.title': 'Vu par',
     'rcp.seenBy': 'Vu ({n})', 'rcp.notSeen': 'Pas encore vu ({n})', 'rcp.notYet': 'Pas encore',
     'chi.title': 'Infos du canal', 'chi.titleDm': 'Conversation', 'chi.name': 'Nom', 'chi.desc': 'Description',
     'chi.notif': 'Notifications', 'chi.notifOn': 'Vous êtes prévenu des nouveaux messages.', 'chi.notifOff': 'Notifications coupées pour cette conversation.',
@@ -23,7 +23,7 @@ export const social = {
     'perso.saveFail': 'Impossible d’enregistrer.', 'perso.open': 'Ouvrir', 'perso.navLabel': 'Mon espace',
   },
   en: {
-    'rcp.sent': 'Sent', 'rcp.sending': 'Sending', 'rcp.seenAll': 'Seen by everyone', 'rcp.info': 'Who has seen this message', 'rcp.title': 'Seen by',
+    'rcp.sent': 'Sent', 'rcp.read': 'Read', 'rcp.sending': 'Sending', 'rcp.seenAll': 'Seen by everyone', 'rcp.info': 'Who has seen this message', 'rcp.title': 'Seen by',
     'rcp.seenBy': 'Seen ({n})', 'rcp.notSeen': 'Not seen yet ({n})', 'rcp.notYet': 'Not yet',
     'chi.title': 'Channel info', 'chi.titleDm': 'Conversation', 'chi.name': 'Name', 'chi.desc': 'Description',
     'chi.notif': 'Notifications', 'chi.notifOn': 'You are notified of new messages.', 'chi.notifOff': 'Notifications are off for this conversation.',

@@ -16,7 +16,7 @@ export function PeoplePicker({ value, onChange, disabled, label }: { value: stri
         return (
           <label key={m.user_id} className={cn('flex cursor-pointer items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs transition-colors', on ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-text-2 hover:border-border-strong', disabled && 'pointer-events-none opacity-60')}>
             <input type="checkbox" className="sr-only" checked={on} disabled={disabled} onChange={() => toggle(m.user_id)} />
-            <span className="relative"><Avatar name={name} src={m.profile?.avatar_url} size={20} />{on && <span className="absolute -bottom-0.5 -right-0.5 grid size-3 place-items-center rounded-full bg-accent text-white"><Check className="size-2" strokeWidth={4} /></span>}</span>
+            <span className="relative"><Avatar name={name} src={m.profile?.avatar_url} size={20} />{on && <span className="absolute -bottom-0.5 -right-0.5 grid size-3 place-items-center rounded-full bg-accent text-accent-text"><Check className="size-2" strokeWidth={4} /></span>}</span>
             {name}
           </label>
         )

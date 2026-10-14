@@ -5,69 +5,67 @@
 :root {
   --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 10px;
+  --radius: 8px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ── Thème clair ── */
+/* ── Thème clair ── DA monochrome d'après 21st.dev « dashboard-sidebar » (14/10/2026, demande d'Aymen) :
+   noir, blanc et gris neutres ; aucune couleur d'accent, la couleur est réservée aux statuts. */
 :root, [data-theme='light'] {
   color-scheme: light;
-  --bg: #fbfbfc;
-  --bg-subtle: #f4f5f7;
+  --bg: #fafafa;
+  --bg-subtle: #f5f5f5;
   --surface: #ffffff;
-  --surface-2: #f6f7f9;
-  --surface-3: #eceef2;
-  --border: #e6e8ec;
-  --border-strong: #d4d7de;
-  --text: #16171a;
-  --text-2: #5b6068;
-  --text-3: #636873;
-  --accent: #4d59c7;
-  --accent-hover: #424eb8;
-  --accent-ink: #4551bd;
-  --accent-soft: #eceefc;
-  --accent-text: #ffffff;
-  --danger-bg: #c4262f;
-  --success: #167a42;
-  --warning: #9a5b00;
-  --danger: #c4262f;
-  --info: #1f63c2;
-  --shadow-sm: 0 1px 2px rgb(16 18 24 / 0.06);
-  --shadow-md: 0 6px 24px -6px rgb(16 18 24 / 0.14), 0 2px 6px rgb(16 18 24 / 0.06);
-  --shadow-lg: 0 24px 60px -12px rgb(16 18 24 / 0.28);
-  --glow: radial-gradient(60% 60% at 50% 0%, rgb(94 106 210 / 0.14), transparent 70%);
+  --surface-2: #f5f5f5;
+  --surface-3: #ececec;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --text: #0a0a0a;
+  --text-2: #525252;
+  --text-3: #737373;
+  --accent: #171717;
+  --accent-hover: #262626;
+  --accent-ink: #171717;
+  --accent-soft: #f0f0f0;
+  --accent-text: #fafafa;
+  --danger-bg: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 16px -4px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 20px 50px -12px rgb(0 0 0 / 0.18);
+  --glow: radial-gradient(60% 60% at 50% 0%, rgb(0 0 0 / 0.05), transparent 70%);
 }
-
-/* ── Thème sombre ── */
+/* ── Thème sombre ── « Charcoal Ink » de la même référence : fond #0a0a0a, panneaux #171717, contours blancs à 5-8 %. */
 [data-theme='dark'] {
   color-scheme: dark;
-  /* gris graphite doux plutôt que noir (demande d'Aymen, 13/10/2026) */
-  --bg: #1b1c20;
-  --bg-subtle: #202126;
-  --surface: #25272c;
-  --surface-2: #2b2d33;
-  --surface-3: #33363d;
-  --border: #383b42;
-  --border-strong: #484c55;
-  --text: #f3f4f6;
-  --text-2: #b7bbc3;
-  --text-3: #a0a5af;
-  --accent: #5b67d6;
-  --accent-hover: #6874e0;
-  --accent-ink: #9aa4f6;
-  --accent-soft: #2a2e4d;
-  --accent-text: #ffffff;
-  --danger-bg: #c4262f;
-  --success: #4cc38a;
-  --warning: #e5a53a;
-  --danger: #f06670;
-  --info: #5fa1f5;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
-  --shadow-md: 0 8px 30px -8px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.04);
-  --shadow-lg: 0 30px 80px -16px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.05);
-  --glow: radial-gradient(60% 60% at 50% 0%, rgb(118 129 232 / 0.22), transparent 70%);
+  --bg: #0a0a0a;
+  --bg-subtle: #111111;
+  --surface: #171717;
+  --surface-2: #1f1f1f;
+  --surface-3: #282828;
+  --border: #242424;
+  --border-strong: #333333;
+  --text: #fafafa;
+  --text-2: #a1a1a1;
+  --text-3: #8b8b8b;
+  --accent: #fafafa;
+  --accent-hover: #e5e5e5;
+  --accent-ink: #e5e5e5;
+  --accent-soft: #262626;
+  --accent-text: #0a0a0a;
+  --danger-bg: #dc2626;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 8px 30px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-lg: 0 30px 80px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --glow: radial-gradient(60% 60% at 50% 0%, rgb(255 255 255 / 0.06), transparent 70%);
 }
-
 @theme inline {
   --color-bg: var(--bg);
   --color-bg-subtle: var(--bg-subtle);
@@ -108,29 +106,35 @@
 @keyframes pop { from { opacity: 0; transform: scale(0.96) translateY(4px) } to { opacity: 1; transform: none } }
 @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
 @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
-@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgb(118 129 232 / 0.5) } 100% { box-shadow: 0 0 0 14px rgb(118 129 232 / 0) } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgb(127 127 127 / 0.45) } 100% { box-shadow: 0 0 0 14px rgb(127 127 127 / 0) } }
 
 /* ── Site vitrine : papier chaud / encre. Un seul accent, pas de dégradé, titres en serif. ── */
 .mk {
-  --bg: #f6f3ec; --bg-subtle: #efebe1; --surface: #fdfcf8; --surface-2: #f3f0e7; --surface-3: #e9e5d9;
-  --border: #e3ddcf; --border-strong: #cfc8b6; --text: #1c1b17; --text-2: #4f4c43; --text-3: #6a665b;
-  --accent: #3a45b4; --accent-hover: #2f3a9f; --accent-ink: #333eab; --accent-soft: #e6e8f7; --accent-text: #ffffff;
+  /* site vitrine : même DA monochrome que l'application (21st.dev, 14/10/2026) */
+  --bg: #ffffff; --bg-subtle: #fafafa; --surface: #ffffff; --surface-2: #f5f5f5; --surface-3: #ececec;
+  --border: #e5e5e5; --border-strong: #d4d4d4; --text: #0a0a0a; --text-2: #525252; --text-3: #737373;
+  --accent: #171717; --accent-hover: #262626; --accent-ink: #171717; --accent-soft: #f0f0f0; --accent-text: #fafafa;
 }
 [data-theme='dark'] .mk, .mk[data-theme='dark'] {
-  --bg: #14130f; --bg-subtle: #191813; --surface: #1d1c17; --surface-2: #24231d; --surface-3: #2c2b24;
-  --border: #2b2a23; --border-strong: #3d3b31; --text: #f2efe6; --text-2: #bdb8a9; --text-3: #9a9585;
-  --accent: #5662d4; --accent-hover: #6571de; --accent-ink: #a3abf2; --accent-soft: #23264a; --accent-text: #ffffff;
+  --bg: #0a0a0a; --bg-subtle: #111111; --surface: #171717; --surface-2: #1f1f1f; --surface-3: #282828;
+  --border: #242424; --border-strong: #333333; --text: #fafafa; --text-2: #a1a1a1; --text-3: #8b8b8b;
+  --accent: #fafafa; --accent-hover: #e5e5e5; --accent-ink: #e5e5e5; --accent-soft: #262626; --accent-text: #0a0a0a;
 }
-/* Hero + floating nav of the homepage: always night blue (like the reference site), whatever the page theme. */
+/* Hero + barre flottante de l'accueil : toujours noirs (référence 21st.dev « hero-1 »), quel que soit le thème. */
 .mk .mk-night, .mk-night {
-  --bg: #04070f; --bg-subtle: #070c19; --surface: #0b1226; --surface-2: #101a33; --surface-3: #17223f;
-  --border: #172037; --border-strong: #26334f; --text: #f4f6fb; --text-2: #aab4cc; --text-3: #8d97b2;
-  --accent: #3f66e4; --accent-hover: #5176ec; --accent-ink: #8fb0ff; --accent-soft: #101a38; --accent-text: #ffffff;
+  --bg: #000000; --bg-subtle: #0a0a0a; --surface: #111111; --surface-2: #171717; --surface-3: #262626;
+  --border: #1f1f1f; --border-strong: #2e2e2e; --text: #fafafa; --text-2: #a1a1a1; --text-3: #8b8b8b;
+  --accent: #fafafa; --accent-hover: #e5e5e5; --accent-ink: #e5e5e5; --accent-soft: #1f1f1f; --accent-text: #0a0a0a;
   color: var(--text);
 }
-.mk-hero-glow { background: radial-gradient(60% 55% at 50% 0%, rgb(59 102 240 / 0.38), transparent 72%), radial-gradient(40% 40% at 85% 30%, rgb(40 70 200 / 0.18), transparent 70%); }
-.mk-h1-grad { background: linear-gradient(180deg, #ffffff 0%, #b9ccff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.mk .font-display { font-family: var(--font-serif), Georgia, 'Times New Roman', serif; font-weight: 500; letter-spacing: -0.022em; font-optical-sizing: auto; text-wrap: balance; }
+.mk-hero-glow { background: radial-gradient(60% 55% at 50% 0%, rgb(255 255 255 / 0.10), transparent 72%); }
+/* hero d'après 21st.dev « hero-1 » : grille fine, fond qui s'éclaircit vers le bas, grand arc lumineux */
+.mk-hero-fond { background: linear-gradient(to bottom, #000, #000 30%, #3a3d3d 70%, #898e8e 86%, #d9dbdb 100%); }
+.mk-hero-grille { background-image: linear-gradient(to right, #262626 1px, transparent 1px), linear-gradient(to bottom, #262626 1px, transparent 1px); background-size: 6rem 5rem;
+  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 70%, transparent 110%); mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 70%, transparent 110%); }
+.mk-hero-arc { background: radial-gradient(closest-side, #000 82%, #ffffff); }
+.mk-h1-grad { background: linear-gradient(135deg, #ffffff 30%, rgb(255 255 255 / 0.4)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.mk .font-display { font-family: var(--font-sans); font-weight: 600; letter-spacing: -0.045em; text-wrap: balance; } /* titres sans empattements, serrés (hero-1) */
 .mk .font-serif-i { font-family: var(--font-serif), Georgia, serif; font-style: italic; font-weight: 400; }
 .mk ::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 @keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
@@ -228,3 +232,10 @@ html, body { background: var(--bg); min-height: 100%; }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
 .typing-dot { animation: typing-bounce 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .typing-dot { animation: none; opacity: .7; } }
+
+/* Connexion / inscription (21st.dev « modern-stunning-sign-in ») : champs pleins arrondis, boutons en pilule */
+.auth-carte input:not([type='checkbox']):not([type='radio']) { height: auto; padding: 0.75rem 1.25rem; border-radius: 0.75rem; border-color: transparent; background: rgb(255 255 255 / 0.1); color: #fff; font-size: 0.875rem; }
+.auth-carte input::placeholder { color: #d4d4d4; opacity: 0.8; }
+.auth-carte input:focus { box-shadow: 0 0 0 2px #a3a3a3; outline: none; }
+.auth-carte button { border-radius: 9999px; min-height: 2.75rem; }
+.auth-carte label { color: #d4d4d4; }

@@ -19,7 +19,7 @@ import type { Meeting } from '@/lib/types'
 function Ctl({ on, onClick, label, children, danger }: { on?: boolean; onClick: () => void; label: string; children: React.ReactNode; danger?: boolean }) {
   return (
     <button onClick={onClick} aria-label={label} aria-pressed={on} title={label}
-      className={cn('flex size-11 items-center justify-center rounded-full transition-all active:scale-90', danger ? 'bg-danger-bg text-white hover:opacity-90' : on ? 'bg-accent text-white' : 'bg-surface-3 text-text hover:bg-border-strong')}>{children}</button>
+      className={cn('flex size-11 items-center justify-center rounded-full transition-all active:scale-90', danger ? 'bg-danger-bg text-accent-text hover:opacity-90' : on ? 'bg-accent text-accent-text' : 'bg-surface-3 text-text hover:bg-border-strong')}>{children}</button>
   )
 }
 
@@ -155,7 +155,7 @@ function RoomPage({ id }: { id: string }) {
               <button onClick={() => setPanel(null)} aria-label={t('common.close')}><X className="size-4" /></button></div>
             {panel === 'chat' ? <>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">{chat.map((m) => <div key={m.id} className={cn('flex flex-col', m.from === userId && 'items-end')}><span className="text-[11px] text-text-3">{m.name}</span>
-                <span className={cn('max-w-[85%] break-words rounded-2xl px-3 py-1.5 text-[13px]', m.from === userId ? 'bg-accent text-white' : 'bg-surface-2')}>{m.text}</span></div>)}</div>
+                <span className={cn('max-w-[85%] break-words rounded-2xl px-3 py-1.5 text-[13px]', m.from === userId ? 'bg-accent text-accent-text' : 'bg-surface-2')}>{m.text}</span></div>)}</div>
               <form onSubmit={(e) => { e.preventDefault(); sendChat() }} className="flex gap-2 border-t border-border p-3"><Input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={t('meet.chatPlaceholder')} /><Button type="submit" variant="primary" size="icon" aria-label={t('msg.send')}><Send className="size-4" /></Button></form>
             </> : <ul className="space-y-1 overflow-y-auto p-2">{parts.map((p) => <li key={p.id} className="flex items-center gap-3 rounded-lg px-2.5 py-2"><Avatar name={p.name} size={28} /><span className="min-w-0 flex-1 truncate text-sm">{p.name}{p.local && ` (${t('meet.you')})`}</span>{p.hand && <Hand className="size-4 text-warning" />}{!p.audio && <MicOff className="size-4 text-danger" />}</li>)}</ul>}
           </aside>

@@ -78,7 +78,7 @@ export function ConversationList() {
       <Link href={`${base}/${c.id}`} onClick={() => join(c)} aria-current={active ? 'page' : undefined}
         className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors', active ? 'bg-surface-3 font-medium' : 'text-text-2 hover:bg-surface-2', n > 0 && 'font-semibold text-text')}>
         {icon}<span className="min-w-0 flex-1 truncate">{label}</span>
-        {n > 0 && <span className="rounded-full bg-accent px-1.5 text-[10px] font-semibold leading-4 text-white">{n}</span>}
+        {n > 0 && <span className="rounded-full bg-accent px-1.5 text-[10px] font-semibold leading-4 text-accent-text">{n}</span>}
       </Link>
     )
   }

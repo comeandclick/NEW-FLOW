@@ -172,7 +172,7 @@ function CalendarPage() {
                 <div key={d.toISOString()}
                   onClick={() => (window.matchMedia('(max-width: 639px)').matches ? setPicked(d) : openNew(d, true))}
                   className={cn('group flex min-h-[52px] cursor-pointer flex-col items-center gap-0.5 overflow-hidden border-b border-r border-border/70 p-1 transition-colors hover:bg-surface-2/60 sm:min-h-[78px] sm:items-stretch', !isSameMonth(d, cursor) && 'bg-bg-subtle/60 text-text-3', isSameDay(d, picked) && 'bg-accent-soft/50 sm:bg-transparent')}>
-                  <button type="button" aria-label={format(d, 'PPPP', { locale: dfl })} onClick={(e) => { e.stopPropagation(); setPicked(d); if (window.matchMedia('(min-width: 640px)').matches) openNew(d, true) }} className={cn('mb-0.5 flex size-6 items-center justify-center rounded-full text-xs tabular-nums sm:self-start', isToday(d) && 'bg-accent font-semibold text-white', !isToday(d) && isSameDay(d, picked) && 'font-semibold text-accent-ink sm:font-normal sm:text-inherit')}>{format(d, 'd')}</button>
+                  <button type="button" aria-label={format(d, 'PPPP', { locale: dfl })} onClick={(e) => { e.stopPropagation(); setPicked(d); if (window.matchMedia('(min-width: 640px)').matches) openNew(d, true) }} className={cn('mb-0.5 flex size-6 items-center justify-center rounded-full text-xs tabular-nums sm:self-start', isToday(d) && 'bg-accent font-semibold text-accent-text', !isToday(d) && isSameDay(d, picked) && 'font-semibold text-accent-ink sm:font-normal sm:text-inherit')}>{format(d, 'd')}</button>
                   <span className="flex gap-0.5 sm:hidden" aria-hidden>{[...evs.slice(0, 3).map((e) => e.color ?? COLORS[0]), ...(evs.length < 3 && due.length ? ['var(--text-3)'] : [])].map((c, i) => <span key={i} className="size-1.5 rounded-full" style={{ background: c }} />)}</span>
                   <div className="hidden flex-col gap-0.5 sm:flex">
                     {evs.slice(0, 3).map((e) => <Chip key={e.id} e={e} />)}
@@ -191,7 +191,7 @@ function CalendarPage() {
             {days.map((d) => (
               <div key={d.toISOString()} className="border-l border-border/70 px-2 py-2 text-center">
                 <div className="text-[11px] uppercase text-text-3">{format(d, 'EEE', { locale: dfl })}</div>
-                <div className={cn('mx-auto mt-0.5 flex size-7 items-center justify-center rounded-full text-sm tabular-nums', isToday(d) && 'bg-accent font-semibold text-white')}>{format(d, 'd')}</div>
+                <div className={cn('mx-auto mt-0.5 flex size-7 items-center justify-center rounded-full text-sm tabular-nums', isToday(d) && 'bg-accent font-semibold text-accent-text')}>{format(d, 'd')}</div>
                 <div className="mt-1 space-y-0.5">{eventsOn(d).filter((e) => e.all_day).map((e) => <Chip key={e.id} e={e} />)}</div>
               </div>
             ))}

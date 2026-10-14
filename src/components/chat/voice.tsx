@@ -44,12 +44,12 @@ export function VoicePlayer({ att, mine }: { att: Attachment; mine?: boolean }) 
   }
 
   return (
-    <div className={cn('flex w-[260px] max-w-full items-center gap-2.5 rounded-2xl px-2.5 py-2', mine ? 'bg-accent text-white' : 'bg-surface-2')}>
+    <div className={cn('flex w-[260px] max-w-full items-center gap-2.5 rounded-2xl px-2.5 py-2', mine ? 'bg-accent text-accent-text' : 'bg-surface-2')}>
       <audio ref={audio} src={src || undefined} preload="metadata"
         onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setProgress(0) }}
         onTimeUpdate={(e) => setProgress(e.currentTarget.duration ? e.currentTarget.currentTime / e.currentTarget.duration : 0)} />
       <button onClick={toggle} disabled={!src} aria-label={playing ? 'Pause' : 'Play'}
-        className={cn('flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90', mine ? 'bg-white/20 hover:bg-white/30' : 'bg-accent text-white hover:bg-accent-hover')}>
+        className={cn('flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90', mine ? 'bg-white/20 hover:bg-white/30' : 'bg-accent text-accent-text hover:bg-accent-hover')}>
         {playing ? <Pause className="size-4 fill-current" /> : <Play className="size-4 translate-x-px fill-current" />}
       </button>
       <div className="flex h-8 flex-1 cursor-pointer items-center gap-[2px]" onClick={seek} role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} aria-label="Seek">

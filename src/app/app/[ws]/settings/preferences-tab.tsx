@@ -15,7 +15,7 @@ import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import { Row, Section } from './section'
 
-const SWATCH: Record<Accent, string> = { indigo: '#4d59c7', blue: '#2f6fe0', violet: '#7a4fd8', emerald: '#12805c', rose: '#d6336c', amber: '#b45f06' }
+const SWATCH: Record<Accent, string> = { indigo: '#171717', blue: '#2f6fe0', violet: '#7a4fd8', emerald: '#12805c', rose: '#d6336c', amber: '#b45f06' }
 
 function Segmented<T extends string>({ value, onChange, items, label }: { value: T; onChange: (v: T) => void; items: { v: T; label: string; icon?: React.ReactNode }[]; label: string }) {
   return (
