@@ -96,6 +96,12 @@ export default function FocusPage() {
     return { name: format(d, 'EEE', { locale: dfl }), min: Math.round(mins) }
   }), [entries.data, dfl])
   const today = days[6].min
+  // objectif du jour (gardé sur l'appareil), total de la semaine et série de jours travaillés (14/10/2026)
+  const [objectif, setObjectif] = useState(120)
+  useEffect(() => { try { const v = Number(localStorage.getItem('flow_focus_objectif')); if (v > 0) setObjectif(v) } catch {} }, [])
+  const changerObjectif = (v: number) => { setObjectif(v); try { localStorage.setItem('flow_focus_objectif', String(v)) } catch {} }
+  const semaine = days.reduce((a, d) => a + d.min, 0)
+  const serie = (() => { let n = 0; for (let i = 6; i >= 0; i--) { if (days[i].min > 0) n++; else if (i < 6) break } return n })()
   const sessions = entries.data.filter((e) => e.kind === 'focus' && startOfDay(new Date(e.started_at)).getTime() === startOfDay(new Date()).getTime()).length
   void tick
 
@@ -123,6 +129,16 @@ export default function FocusPage() {
             {tracking ? <div className="flex items-center gap-3"><span className="size-2 animate-pulse rounded-full bg-danger-bg" /><span className="flex-1 truncate text-sm">{tracking.note || '—'}</span><span className="font-mono text-lg tabular-nums">{formatDuration((Date.now() - tracking.start) / 1000)}</span>
               <Button variant="danger" size="icon" onClick={stopTracking} aria-label={t('focus.trackStop')}><Square className="size-4" /></Button></div>
               : <div className="flex gap-2"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('focus.note')} onKeyDown={(e) => e.key === 'Enter' && setTracking({ start: Date.now(), note })} /><Button variant="primary" onClick={() => setTracking({ start: Date.now(), note })} aria-label={t('focus.trackStart')}><Play className="size-4" /><span className="hidden sm:inline">{t('focus.trackStart')}</span></Button></div>}
+          </section>
+          <section className="grid grid-cols-3 gap-3">
+            <div className="col-span-3 rounded-2xl border border-border bg-surface p-5 sm:col-span-1">
+              <div className="flex items-center justify-between text-xs text-text-3">Objectif du jour
+                <select value={objectif} onChange={(e) => changerObjectif(Number(e.target.value))} className="rounded-md border border-border bg-surface px-1.5 py-0.5 text-xs" aria-label="Objectif du jour">{[60, 90, 120, 180, 240, 300].map((m) => <option key={m} value={m}>{m / 60} h</option>)}</select></div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{Math.min(100, Math.round((today / objectif) * 100))} %</div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-text/10"><div className={cn('h-full rounded-full transition-[width] duration-700', today >= objectif ? 'bg-success' : 'bg-text')} style={{ width: `${Math.min(100, (today / objectif) * 100)}%` }} /></div>
+            </div>
+            <div className="rounded-2xl border border-border bg-surface p-5"><div className="text-xs text-text-3">Cette semaine</div><div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{Math.floor(semaine / 60)} h {semaine % 60}</div></div>
+            <div className="rounded-2xl border border-border bg-surface p-5"><div className="text-xs text-text-3">Série</div><div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{serie} j</div></div>
           </section>
           <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="mb-2 flex items-baseline justify-between"><h2 className="text-sm font-semibold">{t('focus.week')}</h2><span className="text-xs text-text-3">{t('focus.today')}: {today} min</span></div>

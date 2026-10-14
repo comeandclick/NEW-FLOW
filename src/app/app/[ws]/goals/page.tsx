@@ -51,7 +51,12 @@ export default function GoalsPage() {
     <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <PageHeader title={t('goals.title')} subtitle={`${goals.data.length}`} icon={<Target className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setDraft({ title: '', target: 100, current: 0, unit: '%', color: COLORS[0] })}><Plus className="size-4" />{t('goals.new')}</Button>} />
       {goals.data.length === 0 && !goals.loading ? <EmptyState icon={<Target className="size-5" />} title={t('goals.empty')} hint={t('goals.emptyHint')} />
-        : <div className="space-y-4">{goals.data.map((g, i) => {
+        : <>
+          {/* résumé (14/10/2026) : en cours, atteints, progression moyenne */}
+          {(() => { const ps = goals.data.map((g) => pct(g.current, g.target)); const moy = ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : 0
+            return <div className="mb-5 grid grid-cols-3 gap-3">{[['En cours', ps.filter((p) => p < 100).length], ['Atteints', ps.filter((p) => p >= 100).length], ['Progression moyenne', `${moy} %`]].map(([l, v]) => (
+              <div key={String(l)} className="rounded-xl border border-border bg-surface p-4 shadow-sm"><div className="text-xs text-text-3">{l}</div><div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{v}</div></div>))}</div> })()}
+          <div className="grid gap-4 xl:grid-cols-2">{goals.data.map((g, i) => {
           const p = pct(g.current, g.target)
           const list = krs.data.filter((k) => k.goal_id === g.id)
           return (
@@ -63,9 +68,9 @@ export default function GoalsPage() {
                 {canWrite && <div className="flex"><Button variant="ghost" size="icon" onClick={() => setDraft(g)} aria-label={t('common.edit')}><Pencil className="size-4" /></Button>
                   <Button variant="ghost" size="icon" onClick={async () => { await getDb().from('goals').update({ deleted_at: new Date().toISOString() }).eq('id', g.id); goals.refresh() }} aria-label={t('common.delete')}><Trash2 className="size-4" /></Button></div>}
               </div>
-              <div className="mt-4 flex items-center gap-3"><div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-3"><motion.div initial={{ width: 0 }} animate={{ width: `${p}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="h-full rounded-full" style={{ background: g.color ?? 'var(--accent)' }} /></div>
+              <div className="mt-4 flex items-center gap-3"><div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-surface-3">
+                {canWrite && <input type="range" min={0} max={g.target} value={g.current} onChange={(e) => bump(g, Number(e.target.value))} className="absolute inset-0 z-10 w-full cursor-ew-resize opacity-0" aria-label={t('goals.current')} title="Glisse pour mettre à jour" />}<motion.div initial={{ width: 0 }} animate={{ width: `${p}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="h-full rounded-full" style={{ background: g.color ?? 'var(--accent)' }} /></div>
                 <span className="max-w-[55%] shrink-0 text-right text-xs tabular-nums text-text-2">{g.unit === '%' ? `${p}\u00a0%` : <>{g.current}/{g.target} {g.unit} · <span className="whitespace-nowrap">{`${p}\u00a0%`}</span></>}</span></div>
-              {canWrite && <input type="range" min={0} max={g.target} value={g.current} onChange={(e) => bump(g, Number(e.target.value))} className="mt-3 w-full accent-[var(--accent)]" aria-label={t('goals.current')} />}
               <div className="mt-4 space-y-2"><h3 className="text-xs font-medium uppercase tracking-wide text-text-3">{t('goals.kr')}</h3>
                 {list.map((k) => (
                   <div key={k.id} className="flex items-center gap-3 text-[13px]"><span className="min-w-0 flex-1 truncate">{k.title}</span>
@@ -73,7 +78,7 @@ export default function GoalsPage() {
                     {canWrite ? <input type="number" value={k.current} min={0} max={k.target} onChange={async (e) => { await getDb().from('key_results').update({ current: Number(e.target.value) }).eq('id', k.id); krs.refresh() }} className={cn('h-7 w-16 rounded-md border border-border bg-surface-2 px-1.5 text-right text-xs tabular-nums')} aria-label={k.title} /> : <span className="tabular-nums">{k.current}</span>}</div>))}
                 {canWrite && <div className="flex gap-2 pt-1"><Input className="h-8" value={krTitle[g.id] ?? ''} onChange={(e) => setKrTitle((s) => ({ ...s, [g.id]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && addKr(g)} placeholder={t('goals.addKr')} /><Button size="sm" onClick={() => addKr(g)} aria-label={t('goals.addKr')}><Plus className="size-3.5" /></Button></div>}</div>
             </motion.article>)
-        })}</div>}
+        })}</div></>}
       <Dialog open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? t('goals.edit') : t('goals.new')}
         footer={<><Button onClick={() => setDraft(null)}>{t('common.cancel')}</Button><Button variant="primary" onClick={save} disabled={!draft?.title.trim()}>{t('common.save')}</Button></>}>
         {draft && <div className="space-y-4"><Field label={t('common.title')}><Input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></Field>

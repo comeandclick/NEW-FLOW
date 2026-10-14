@@ -57,7 +57,9 @@ export default function CrmPage() {
 
   const stats = useMemo(() => {
     const open = deals.data.filter((d) => !['gagné', 'perdu'].includes(d.stage))
-    return { total: open.reduce((a, d) => a + d.value, 0), weighted: open.reduce((a, d) => a + (d.value * d.probability) / 100, 0), won: deals.data.filter((d) => d.stage === 'gagné').reduce((a, d) => a + d.value, 0) }
+    const gagnees = deals.data.filter((d) => d.stage === 'gagné').length, perdues = deals.data.filter((d) => d.stage === 'perdu').length
+    return { total: open.reduce((a, d) => a + d.value, 0), weighted: open.reduce((a, d) => a + (d.value * d.probability) / 100, 0), won: deals.data.filter((d) => d.stage === 'gagné').reduce((a, d) => a + d.value, 0),
+      ouvertes: open.length, conversion: gagnees + perdues ? Math.round((gagnees / (gagnees + perdues)) * 100) : null, moyenne: open.length ? open.reduce((a, d) => a + d.value, 0) / open.length : 0 }
   }, [deals.data])
 
   async function saveContact() {
@@ -92,8 +94,9 @@ export default function CrmPage() {
           : <Button variant="primary" onClick={() => setCDraft({ name: '', status: 'lead' })}><Plus className="size-4" />{t('crm.newContact')}</Button>)}</>} />
       {tab === 'pipeline' ? (
         <>
-          <div className="mb-5 grid grid-cols-3 gap-3">{[[t('crm.total'), stats.total], [t('crm.weighted'), stats.weighted], [t('crm.won'), stats.won]].map(([l, v]) => (
-            <div key={l as string} className="rounded-xl border border-border bg-surface p-4"><div className="text-xs text-text-3">{l}</div><div className="mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{fmt(v as number)}</div></div>))}</div>
+          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{([[t('crm.total'), fmt(stats.total)], [t('crm.weighted'), fmt(stats.weighted)], [t('crm.won'), fmt(stats.won)],
+            ['Affaires ouvertes', String(stats.ouvertes)], ['Taux de conversion', stats.conversion === null ? '—' : `${stats.conversion} %`], ['Panier moyen', fmt(stats.moyenne)]] as [string, string][]).map(([l, v]) => (
+            <div key={l} className="rounded-xl border border-border bg-surface p-4 shadow-sm"><div className="text-xs text-text-3">{l}</div><div className="mt-1 text-lg font-semibold tabular-nums tracking-tight sm:text-2xl">{v}</div></div>))}</div>
           <DndContext sensors={sensors} onDragEnd={onDragEnd}>
             <div className="flex snap-x snap-proximity gap-3 overflow-x-auto pb-3">{STAGES.map((s) => {
               const ds = deals.data.filter((d) => d.stage === s)

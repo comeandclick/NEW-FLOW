@@ -3,7 +3,13 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { CalendarDays, ChevronLeft, ChevronRight, FileText, Lock, MapPin, Pin, PinOff, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, FileText, Lock, MapPin, Pin, PinOff, Plus, Sun, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { WidgetAssistant } from '@/components/ai/widgets'
+import { useLive } from '@/lib/hooks/use-live'
+import { useWorkspace } from '@/lib/hooks/use-workspace'
+import { useSession } from '@/lib/hooks/use-session'
+import type { Goal, Task } from '@/lib/types'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { EmptyState, PageHeader, Switch, Tabs } from '@/components/ui/misc'
@@ -15,7 +21,7 @@ import { newId, PERSO_COLOR, PERSO_LIMITS, persoEventsOn, type PersoEvent, type 
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 
-type Tab = 'notes' | 'cal'
+type Tab = 'jour' | 'notes' | 'cal'
 const dayStr = (d: Date) => format(d, 'yyyy-MM-dd')
 const localStr = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm")
 
@@ -206,16 +212,60 @@ function CalendarTab() {
   )
 }
 
+// « Aujourd'hui » (14/10/2026) : le tableau de bord personnel — chiffres du jour, mes tâches, mon agenda, mes objectifs en cours
+function Aujourdhui() {
+  const { ws } = useWorkspace()
+  const { userId } = useSession()
+  const taches = useLive<Task>('tasks', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
+  const temps = useLive<{ started_at: string; ended_at: string | null }>('time_entries', { eq: { workspace_id: ws.id, user_id: userId ?? undefined }, order: ['started_at', false], limit: 200, enabled: !!userId })
+  const objectifs = useLive<Goal>('goals', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
+  const auj = new Date(); auj.setHours(0, 0, 0, 0)
+  const miennes = taches.data.filter((x) => (x.assignee_id === userId || !x.assignee_id) && !['done', 'cancelled'].includes(x.status))
+  const retard = miennes.filter((x) => x.due_date && new Date(x.due_date) < auj).length
+  const faitesAuj = taches.data.filter((x) => x.completed_at && new Date(x.completed_at) >= auj).length
+  const minutes = Math.round(temps.data.filter((e) => new Date(e.started_at) >= auj && e.ended_at).reduce((n, e) => n + (new Date(e.ended_at!).getTime() - new Date(e.started_at).getTime()), 0) / 60000)
+  const pct = (g: Goal) => Math.min(100, Math.round((Number(g.current) / Math.max(1, Number(g.target))) * 100))
+  const enCours = objectifs.data.filter((g) => pct(g) < 100).slice(0, 4)
+  const stats = [
+    { lib: 'Tâches ouvertes', val: miennes.length, href: `/app/${ws.slug}/tasks` }, { lib: 'En retard', val: retard, href: `/app/${ws.slug}/tasks`, alerte: retard > 0 },
+    { lib: 'Faites aujourd\'hui', val: faitesAuj, href: `/app/${ws.slug}/tasks` }, { lib: 'Focus aujourd\'hui', val: `${Math.floor(minutes / 60) ? `${Math.floor(minutes / 60)} h ` : ''}${minutes % 60} min`, href: `/app/${ws.slug}/focus` },
+  ]
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map((x) => (
+          <Link key={x.lib} href={x.href} className="rounded-xl border border-border bg-surface p-4 shadow-sm transition-colors hover:border-border-strong">
+            <div className="text-xs text-text-3">{x.lib}</div><div className={cn('mt-1 text-2xl font-semibold tabular-nums tracking-tight', x.alerte && 'text-danger')}>{x.val}</div>
+          </Link>
+        ))}
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <WidgetAssistant w={{ type: 'taches', periode: 'jour' }} />
+        <WidgetAssistant w={{ type: 'agenda', periode: 'semaine' }} />
+      </div>
+      {enCours.length > 0 && (
+        <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between"><h3 className="text-[13px] font-semibold">Objectifs en cours</h3><Link href={`/app/${ws.slug}/goals`} className="text-xs text-text-3 hover:text-text">Objectifs</Link></div>
+          <ul className="grid gap-3 sm:grid-cols-2">{enCours.map((g) => (
+            <li key={g.id}><div className="flex items-center justify-between text-[13px]"><span className="truncate">{g.title}</span><span className="tabular-nums text-text-3">{pct(g)} %</span></div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-text/10"><div className="h-full rounded-full bg-text" style={{ width: `${pct(g)}%` }} /></div></li>
+          ))}</ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Me() {
   const { t } = useI18n()
   const router = useRouter()
   const params = useSearchParams()
-  const tab: Tab = params.get('tab') === 'cal' ? 'cal' : 'notes'
+  const p = params.get('tab'), tab: Tab = p === 'cal' ? 'cal' : p === 'notes' ? 'notes' : 'jour'
   return (
     <div className="mx-auto w-full max-w-[1800px] px-4 py-5 sm:px-6 sm:py-6">
       <PageHeader title={t('perso.title')} subtitle={t('perso.sub')} icon={<Lock className="size-[18px]" />}
-        actions={<Tabs value={tab} onChange={(v) => router.replace(v === 'cal' ? '?tab=cal' : '?')} items={[{ value: 'notes', label: t('perso.tabNotes'), icon: <FileText className="size-3.5" /> }, { value: 'cal', label: t('perso.tabCal'), icon: <CalendarDays className="size-3.5" /> }]} />} />
-      {tab === 'notes' ? <NotesTab /> : <CalendarTab />}
+        actions={<Tabs value={tab} onChange={(v) => router.replace(v === 'jour' ? '?' : `?tab=${v}`)} items={[{ value: 'jour', label: 'Aujourd\'hui', icon: <Sun className="size-3.5" /> }, { value: 'notes', label: t('perso.tabNotes'), icon: <FileText className="size-3.5" /> }, { value: 'cal', label: t('perso.tabCal'), icon: <CalendarDays className="size-3.5" /> }]} />} />
+      {tab === 'jour' ? <Aujourdhui /> : tab === 'notes' ? <NotesTab /> : <CalendarTab />}
     </div>
   )
 }
