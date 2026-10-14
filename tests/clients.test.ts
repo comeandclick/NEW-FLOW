@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clientFilePath, groupFiles, isDemoToken, isValidToken, newClientToken, nextVersion, titleFromName, type ClientFile } from '@/lib/clients'
+import { clientFilePath, freeSlots, groupFiles, monthSummary, planDates, isDemoToken, isValidToken, newClientToken, nextVersion, titleFromName, type ClientFile } from '@/lib/clients'
 
 const file = (id: string, title: string, version: number, created_at: string, extra: Partial<ClientFile> = {}): ClientFile => ({
   id, workspace_id: 'w', client_id: 'c', title, name: `${id}.mp4`, mime_type: 'video/mp4', size: 1, storage_path: `w/c/${id}.mp4`, version,
@@ -47,5 +47,26 @@ describe('clients: fichiers et versions', () => {
     expect(g.map((x) => x.title)).toEqual(['Cours 2', 'Cours 1'])
     expect(g[1].versions.map((v) => v.version)).toEqual([2, 1])
     expect(g[1].versions[0].status).toBe('validee')
+  })
+})
+
+describe('clients: planning', () => {
+  it('1 par semaine : 4 dates, une par semaine', () => {
+    const d = planDates({ cadence: 'week', per_period: 1 }, new Date('2026-10-14T12:00:00'))
+    expect(d).toEqual(['2026-10-18', '2026-10-25', '2026-11-01', '2026-11-08'])
+  })
+  it('3 par semaine : 12 dates ; tous les 2 jours : 14 ; à la demande : aucune', () => {
+    expect(planDates({ cadence: 'week', per_period: 3 }, new Date('2026-10-14T12:00:00'))).toHaveLength(12)
+    expect(planDates({ cadence: 'two_days', per_period: null }, new Date('2026-10-14T12:00:00'))).toHaveLength(14)
+    expect(planDates({ cadence: 'on_demand', per_period: null }, new Date())).toEqual([])
+  })
+  it('ne replanifie pas une semaine déjà couverte par la liste', () => {
+    const c = { cadence: 'week' as const, per_period: 1 }
+    expect(freeSlots(c, ['2026-10-18', '2026-10-25', '2026-11-01'], ['2026-10-20', null])).toEqual(['2026-10-25', '2026-11-01'])
+  })
+  it('résumé : livrées ce mois, à valider, modifications', () => {
+    const files = [file('a', 'Cours 1', 1, '2026-10-02', { status: 'modif' }), file('b', 'Cours 1', 2, '2026-10-04', { status: 'validee' }), file('c', 'Cours 2', 1, '2026-10-13')]
+    const s = monthSummary({ cadence: 'week', per_period: 1 }, files, [], new Date('2026-10-14T12:00:00'))
+    expect(s).toMatchObject({ delivered: 2, planned: 4, toReview: 1, changes: 0 })
   })
 })

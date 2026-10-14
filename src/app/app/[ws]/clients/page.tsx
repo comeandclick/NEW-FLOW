@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
@@ -14,7 +14,7 @@ import { useSession } from '@/lib/hooks/use-session'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
-import { groupFiles, newClientToken, type ClientFile, type ClientMessage, type ClientRow, type ClientTodo } from '@/lib/clients'
+import { getSeen, groupFiles, newClientToken, type ClientFile, type ClientMessage, type ClientRow, type ClientTodo } from '@/lib/clients'
 
 export default function ClientsPage() {
   const { t, locale } = useI18n()
@@ -23,9 +23,9 @@ export default function ClientsPage() {
   const { userId } = useSession()
   const dfl = locale === 'fr' ? fr : enUS
   const clients = useLive<ClientRow>('clients', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false] })
-  const files = useLive<ClientFile>('client_files', { select: 'id,client_id,title,version,created_at,status,deleted_at', eq: { workspace_id: ws.id }, is: { deleted_at: null } })
+  const files = useLive<ClientFile>('client_files', { select: 'id,client_id,title,version,created_at,updated_at,status,deleted_at,uploaded_by_kind', eq: { workspace_id: ws.id }, is: { deleted_at: null } })
   const todos = useLive<Pick<ClientTodo, 'id' | 'client_id' | 'done'>>('client_todos', { select: 'id,client_id,done', eq: { workspace_id: ws.id }, is: { deleted_at: null } })
-  const messages = useLive<Pick<ClientMessage, 'id' | 'client_id' | 'created_at'>>('client_messages', { select: 'id,client_id,created_at', eq: { workspace_id: ws.id }, is: { deleted_at: null } })
+  const messages = useLive<Pick<ClientMessage, 'id' | 'client_id' | 'created_at' | 'author_kind'>>('client_messages', { select: 'id,client_id,created_at,author_kind', eq: { workspace_id: ws.id }, is: { deleted_at: null } })
   const [creating, setCreating] = useState(false)
 
   const stats = useMemo(() => {
@@ -43,6 +43,16 @@ export default function ClientsPage() {
     for (const x of messages.data) bump(x.client_id, x.created_at)
     return m
   }, [files.data, todos.data, messages.data])
+
+  // nouveautés venues du client depuis votre dernière visite de sa fiche (mémorisée sur cet appareil)
+  const [fresh, setFresh] = useState<Map<string, number>>(new Map())
+  useEffect(() => {
+    const n = new Map<string, number>()
+    const count = (id: string, at: string) => { const seen = getSeen(id, 'team'); if (seen && at > seen) n.set(id, (n.get(id) ?? 0) + 1) }
+    for (const x of messages.data) if (x.author_kind === 'client') count(x.client_id, x.created_at)
+    for (const f of files.data) if (f.uploaded_by_kind === 'client' || f.status !== 'livree') count(f.client_id, f.updated_at)
+    setFresh(n)
+  }, [messages.data, files.data])
 
   async function create(v: ClientFields) {
     const now = new Date().toISOString()
@@ -79,6 +89,7 @@ export default function ClientsPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h2 className="truncate text-[15px] font-semibold">{c.name}</h2>
+                            {!!fresh.get(c.id) && <Badge color="#6366f1">{t('cli.newActivity', { n: fresh.get(c.id)! })}</Badge>}
                             {!!s?.changes && <Badge color="#f59e0b">{t('cli.st.modif')}</Badge>}
                             {!!s?.toReview && <Badge color="#6366f1">{t('cli.toReview', { n: s.toReview })}</Badge>}
                           </div>

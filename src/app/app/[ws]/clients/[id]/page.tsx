@@ -13,6 +13,8 @@ import { useLive } from '@/lib/hooks/use-live'
 import { useSession } from '@/lib/hooks/use-session'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { getDb } from '@/lib/supabase/client'
+import { isDemoBrowser } from '@/lib/demo/runtime'
+import { putSigned } from '@/lib/clients-upload'
 import { useI18n } from '@/i18n/provider'
 import { CLIENT_BUCKET, clientFilePath, newClientToken, type ClientFile, type ClientMessage, type ClientRow, type ClientTodo } from '@/lib/clients'
 
@@ -55,15 +57,29 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
     if (error) throw error
     void messages.refresh()
   }
-  async function upload(file: File, title: string, version: number) {
+  async function upload(file: File, title: string, version: number, onProgress?: (r: number) => void) {
     const path = clientFilePath(ws.id, client.id, file.name)
-    const { error: up } = await getDb().storage.from(CLIENT_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false })
-    if (up) throw up
+    if (isDemoBrowser()) {
+      const { error: up } = await getDb().storage.from(CLIENT_BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false })
+      if (up) throw up
+      onProgress?.(1)
+    } else {
+      // lien d'envoi signé + envoi direct avec la progression (vidéos lourdes)
+      const { data: signed, error: se } = await getDb().storage.from(CLIENT_BUCKET).createSignedUploadUrl(path)
+      if (se || !signed) throw se ?? new Error('signed')
+      await putSigned(signed.signedUrl, file, onProgress)
+    }
     const now = new Date().toISOString()
     const { error } = await getDb().from('client_files').insert({ ...base, title, name: file.name.slice(0, 200), mime_type: file.type || null, size: file.size, storage_path: path, version, status: 'livree', uploaded_by_kind: 'team', uploaded_by: userId, created_at: now, updated_at: now, deleted_at: null })
     if (error) throw error
     log('client.file', 'client', client.id, { title, version })
     void files.refresh()
+  }
+  async function removeFile(f: ClientFile) {
+    files.setData((d) => d.filter((x) => x.id !== f.id))
+    const { error } = await getDb().from('client_files').update({ deleted_at: new Date().toISOString() }).eq('id', f.id)
+    if (error) { void files.refresh(); throw error }
+    log('client.file.remove', 'client', client.id, { title: f.title, version: f.version })
   }
   const todo = canWrite ? {
     add: async (title: string, due: string | null) => {
@@ -130,7 +146,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
       </div>
       {client.notes && <p className="mb-4 whitespace-pre-wrap rounded-xl border border-border bg-surface-2/50 px-4 py-3 text-[13px] text-text-2">{client.notes}</p>}
 
-      <ClientSpace viewer="team" workspaceName={ws.name} messages={messages.data} files={files.data} todos={todos.data}
+      <ClientSpace viewer="team" clientId={client.id} cadence={client.cadence} perPeriod={client.per_period} removeFile={canWrite ? removeFile : undefined} workspaceName={ws.name} messages={messages.data} files={files.data} todos={todos.data}
         authorName={authorName} send={send} upload={upload} urlOf={urlOf} todo={todo} />
 
       <ClientFormDialog open={editing} onClose={() => setEditing(false)} initial={client} onSubmit={save} title={t('cli.edit')} submitLabel={t('common.save')} />

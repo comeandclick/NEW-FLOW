@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CalendarDays, CheckSquare, FileText, FolderKanban, FolderOpen, MessageSquare, Search as SearchIcon, Target, Users } from 'lucide-react'
+import { CalendarDays, CheckSquare, FileText, FolderKanban, FolderOpen, Handshake, MessageSquare, Search as SearchIcon, Target, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge, EmptyState, PageHeader } from '@/components/ui/misc'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -10,9 +10,9 @@ import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 
-type Kind = 'tasks' | 'notes' | 'messages' | 'files' | 'contacts' | 'events' | 'goals' | 'projects'
+type Kind = 'tasks' | 'notes' | 'messages' | 'files' | 'contacts' | 'events' | 'goals' | 'projects' | 'clients'
 type Hit = { id: string; kind: Kind; title: string; snippet?: string; href: string; meta?: string }
-const ICON: Record<Kind, typeof CheckSquare> = { tasks: CheckSquare, notes: FileText, messages: MessageSquare, files: FolderOpen, contacts: Users, events: CalendarDays, goals: Target, projects: FolderKanban }
+const ICON: Record<Kind, typeof CheckSquare> = { tasks: CheckSquare, notes: FileText, messages: MessageSquare, files: FolderOpen, contacts: Users, events: CalendarDays, goals: Target, projects: FolderKanban, clients: Handshake }
 const LIMIT = 12
 
 /** Escapes % and _ so the user's text is matched literally by ILIKE. */
@@ -50,7 +50,7 @@ function SearchInner() {
       const wsq = (table: string, select: string) => db.from(table).select(select).eq('workspace_id', ws.id)
       const { data: convs } = await db.from('conversations').select('id,name,type').eq('workspace_id', ws.id)
       const convMap = new Map(((convs ?? []) as { id: string; name: string | null; type: string }[]).map((c) => [c.id, c]))
-      const [tasks, notes, files, contacts, events, goals, projects, msgs] = await Promise.all([
+      const [tasks, notes, files, contacts, events, goals, projects, msgs, clients, cmsgs] = await Promise.all([
         wsq('tasks', 'id,title,description,status').is('deleted_at', null).or(`title.ilike.${p},description.ilike.${p}`).limit(LIMIT),
         wsq('notes', 'id,title,icon,content').is('deleted_at', null).ilike('title', p).limit(LIMIT),
         wsq('files', 'id,name,folder').is('deleted_at', null).ilike('name', p).limit(LIMIT),
@@ -59,6 +59,8 @@ function SearchInner() {
         wsq('goals', 'id,title').is('deleted_at', null).ilike('title', p).limit(LIMIT),
         wsq('projects', 'id,name,description').is('deleted_at', null).or(`name.ilike.${p},description.ilike.${p}`).limit(LIMIT),
         convMap.size ? db.from('messages').select('id,content,conversation_id,created_at').in('conversation_id', [...convMap.keys()]).is('deleted_at', null).ilike('content', p).order('created_at', { ascending: false }).limit(LIMIT) : Promise.resolve({ data: [] }),
+        wsq('clients', 'id,name,company').is('deleted_at', null).or(`name.ilike.${p},company.ilike.${p}`).limit(LIMIT),
+        wsq('client_messages', 'id,body,client_id').is('deleted_at', null).ilike('body', p).order('created_at', { ascending: false }).limit(LIMIT),
       ])
       if (!alive) return
       const out: Hit[] = []
@@ -70,6 +72,8 @@ function SearchInner() {
       for (const r of (goals.data ?? []) as any[]) out.push({ id: r.id, kind: 'goals', title: r.title, href: `${base}/goals` })
       for (const r of (projects.data ?? []) as any[]) out.push({ id: r.id, kind: 'projects', title: r.name, snippet: r.description ? around(r.description, term) : undefined, href: `${base}/projects/${r.id}` })
       for (const r of (msgs.data ?? []) as any[]) { const c = convMap.get(r.conversation_id); out.push({ id: r.id, kind: 'messages', title: around(r.content, term), meta: c ? (c.type === 'channel' ? `#${c.name}` : t('nav.messages')) : undefined, href: `${base}/messages/${r.conversation_id}` }) }
+      for (const r of (clients.data ?? []) as any[]) out.push({ id: r.id, kind: 'clients', title: r.name, meta: r.company ?? undefined, href: `${base}/clients/${r.id}` })
+      for (const r of (cmsgs.data ?? []) as any[]) out.push({ id: r.id, kind: 'clients', title: around(r.body, term), meta: t('cli.tab.chat'), href: `${base}/clients/${r.client_id}` })
       setHits(out); setLoading(false)
     }, 220)
     return () => { alive = false; clearTimeout(id) }

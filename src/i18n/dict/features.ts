@@ -3,7 +3,7 @@ export const features = {
   fr: {
     'search.title': 'Recherche', 'search.sub': 'Tâches, notes, messages, fichiers, contacts, événements, objectifs et projets.', 'search.placeholder': 'Rechercher dans tout l’espace…', 'search.filter': 'Filtrer par type', 'search.all': 'Tout',
     'search.start': 'Que cherchez-vous ?', 'search.startHint': 'Saisissez au moins 2 caractères.', 'search.none': 'Aucun résultat pour « {q} ».',
-    'search.kind.tasks': 'Tâches', 'search.kind.notes': 'Notes', 'search.kind.messages': 'Messages', 'search.kind.files': 'Fichiers', 'search.kind.contacts': 'Contacts', 'search.kind.events': 'Événements', 'search.kind.goals': 'Objectifs', 'search.kind.projects': 'Projets', 'search.everywhere': 'Rechercher partout…',
+    'search.kind.tasks': 'Tâches', 'search.kind.notes': 'Notes', 'search.kind.messages': 'Messages', 'search.kind.files': 'Fichiers', 'search.kind.contacts': 'Contacts', 'search.kind.events': 'Événements', 'search.kind.goals': 'Objectifs', 'search.kind.projects': 'Projets', 'search.kind.clients': 'Clients', 'search.everywhere': 'Rechercher partout…',
     'digest.button': 'Point du jour', 'digest.title': 'Point du jour',
     'notes.templates': 'Modèles',
     'ics.menu': 'Calendrier : import et export', 'ics.import': 'Importer un fichier .ics', 'ics.export': 'Exporter en .ics', 'ics.none': 'Aucun événement trouvé dans ce fichier.', 'ics.imported': '{n} événements importés.', 'ics.recurring': '{n} récurrents importés une seule fois.',
@@ -55,7 +55,7 @@ export const features = {
   en: {
     'search.title': 'Search', 'search.sub': 'Tasks, notes, messages, files, contacts, events, goals and projects.', 'search.placeholder': 'Search the whole workspace…', 'search.filter': 'Filter by type', 'search.all': 'All',
     'search.start': 'What are you looking for?', 'search.startHint': 'Type at least 2 characters.', 'search.none': 'No result for “{q}”.',
-    'search.kind.tasks': 'Tasks', 'search.kind.notes': 'Notes', 'search.kind.messages': 'Messages', 'search.kind.files': 'Files', 'search.kind.contacts': 'Contacts', 'search.kind.events': 'Events', 'search.kind.goals': 'Goals', 'search.kind.projects': 'Projects', 'search.everywhere': 'Search everywhere…',
+    'search.kind.tasks': 'Tasks', 'search.kind.notes': 'Notes', 'search.kind.messages': 'Messages', 'search.kind.files': 'Files', 'search.kind.contacts': 'Contacts', 'search.kind.events': 'Events', 'search.kind.goals': 'Goals', 'search.kind.projects': 'Projects', 'search.kind.clients': 'Clients', 'search.everywhere': 'Search everywhere…',
     'digest.button': 'Daily update', 'digest.title': 'Daily update',
     'notes.templates': 'Templates',
     'ics.menu': 'Calendar: import and export', 'ics.import': 'Import an .ics file', 'ics.export': 'Export as .ics', 'ics.none': 'No event found in this file.', 'ics.imported': '{n} events imported.', 'ics.recurring': '{n} recurring ones imported once.',

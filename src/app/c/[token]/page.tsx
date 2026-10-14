@@ -4,7 +4,8 @@
  * Jeton « demo… » : la démo de Flow, lue dans ce navigateur (aucun appel au serveur).
  */
 import { use, useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { putSigned, signedUploadUrl } from '@/lib/clients-upload'
 import { Lock } from 'lucide-react'
 import { ClientSpace, type SpaceProps } from '@/components/clients/client-space'
 import { Logo } from '@/components/ui/logo'
@@ -102,12 +103,10 @@ export default function ClientPortal({ params }: { params: Promise<{ token: stri
     }
     return {
       send: async (body) => { await post({ action: 'message', body }); await loadReal() },
-      upload: async (file) => {
+      upload: async (file, _title, _version, onProgress) => {
         const { path, token: upToken } = await post({ action: 'upload-url', name: file.name, size: file.size })
         // envoi direct vers le stockage avec le lien signé : la vidéo ne passe pas par le serveur de Flow
-        const storage = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false, autoRefreshToken: false } }).storage
-        const { error } = await storage.from(CLIENT_BUCKET).uploadToSignedUrl(path, upToken, file, { contentType: file.type || undefined })
-        if (error) throw error
+        await putSigned(signedUploadUrl(CLIENT_BUCKET, path, upToken), file, onProgress)
         await post({ action: 'file', path, name: file.name, size: file.size, mime: file.type || null })
         await loadReal()
       },
@@ -138,7 +137,7 @@ export default function ClientPortal({ params }: { params: Promise<{ token: stri
               <h1 className="text-2xl font-semibold tracking-tight">{t('cli.portal.welcome', { n: data.client.name })}</h1>
               <p className="mt-1 text-sm text-text-2">{t('cli.portal.sub', { w: wsName })}</p>
             </div>
-            <ClientSpace viewer="client" workspaceName={wsName} messages={data.messages} files={data.files} todos={data.todos}
+            <ClientSpace viewer="client" clientId={data.client.id} cadence={data.client.cadence} perPeriod={data.client.per_period} workspaceName={wsName} messages={data.messages} files={data.files} todos={data.todos}
               authorName={(m) => m.author_kind === 'client' ? data.client.name : m.author_name ?? wsName} {...actions} />
             <p className="mt-6 flex items-center justify-center gap-1.5 text-[12px] text-text-3"><Lock className="size-3" />{t('cli.portal.private')}</p>
           </>
