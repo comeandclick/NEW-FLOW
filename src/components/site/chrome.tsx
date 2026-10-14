@@ -42,14 +42,14 @@ export function SiteNav() {
   const night = home // the homepage sits on the night-blue hero: floating glass bar, like the reference page
   return (
     <header className={cn('z-50 safe-top', night ? 'mk-night fixed inset-x-0 top-3 bg-transparent px-3 text-text' : 'sticky top-0 border-b border-border bg-bg/92 backdrop-blur-md')}>
-      <div className={cn(night ? 'mx-auto max-w-[1080px] rounded-2xl border border-white/10 bg-[#070c19]/70 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl' : 'mx-auto max-w-[1120px]')}>
+      <div className={cn(night ? 'mx-auto max-w-[1080px] rounded-xl border border-white/10 bg-black/55 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.7)] backdrop-blur-2xl' : 'mx-auto max-w-[1120px]')}>
         <div className={cn('flex h-14 items-center justify-between gap-3', night ? 'pl-4 pr-2.5' : 'px-5')}>
           <Link href="/" aria-label="Flow"><Wordmark /></Link>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
             {SECTIONS.map((s) => (
               <a key={s.id} href={href(s.id)} aria-current={active === s.id ? 'true' : undefined}
-                className={cn('relative text-[14px] transition-colors', night ? 'rounded-full px-3.5 py-1.5' : 'mx-3 py-1', active === s.id ? 'text-text' : 'text-text-2 hover:text-text', night && active === s.id && 'bg-surface-3')}>
-                {t(s.key)}{!night && active === s.id && <span className="absolute inset-x-0 -bottom-[17px] h-0.5 bg-accent" />}
+                className={cn('relative text-[14px] transition-colors', night ? 'rounded-md px-3 py-1.5 hover:bg-white/5' : 'mx-3 py-1', active === s.id ? 'text-text' : 'text-text-2 hover:text-text', night && active === s.id && 'bg-white/10')}>
+                {t(s.key)}{!night && active === s.id && <span className="absolute inset-x-0 -bottom-[17px] h-0.5 bg-text" />}
               </a>
             ))}
           </nav>
@@ -57,7 +57,7 @@ export function SiteNav() {
             <span className="hidden sm:flex"><LanguageToggle /><ThemeToggle /></span>
             <Link href="/login" className="hidden px-3 py-1.5 text-[14px] text-text-2 hover:text-text md:block">{t('nav.login')}</Link>
             <Link href="/register" className="hidden sm:block">{night
-              ? <Button variant="pill" size="sm" className="rounded-full bg-white px-4 text-[#05070d]">{t('v.nav.cta')}</Button>
+              ? <Button variant="pill" size="sm" className="rounded-md bg-white px-4 text-black hover:bg-white/90">{t('v.nav.cta')}</Button>
               : <Button variant="primary" size="sm" className="rounded-md px-4">{t('v.nav.cta')}</Button>}</Link>
             <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? <X className="size-5" /> : <MenuIcon className="size-5" />}</Button>
           </div>

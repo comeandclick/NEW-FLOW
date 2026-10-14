@@ -7,7 +7,7 @@ import { OffresPubliques } from './offres-publiques'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/misc'
 import { Reveal, Container, Faq } from './blocks'
-import { AppWindow, CalendarMock, ChatMock, CrmMock, NotesMock, TasksMock } from './mocks'
+import { AppWindow, CallMock, CalendarMock, ChatMock, CrmMock, NotesMock, TasksMock } from './mocks'
 import { getDb } from '@/lib/supabase/client'
 import { useT } from '@/i18n/provider'
 import type { Key } from '@/i18n/dict'
@@ -60,7 +60,7 @@ export function Hero() {
 
         <div className="relative mx-auto mt-20 max-w-[960px] text-left sm:mt-28 [perspective:2000px]">
           <motion.span initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-            className="absolute -top-4 right-2 z-10 inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-[13px] font-medium shadow-lg sm:right-6">
+            className="absolute -top-4 right-2 z-10 hidden items-center gap-2 rounded-full border border-border-strong bg-surface px-3.5 py-1.5 text-[13px] font-medium shadow-lg sm:inline-flex sm:right-6">
             <span className="size-2 rounded-full bg-[#4ade80]" />{t('v.hero.badge')}
           </motion.span>
           <div role="tablist" aria-label="Aperçu" className="mb-3 flex justify-center gap-1">
@@ -72,7 +72,7 @@ export function Hero() {
               </button>
             ))}
           </div>
-          <div className="relative min-h-[300px] sm:min-h-[400px]" onMouseEnter={() => setAuto(false)}>
+          <div className="relative min-h-[300px] sm:min-h-[400px]" onMouseEnter={() => setAuto(false)} onPointerDown={() => setAuto(false)} onFocusCapture={() => setAuto(false)}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={DEMOS[i].id} role="tabpanel" initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.28 }}
                 className="[&>*]:shadow-[0_40px_100px_-30px_rgba(255,255,255,0.18)]">{DEMOS[i].node}</motion.div>
@@ -117,8 +117,6 @@ const ROWS = [
   { n: 1, node: <AppWindow wide><TasksMock /></AppWindow> },
   { n: 2, node: <ChatMock /> },
   { n: 3, node: <CalendarMock /> },
-  { n: 4, node: <NotesMock /> },
-  { n: 5, node: <CrmMock /> },
 ] as const
 
 export function Features() {
@@ -132,10 +130,10 @@ export function Features() {
               <h2 className="font-display text-[clamp(1.7rem,3vw,2.4rem)] leading-[1.12]">{t(`v.f${r.n}.title` as Key)}</h2>
               <p className="mt-4 max-w-[460px] text-[16px] leading-relaxed text-text-2">{t(`v.f${r.n}.text` as Key)}</p>
               <ul className="mt-6 space-y-2.5 border-t border-border pt-5">
-                {([1, 2, 3] as const).map((b) => <li key={b} className="flex gap-3 text-[14.5px] text-text-2"><Check className="mt-0.5 size-4 shrink-0 text-accent-ink" strokeWidth={2.2} />{t(`v.f${r.n}.b${b}` as Key)}</li>)}
+                {([1, 2, 3] as const).map((b) => <li key={b} className="flex gap-3 text-[14.5px] text-text-2"><Check className="mt-0.5 size-4 shrink-0 text-text" strokeWidth={2.2} />{t(`v.f${r.n}.b${b}` as Key)}</li>)}
               </ul>
             </Reveal>
-            <Reveal delay={0.08} className={cn('min-w-0 [&>*]:shadow-[0_24px_60px_-30px_rgba(40,30,10,0.35)]', idx % 2 === 1 && 'lg:order-1')}>{r.node}</Reveal>
+            <Reveal delay={0.08} className={cn('min-w-0 [&>*]:shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]', idx % 2 === 1 && 'lg:order-1')}>{r.node}</Reveal>
           </div>
         </Container>
       ))}
@@ -144,33 +142,85 @@ export function Features() {
 }
 
 /* ───────────── Agents & API ───────────── */
+/* ───────────── Et tout le reste (bento, 14/10/2026) ───────────── */
+function Lumiere({ children, className }: { children: ReactNode; className?: string }) {
+  // carte avec un halo qui suit la souris (effet discret)
+  const [p, setP] = useState({ x: -999, y: -999 })
+  return (
+    <div onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setP({ x: e.clientX - r.left, y: e.clientY - r.top }) }} onMouseLeave={() => setP({ x: -999, y: -999 })}
+      className={cn('group relative overflow-hidden rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-border-strong', className)}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: `radial-gradient(320px circle at ${p.x}px ${p.y}px, color-mix(in srgb, var(--text) 7%, transparent), transparent 70%)` }} />
+      <div className="relative">{children}</div>
+    </div>
+  )
+}
+function MiniAssistant() {
+  const [vu, setVu] = useState(false)
+  return (
+    <div className="space-y-2">
+      <button onClick={() => setVu((v) => !v)} className="ml-auto block rounded-2xl bg-text px-3 py-1.5 text-[12px] text-bg">Mes tâches du jour</button>
+      <AnimatePresence mode="wait">{vu ? (
+        <motion.div key="w" layoutId="mini-ia" initial={{ opacity: 0, scale: 0.95, filter: 'blur(6px)' }} animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }} exit={{ opacity: 0 }} className="rounded-lg border border-border bg-surface-2/60 text-[12px]">
+          {['Préparer la démo client', 'Relire la page tarifs', 'Appeler Maison Verte'].map((x, i) => <motion.div key={x} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06 }} className="flex items-center gap-2 border-b border-border px-3 py-2 last:border-0"><span className="size-3 rounded-full border border-border-strong" />{x}</motion.div>)}
+        </motion.div>
+      ) : <motion.div key="b" layoutId="mini-ia" className="inline-flex rounded-2xl border border-border px-3 py-2 text-[12px] text-text-3">Clique sur la question ↑</motion.div>}</AnimatePresence>
+    </div>
+  )
+}
+export function ToutLeReste() {
+  const cartes: { titre: string; texte: string; node: ReactNode; large?: boolean }[] = [
+    { titre: 'Notes', texte: 'Comptes rendus, listes, cases à cocher.', node: <div className="pointer-events-auto origin-top-left scale-[0.92]"><NotesMock /></div>, large: true },
+    { titre: 'Assistant IA', texte: 'Il répond avec des widgets : tâches, clients, vidéos.', node: <MiniAssistant /> },
+    { titre: 'Appels vidéo', texte: 'Depuis la conversation, sans lien à envoyer.', node: <CallMock /> },
+    { titre: 'CRM', texte: 'Glisse une affaire d\'étape en étape.', node: <div className="origin-top-left scale-[0.92]"><CrmMock /></div>, large: true },
+  ]
+  return (
+    <Container className="py-14 sm:py-20">
+      <Reveal><h2 className="font-display text-center text-[clamp(1.7rem,3vw,2.4rem)] leading-[1.12]">Et tout le reste, au même endroit.</h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-[16px] text-text-2">Clients, objectifs, focus, fichiers, réseaux sociaux, motion design avec l&apos;Atelier… sans changer d&apos;outil.</p></Reveal>
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
+        {cartes.map((c, i) => (
+          <Reveal key={c.titre} delay={i * 0.06} className={cn(c.large && 'md:col-span-2')}>
+            <Lumiere className="h-full"><h3 className="text-[15px] font-semibold">{c.titre}</h3><p className="mb-4 mt-1 text-[13.5px] text-text-2">{c.texte}</p>{c.node}</Lumiere>
+          </Reveal>
+        ))}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {[['Clients', 'Un espace par client, lien privé.'], ['Objectifs', 'Ils avancent avec les tâches.'], ['Focus & temps', 'Minuteur et temps passé.'], ['Fichiers', 'Rangés comme dans le Finder.']].map(([t, x], i) => (
+          <Reveal key={t} delay={0.1 + i * 0.05}><Lumiere className="h-full p-4"><h3 className="text-[14px] font-semibold">{t}</h3><p className="mt-1 text-[12.5px] text-text-3">{x}</p></Lumiere></Reveal>
+        ))}
+      </div>
+    </Container>
+  )
+}
+
 export function Agents() {
   const t = useT()
   return (
-    <section id="agents" className="scroll-mt-16 border-y border-border bg-[#17160f] text-[#ece9df] [color-scheme:dark]">
+    <section id="agents" className="scroll-mt-16 border-y border-border bg-[#0a0a0a] text-[#fafafa] [color-scheme:dark]">
       <div className="mx-auto max-w-[1120px] px-5 py-16 sm:py-24">
         <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <Reveal>
-            <p className="font-mono text-[12.5px] text-[#a9a496]">/api/v1</p>
+            <p className="font-mono text-[12.5px] text-[#8b8b8b]">/api/v1</p>
             <h2 className="font-display mt-3 text-[clamp(1.9rem,3.8vw,3rem)] leading-[1.08]">{t('v.ag.title')}</h2>
-            <p className="mt-5 max-w-[500px] text-[16px] leading-relaxed text-[#bdb8a9]">{t('v.ag.text')}</p>
+            <p className="mt-5 max-w-[500px] text-[16px] leading-relaxed text-[#a1a1a1]">{t('v.ag.text')}</p>
             <ul className="mt-7 space-y-3">
-              {([1, 2, 3, 4] as const).map((b) => <li key={b} className="flex gap-3 text-[14.5px] text-[#d3cfc2]"><Check className="mt-0.5 size-4 shrink-0 text-[#a3abf2]" strokeWidth={2.2} />{t(`v.ag.b${b}` as Key)}</li>)}
+              {([1, 2, 3, 4] as const).map((b) => <li key={b} className="flex gap-3 text-[14.5px] text-[#d4d4d4]"><Check className="mt-0.5 size-4 shrink-0 text-white" strokeWidth={2.2} />{t(`v.ag.b${b}` as Key)}</li>)}
             </ul>
           </Reveal>
           <Reveal delay={0.08} className="min-w-0 space-y-4">
-            <pre tabIndex={0} className="overflow-x-auto rounded-lg border border-[#2f2d24] bg-[#0f0e0a] p-4 font-mono text-[12.5px] leading-[1.7] text-[#d8d4c6]" aria-label="curl"><code>
-              <span className="text-[#8c8878]">$ </span>curl -X PATCH …/api/v1/tasks/3b7d158a \{'\n'}
-              {'    '}-H <span className="text-[#e3c88a]">&quot;Authorization: Bearer $FLOW_API_KEY&quot;</span> \{'\n'}
-              {'    '}-d <span className="text-[#e3c88a]">{`'{"status":"done"}'`}</span>
+            <pre tabIndex={0} className="overflow-x-auto rounded-lg border border-white/10 bg-[#111] p-4 font-mono text-[12.5px] leading-[1.7] text-[#e5e5e5]" aria-label="curl"><code>
+              <span className="text-[#737373]">$ </span>curl -X PATCH …/api/v1/tasks/3b7d158a \{'\n'}
+              {'    '}-H <span className="text-[#a3e635]">&quot;Authorization: Bearer $FLOW_API_KEY&quot;</span> \{'\n'}
+              {'    '}-d <span className="text-[#a3e635]">{`'{"status":"done"}'`}</span>
             </code></pre>
-            <div className="rounded-lg border border-[#2f2d24] bg-[#1d1c15]">
-              <div className="flex items-center gap-1.5 border-b border-[#2f2d24] px-4 py-2.5 text-[13px] font-semibold"><Hash className="size-3.5 text-[#8c8878]" />{t('v.ag.channel')}</div>
+            <div className="rounded-lg border border-white/10 bg-[#171717]">
+              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-2.5 text-[13px] font-semibold"><Hash className="size-3.5 text-[#737373]" />{t('v.ag.channel')}</div>
               <div className="space-y-3.5 p-4 text-[13px]">
                 {(['v.ag.msg1', 'v.ag.msg2'] as const).map((k, n) => (
                   <div key={k} className="flex gap-2.5"><Avatar name="Claude" size={26} />
-                    <div className="min-w-0"><div className="text-[11.5px] font-semibold">Claude (API) <span className="font-normal text-[#8c8878]">{n === 0 ? '10:42' : '10:58'}</span></div>
-                      <p className="mt-0.5 leading-snug text-[#d3cfc2]">{t(k)}</p></div></div>
+                    <div className="min-w-0"><div className="text-[11.5px] font-semibold">Claude (API) <span className="font-normal text-[#737373]">{n === 0 ? '10:42' : '10:58'}</span></div>
+                      <p className="mt-0.5 leading-snug text-[#d4d4d4]">{t(k)}</p></div></div>
                 ))}
               </div>
             </div>

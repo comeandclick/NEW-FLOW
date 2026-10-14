@@ -1,4 +1,4 @@
-import { Agents, FaqSection, Features, FinalCta, Hero, Newsletter, PricingBox, Rules, Stack } from '@/components/site/home'
+import { Agents, FaqSection, Features, FinalCta, Hero, Newsletter, PricingBox, Rules, Stack, ToutLeReste } from '@/components/site/home'
 
 export default function Home() {
   return (
@@ -6,6 +6,7 @@ export default function Home() {
       <Hero />
       <Stack />
       <Features />
+      <ToutLeReste />
       <Agents />
       <Rules />
       <PricingBox />
