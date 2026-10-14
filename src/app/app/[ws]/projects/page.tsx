@@ -58,7 +58,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="tasks" />
       <PageHeader title={t('proj.title')} subtitle={`${projects.length}`} icon={<FolderKanban className="size-[18px]" />} actions={canWrite && <><Button aria-label={t('proj.fromTemplate')} onClick={() => setTplOpen(true)}><LayoutTemplate className="size-4" /><span className="hidden sm:inline">{t('proj.fromTemplate')}</span></Button><Button variant="primary" onClick={() => setOpen(true)}><Plus className="size-4" />{t('proj.new')}</Button></>} />
       {projects.length === 0 ? <EmptyState icon={<FolderKanban className="size-5" />} title={t('proj.empty')} hint={t('proj.emptyHint')} />

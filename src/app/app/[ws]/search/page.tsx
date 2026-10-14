@@ -84,7 +84,7 @@ function SearchInner() {
   const kinds = (Object.keys(ICON) as Kind[]).filter((k) => counts[k])
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <PageHeader title={t('search.title')} subtitle={t('search.sub')} icon={<SearchIcon className="size-[18px]" />} />
       <div className="relative"><SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-3" />
         <Input autoFocus type="search" aria-label={t('search.title')} className="h-11 pl-10 text-[15px]" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search.placeholder')} /></div>

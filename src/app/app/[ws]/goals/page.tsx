@@ -48,7 +48,7 @@ export default function GoalsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <PageHeader title={t('goals.title')} subtitle={`${goals.data.length}`} icon={<Target className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setDraft({ title: '', target: 100, current: 0, unit: '%', color: COLORS[0] })}><Plus className="size-4" />{t('goals.new')}</Button>} />
       {goals.data.length === 0 && !goals.loading ? <EmptyState icon={<Target className="size-5" />} title={t('goals.empty')} hint={t('goals.emptyHint')} />
         : <div className="space-y-4">{goals.data.map((g, i) => {

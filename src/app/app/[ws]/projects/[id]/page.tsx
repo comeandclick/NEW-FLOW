@@ -76,7 +76,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <Link href={`/app/${ws.slug}/projects${parent ? `/${parent.id}` : ''}`} className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-text-3 hover:text-text"><ArrowLeft className="size-3.5" />{parent ? parent.name : t('common.back')}</Link>
       <div className="mb-6 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3"><span className="size-4 rounded-full" style={{ background: project.color }} /><div><h1 className="text-2xl font-semibold tracking-tight">{project.name}{archived && <Badge className="ml-2 align-middle">{t('proj.archived')}</Badge>}</h1><p className="text-sm text-text-2">{project.description}</p></div></div>

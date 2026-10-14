@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { CircleCheck, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Offre = { icon: LucideIcon; nom: string; pastille?: string; prix: string; periode?: string; barre?: string; cta: string; href: string; principale?: boolean; pour: string; inclus: string[] }
+export type Offre = { icon: LucideIcon; nom: string; pastille?: string; prix: string; periode?: string; barre?: string; cta: string; href?: string; onChoisir?: () => void; actuelle?: boolean; principale?: boolean; pour: string; inclus: string[] }
 
 export function PricingCard({ o, className }: { o: Offre; className?: string }) {
   return (
@@ -19,8 +19,9 @@ export function PricingCard({ o, className }: { o: Offre; className?: string }) 
           {o.periode && <span className="pb-1 text-sm text-text/80">{o.periode}</span>}
           {o.barre && <span className="ml-auto mr-1 text-lg text-text-3 line-through">{o.barre}</span>}
         </div>
-        <Link href={o.href} className={cn('mt-4 flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium transition-colors',
-          o.principale ? 'border-transparent bg-text text-bg hover:bg-text/90' : 'bg-surface hover:bg-surface-2')}>{o.cta}</Link>
+        {(() => { const cls = cn('mt-4 flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium transition-colors disabled:cursor-default disabled:opacity-60',
+          o.principale && !o.actuelle ? 'border-transparent bg-text text-bg hover:bg-text/90' : 'bg-surface hover:bg-surface-2')
+          return o.href && !o.actuelle ? <Link href={o.href} className={cls}>{o.cta}</Link> : <button type="button" disabled={o.actuelle} onClick={o.onChoisir} className={cls}>{o.actuelle ? 'Offre actuelle' : o.cta}</button> })()}
       </div>
       <div className="space-y-3 px-3 pb-3">
         <p className="text-xs text-text-3">{o.pour}</p>

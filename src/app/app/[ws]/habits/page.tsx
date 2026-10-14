@@ -47,7 +47,7 @@ export default function HabitsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="focus" />
       <PageHeader title={t('habits.title')} icon={<Repeat className="size-[18px]" />} actions={<Button variant="primary" onClick={() => setOpen(true)}><Plus className="size-4" />{t('habits.new')}</Button>} />
       {habits.data.length === 0 && !habits.loading ? <EmptyState icon={<Repeat className="size-5" />} title={t('habits.empty')} hint={t('habits.emptyHint')} />

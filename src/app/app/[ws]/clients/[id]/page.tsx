@@ -48,7 +48,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
   if (!client) {
     return clientQ.loading
-      ? <div className="mx-auto max-w-6xl p-4 md:p-6"><div className="skeleton h-12 w-64 rounded-lg" /></div>
+      ? <div className="mx-auto w-full max-w-[1800px] p-4 md:p-6"><div className="skeleton h-12 w-64 rounded-lg" /></div>
       : <div className="mx-auto max-w-6xl p-4 md:p-6"><EmptyState title={t('cli.notFound')} action={<Link href={`/app/${ws.slug}/clients`}><Button size="sm">{t('cli.back')}</Button></Link>} /></div>
   }
 

@@ -100,7 +100,7 @@ export default function FocusPage() {
   void tick
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="focus" />
       <PageHeader title={t('focus.title')} icon={<Clock className="size-[18px]" />} />
       <div className="grid gap-5 md:grid-cols-2">

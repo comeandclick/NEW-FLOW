@@ -83,7 +83,7 @@ export default function CrmPage() {
   const list = contacts.data.filter((c) => !q.trim() || `${c.name} ${c.company ?? ''} ${c.email ?? ''}`.toLowerCase().includes(q.toLowerCase()))
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="crm" />
       <PageHeader title={t('crm.title')} icon={<Users className="size-[18px]" />} actions={<>
         {tab === 'contacts' && <CsvMenu kind="contacts" onDone={() => contacts.refresh()} />}

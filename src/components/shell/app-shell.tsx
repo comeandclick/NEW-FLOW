@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { PairResume } from '@/components/studio/pair-resume'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Check, LayoutGrid, PanelLeftClose, PanelLeftOpen, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
+import { Check, LayoutGrid, MinusCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, X, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, Kbd } from '@/components/ui/misc'
 import { Menu, MenuItem, MenuSeparator, Sheet } from '@/components/ui/overlay'
@@ -22,6 +22,7 @@ import { CommandPalette } from './command-palette'
 import { NotificationsMenu } from './notifications'
 import { WorkspaceSwitcher } from './workspace-switcher'
 import { ShortcutsDialog } from './shortcuts-dialog'
+import { Astuces } from './astuces'
 import { CallListener } from '@/components/calls/call-listener'
 import { PrefsApplier } from '@/lib/hooks/use-prefs'
 import { registerServiceWorker, useOnline, warmPages } from '@/lib/offline'
@@ -69,6 +70,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     set(); window.addEventListener('resize', set); window.addEventListener('orientationchange', set)
     return () => { window.removeEventListener('resize', set); window.removeEventListener('orientationchange', set) }
   }, [])
+  // menu personnalisable (crayon) : entrées masquées gardées sur l'appareil ; widget « abonnement » refermable (revient après 14 jours)
+  const [masques, setMasques] = useState<string[]>([])
+  const [edition, setEdition] = useState(false)
+  const [promo, setPromo] = useState(false)
+  useEffect(() => {
+    try { setMasques(JSON.parse(localStorage.getItem('flow_nav_masques') || '[]')) } catch {}
+    try { const f = Number(localStorage.getItem('flow_promo_ferme') || 0); setPromo(!f || Date.now() - f > 14 * 86400000) } catch { setPromo(true) }
+  }, [])
+  const masquer = (href: string, oui: boolean) => setMasques((m) => { const n = oui ? [...new Set([...m, href])] : m.filter((x) => x !== href); try { localStorage.setItem('flow_nav_masques', JSON.stringify(n)) } catch {} return n })
+  const fermerPromo = () => { setPromo(false); try { localStorage.setItem('flow_promo_ferme', String(Date.now())) } catch {} }
   const toggleCollapsed = useCallback(() => setCollapsed((c) => { try { localStorage.setItem('flow_sidebar', c ? '0' : '1') } catch {} return !c }), [])
   useEffect(() => setMobileOpen(false), [pathname])
 
@@ -120,15 +131,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </div>
       <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-2.5 pb-3 pt-1" aria-label="Workspace">
-        {NAV.map((g, gi) => (
+        {NAV.map((g, gi) => { const visibles = g.items.filter((it) => !masques.includes(it.href)); if (!visibles.length) return null
+          return (
           <div key={gi}>
             {g.label && !compact && <div className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-3/70">{t(g.label)}</div>}
             {g.label && compact && <div className="mx-2 my-1 h-px bg-border" />}
             <ul className="space-y-0.5">
-              {g.items.map((it) => {
+              {visibles.map((it) => {
                 const active = isActive(it.href)
                 const badge = it.badge === 'messages' ? unread.count : it.badge === 'motion' || it.badge === 'site' ? studio[it.badge].active : 0
                 const ask = it.badge === 'motion' || it.badge === 'site' ? studio[it.badge].ask > 0 : false
+                if (edition && !compact) return (
+                  <li key={it.href}>
+                    <div className="flex h-[34px] items-center gap-2.5 rounded-md px-2.5 text-[13px] text-text-2 animate-[pop_0.18s_ease_both]">
+                      <it.icon className="size-4 shrink-0 text-text-3" strokeWidth={1.75} /><span className="flex-1 truncate">{t(it.label)}</span>
+                      {it.href !== '' && <button onClick={() => masquer(it.href, true)} aria-label={`Masquer ${t(it.label)}`} className="grid size-6 place-items-center rounded-full text-text-3 transition-colors hover:bg-danger/10 hover:text-danger"><MinusCircle className="size-4" /></button>}
+                    </div>
+                  </li>
+                )
                 return (
                   <li key={it.href}>
                     <Link href={base + it.href} onClick={onNavigate} title={compact ? t(it.label) : undefined} aria-current={active ? 'page' : undefined}
@@ -144,8 +164,37 @@ export function AppShell({ children }: { children: ReactNode }) {
               })}
             </ul>
           </div>
-        ))}
+        ) })}
+        {!compact && (
+          <div className="px-1">
+            {edition ? (
+              <div className="space-y-1.5 rounded-lg border border-dashed border-border-strong p-2">
+                {masques.length > 0 && <div className="px-1 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-3/70">Ajouter</div>}
+                {NAV.flatMap((g) => g.items).filter((it) => masques.includes(it.href)).map((it) => (
+                  <button key={it.href} onClick={() => masquer(it.href, false)} className="flex h-8 w-full items-center gap-2.5 rounded-md px-1.5 text-[13px] text-text-2 transition-colors hover:bg-text/5 hover:text-text">
+                    <Plus className="size-4 text-success" /><it.icon className="size-4 text-text-3" strokeWidth={1.75} /><span className="truncate">{t(it.label)}</span>
+                  </button>
+                ))}
+                {!masques.length && <p className="px-1 text-xs text-text-3">Tout est affiché. Le bouton « − » masque ce que tu n'utilises pas.</p>}
+                <button onClick={() => setEdition(false)} className="mt-1 h-8 w-full rounded-md bg-text text-[13px] font-medium text-bg transition-opacity hover:opacity-90">Terminé</button>
+              </div>
+            ) : (
+              <button onClick={() => setEdition(true)} className="flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-[12px] text-text-3 transition-colors hover:bg-text/5 hover:text-text-2">
+                <Pencil className="size-3.5" strokeWidth={1.75} />Modifier le menu{masques.length > 0 && <span className="ml-auto inline-flex items-center gap-1"><Plus className="size-3" />{masques.length}</span>}
+              </button>
+            )}
+          </div>
+        )}
       </nav>
+      {/* widget abonnement (en bas de la barre), refermable */}
+      {promo && !compact && !edition && (
+        <div className="relative mx-2.5 mb-2 rounded-lg border border-border bg-surface-2/60 p-3 animate-[pop_0.18s_ease_both]">
+          <button onClick={fermerPromo} aria-label="Fermer" className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md text-text-3 transition-colors hover:bg-text/5 hover:text-text"><X className="size-3.5" /></button>
+          <div className="flex items-center gap-2 text-[13px] font-semibold"><Sparkles className="size-4" strokeWidth={1.75} />Flow Pro</div>
+          <p className="mt-1 pr-4 text-[12px] leading-snug text-text-3">Assistant IA sans limite, plus de stockage, Atelier pour toute l&apos;équipe.</p>
+          <Link href={`${base}/settings?tab=billing`} onClick={onNavigate} className="mt-2.5 flex h-8 items-center justify-center rounded-md bg-text text-[12.5px] font-medium text-bg transition-opacity hover:opacity-90">Voir les offres</Link>
+        </div>
+      )}
       <div className="mx-2.5 space-y-0.5 border-t border-border py-2.5">
         {NAV_FOOTER.map((it) => {
           const active = isActive(it.href)
@@ -252,6 +301,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <ShortcutsDialog open={help} onClose={() => setHelp(false)} />
       <CallListener />
       <PrefsApplier />
+      <Astuces base={base} />
     </div>
   )
 }

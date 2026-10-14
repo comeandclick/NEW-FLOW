@@ -45,7 +45,7 @@ export default function RoadmapPage() {
   const empty = !rows.length && !goalRows.length
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="tasks" />
       <PageHeader title={t('road.title')} subtitle={t('road.sub')} icon={<GanttChartSquare className="size-[18px]" />} actions={
         <div className="flex flex-wrap items-center gap-2">

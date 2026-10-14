@@ -7,7 +7,7 @@ const VIEWPORTS = [
   { name: 'tablet-820', w: 820, h: 1180, mobile: true }, { name: 'desktop-site-on-phone', w: 980, h: 1800, mobile: false, touch: true }, { name: 'laptop-1280', w: 1280, h: 720, mobile: false },
 ]
 const PUBLIC = ['/', '/features', '/pricing', '/security', '/changelog', '/about', '/contact', '/login', '/register']
-const APP = ['', '/tasks', '/notes', '/calendar', '/messages', '/files', '/projects', '/goals', '/crm', '/finance', '/forms', '/automations', '/whiteboard', '/focus', '/habits', '/ai', '/trash', '/activity', '/settings', '/meetings', '/inbox', '/roadmap', '/team', '/feedback', '/releases', '/localization', '/me', '/search']
+const APP = ['', '/tasks', '/notes', '/calendar', '/messages', '/files', '/projects', '/goals', '/crm', '/finance', '/forms', '/automations', '/whiteboard', '/focus', '/habits', '/ai', '/trash', '/activity', '/settings', '/meetings', '/inbox', '/roadmap', '/team', '/me', '/search']
 
 for (const vp of VIEWPORTS) {
   test.describe(`responsive ${vp.name}`, () => {

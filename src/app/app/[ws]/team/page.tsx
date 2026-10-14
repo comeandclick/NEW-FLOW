@@ -44,7 +44,7 @@ export default function TeamPage() {
   const unassigned = tasks.data.filter((x) => !x.assignee_id && !x.parent_id && !['done', 'cancelled'].includes(x.status)).length
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="tasks" />
       <PageHeader title={t('team.title')} subtitle={t('team.sub')} icon={<Users className="size-[18px]" />} actions={unassigned > 0 && <Link href={`/app/${ws.slug}/inbox`}><Badge color="var(--warning)">{t('team.unassigned', { n: unassigned })}</Badge></Link>} />
       {members.length === 0 ? <EmptyState icon={<Users className="size-5" />} title={t('team.empty')} /> : (

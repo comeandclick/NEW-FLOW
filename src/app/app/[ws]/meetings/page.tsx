@@ -77,7 +77,7 @@ export default function MeetingsPage() {
 
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="messages" />
       <PageHeader title={t('meet.title')} icon={<Video className="size-[18px]" />}
         actions={canWrite && <><Button onClick={() => setOpen(true)}><CalendarClock className="size-4" />{t('meet.new')}</Button><Button variant="primary" onClick={() => create(true)}><Zap className="size-4" />{t('meet.instant')}</Button></>} />

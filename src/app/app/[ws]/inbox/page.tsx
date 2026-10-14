@@ -61,7 +61,7 @@ export default function InboxPage() {
 
   const total = due.length + triage.length + alerts.length
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <PageHeader title={t('inbox.title')} subtitle={t('inbox.sub')} icon={<InboxIcon className="size-[18px]" />} />
       {total === 0 && !tasks.loading ? <EmptyState icon={<Check className="size-5" />} title={t('inbox.empty')} hint={t('inbox.emptyHint')} /> : (
         <>

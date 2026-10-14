@@ -34,7 +34,7 @@ export default function AutomationsPage() {
     setD(null); list.refresh()
   }
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="settings" />
       <PageHeader title={t('auto.title')} icon={<Workflow className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => setD({ name: '', trigger_type: 'task_done', action_type: 'notify', message: '' })}><Plus className="size-4" />{t('auto.new')}</Button>} />
       {list.data.length === 0 && !list.loading ? <EmptyState icon={<Workflow className="size-5" />} title={t('auto.empty')} hint={t('auto.emptyHint')}

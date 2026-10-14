@@ -38,7 +38,7 @@ export default function FormsPage() {
   const setField = (i: number, patch: Partial<FormField>) => d && setD({ ...d, fields: d.fields.map((f, k) => (k === i ? { ...f, ...patch } : f)) })
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="crm" />
       <PageHeader title={t('forms.title')} icon={<ClipboardList className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => { setTab('editor'); setD({ title: '', fields: [{ id: uid().slice(0, 6), type: 'text', label: '', required: true }], is_public: false }) }}><Plus className="size-4" />{t('forms.new')}</Button>} />
       {forms.data.length === 0 && !forms.loading ? <EmptyState icon={<ClipboardList className="size-5" />} title={t('forms.empty')} />

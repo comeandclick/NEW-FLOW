@@ -63,7 +63,7 @@ export default function HomePage() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 sm:py-8">
       <motion.div {...fade(0)} className="mb-7 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{greeting}, {me?.full_name?.split(' ')[0] ?? ''}</h1>

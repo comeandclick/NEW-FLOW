@@ -212,7 +212,7 @@ function Me() {
   const params = useSearchParams()
   const tab: Tab = params.get('tab') === 'cal' ? 'cal' : 'notes'
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-5 sm:px-6 sm:py-6">
       <PageHeader title={t('perso.title')} subtitle={t('perso.sub')} icon={<Lock className="size-[18px]" />}
         actions={<Tabs value={tab} onChange={(v) => router.replace(v === 'cal' ? '?tab=cal' : '?')} items={[{ value: 'notes', label: t('perso.tabNotes'), icon: <FileText className="size-3.5" /> }, { value: 'cal', label: t('perso.tabCal'), icon: <CalendarDays className="size-3.5" /> }]} />} />
       {tab === 'notes' ? <NotesTab /> : <CalendarTab />}

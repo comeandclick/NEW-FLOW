@@ -2,8 +2,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { Download, File as FileIcon, FileText, Film, Folder, FolderPlus, Image as ImageIcon, Music, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react'
+import { Download, Folder, FolderPlus, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ElementFinder, IconeDocument, IconeDossier, Visionneuse } from '@/components/common/finder'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc'
@@ -17,14 +19,6 @@ import { useI18n } from '@/i18n/provider'
 import { cn, formatBytes } from '@/lib/utils'
 import type { FileRow } from '@/lib/types'
 
-function iconFor(mime?: string | null) {
-  if (!mime) return FileIcon
-  if (mime.startsWith('image/')) return ImageIcon
-  if (mime.startsWith('video/')) return Film
-  if (mime.startsWith('audio/')) return Music
-  if (mime.includes('pdf') || mime.startsWith('text/')) return FileText
-  return FileIcon
-}
 
 export default function FilesPage() {
   const { t, locale } = useI18n()
@@ -106,7 +100,7 @@ export default function FilesPage() {
   const crumbs = folder === '/' ? [] : folder.slice(1).split('/')
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6"
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6"
       onDragEnter={(e) => { if (e.dataTransfer.types.includes('Files')) setDrag(true) }} onDragOver={(e) => e.preventDefault()}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false) }} onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files.length) void upload(e.dataTransfer.files) }}>
       <PageHeader title={t('files.title')} subtitle={t('files.storage', { used: formatBytes(total) })} icon={<Folder className="size-[18px]" />}
@@ -124,42 +118,37 @@ export default function FilesPage() {
 
       <div className={cn('relative rounded-2xl border-2 border-dashed border-transparent transition-colors', drag && 'border-accent bg-accent-soft/40')}>
         {drag && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-sm font-medium text-accent-ink">{t('files.drop')}</div>}
-        {loading ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}</div>
+        {loading ? <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="mx-auto h-24 w-20" />)}</div>
           : childFolders.length + files.length === 0 ? <EmptyState icon={<Folder className="size-5" />} title={t('files.empty')} hint={canWrite ? t('files.emptyHint') : undefined} />
           : (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {!q && childFolders.map((f) => (
-                <button key={f} onClick={() => setFolder(f)} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
-                  <Folder className="size-8 shrink-0 fill-accent/20 text-accent-ink" /><span className="min-w-0 truncate text-sm font-medium">{f.split('/').pop()}</span></button>))}
-              {files.map((f) => {
-                const Icon = iconFor(f.mime_type)
-                return (
-                  <div key={f.id} className="group relative flex flex-col rounded-xl border border-border bg-surface transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
-                    <button onClick={() => open(f)} className="flex flex-1 flex-col items-center gap-3 p-5 text-center"><span className="flex size-12 items-center justify-center rounded-xl bg-accent-soft text-accent-ink"><Icon className="size-5" /></span>
-                      <span className="w-full min-w-0"><span className="block truncate text-[13px] font-medium">{f.name}</span><span className="block text-[11px] text-text-3">{formatBytes(f.size)} · {format(new Date(f.created_at), 'd MMM', { locale: dfl })}</span></span></button>
-                    <div className="absolute right-1.5 top-1.5">
-                      <Menu align="end" width={190} trigger={({ toggle }) => <button onClick={toggle} className="rounded-md p-1.5 text-text-3 opacity-0 transition hover:bg-surface-2 hover:text-text focus:opacity-100 group-hover:opacity-100 max-sm:opacity-100" aria-label={t('common.more')}><MoreHorizontal className="size-4" /></button>}>
-                        {(close) => <><MenuItem icon={<Download className="size-4" />} onClick={() => { close(); void download(f) }}>{t('common.download')}</MenuItem>
-                          {canWrite && <><MenuItem icon={<Pencil className="size-4" />} onClick={() => { close(); setText(f.name); setDlg({ kind: 'rename', file: f }) }}>{t('files.rename')}</MenuItem>
-                            <MenuItem icon={<Folder className="size-4" />} onClick={() => { close(); setDlg({ kind: 'move', file: f }) }}>{t('files.move')}</MenuItem>
-                            <MenuItem icon={<Trash2 className="size-4" />} danger onClick={() => { close(); void remove(f) }}>{t('common.delete')}</MenuItem></>}</>}
-                      </Menu>
-                    </div>
-                    {q && <span className="px-3 pb-2 text-center text-[10px] text-text-3">{f.folder} · {nameOf(f.uploaded_by)}</span>}
-                  </div>
-                )
-              })}
-            </div>
+            <AnimatePresence mode="wait">
+            {/* changement de dossier : la grille « s'ouvre » (zoom léger), comme dans le Finder */}
+            <motion.div key={folder + '|' + q} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-10">
+              {!q && childFolders.map((f, k) => (
+                <ElementFinder key={f} i={k} icone={<IconeDossier className="h-[60px] w-[74px]" />} nom={f.split('/').pop() ?? f}
+                  sous={`${data.filter((x) => x.folder === f || x.folder.startsWith(f + '/')).length} élément(s)`} onOuvrir={() => setFolder(f)} />
+              ))}
+              {files.map((f, k) => (
+                <ElementFinder key={f.id} i={childFolders.length + k} nom={f.name} onOuvrir={() => open(f)}
+                  sous={q ? `${f.folder} · ${formatBytes(f.size)}` : `${formatBytes(f.size)} · ${format(new Date(f.created_at), 'd MMM', { locale: dfl })}`}
+                  icone={<IconeDocument mime={f.mime_type} nom={f.name} className="h-[66px] w-[54px]" />}
+                  menu={<Menu align="end" width={190} trigger={({ toggle }) => <button onClick={toggle} className="grid size-7 place-items-center rounded-full bg-surface/90 text-text-2 shadow-sm backdrop-blur hover:text-text" aria-label={t('common.more')}><MoreHorizontal className="size-4" /></button>}>
+                    {(close) => <><MenuItem icon={<Download className="size-4" />} onClick={() => { close(); void download(f) }}>{t('common.download')}</MenuItem>
+                      {canWrite && <><MenuItem icon={<Pencil className="size-4" />} onClick={() => { close(); setText(f.name); setDlg({ kind: 'rename', file: f }) }}>{t('files.rename')}</MenuItem>
+                        <MenuItem icon={<Folder className="size-4" />} onClick={() => { close(); setDlg({ kind: 'move', file: f }) }}>{t('files.move')}</MenuItem>
+                        <MenuItem icon={<Trash2 className="size-4" />} danger onClick={() => { close(); void remove(f) }}>{t('common.delete')}</MenuItem></>}</>}
+                  </Menu>} />
+              ))}
+            </motion.div>
+            </AnimatePresence>
           )}
       </div>
 
-      <Dialog open={!!preview} onClose={() => setPreview(null)} title={preview?.file.name} size="lg" footer={preview && <Button onClick={() => download(preview.file)}><Download className="size-4" />{t('common.download')}</Button>}>
-        {preview && (preview.file.mime_type?.startsWith('image/') ?   <img src={preview.url} alt={preview.file.name} className="mx-auto max-h-[60dvh] rounded-lg" />
-          : preview.file.mime_type?.startsWith('video/') ? <video src={preview.url} controls className="mx-auto max-h-[60dvh] w-full rounded-lg" />
-          : preview.file.mime_type?.startsWith('audio/') ? <audio src={preview.url} controls className="w-full" />
-          : preview.file.mime_type === 'application/pdf' ? <iframe src={preview.url} title={preview.file.name} className="h-[60dvh] w-full rounded-lg border border-border" />
-          : <p className="py-10 text-center text-sm text-text-3">{t('files.noPreview')}</p>)}
-      </Dialog>
+      <AnimatePresence>
+        {preview && <Visionneuse key={preview.file.id} titre={preview.file.name} url={preview.url} mime={preview.file.mime_type} onFermer={() => setPreview(null)}
+          onTelecharger={() => void download(preview.file)} libTelecharger={t('common.download')} sansApercu={t('files.noPreview')} />}
+      </AnimatePresence>
       <Dialog open={!!dlg && dlg.kind !== 'move'} onClose={() => setDlg(null)} title={dlg?.kind === 'rename' ? t('files.rename') : t('files.newFolder')} size="sm"
         footer={<><Button onClick={() => setDlg(null)}>{t('common.cancel')}</Button><Button variant="primary" onClick={submit} disabled={!text.trim()}>{t('common.save')}</Button></>}>
         <Field label={dlg?.kind === 'rename' ? t('common.name') : t('files.folderName')}><Input autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} /></Field>

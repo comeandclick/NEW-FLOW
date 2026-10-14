@@ -150,7 +150,7 @@ export function JobCard({ job, defaultOpen = false }: { job: Job; defaultOpen?: 
         {isSim && <span className="text-xs text-text-3">{c.site.simulating}…</span>}
         {job.status === 'waiting_device' && !isSim && <span className="text-xs text-text-3">{c.bridge.offlineHint}</span>}
         <span className="flex-1" />
-        <Link href={`/app/${ws.slug}/library`} className="text-xs text-text-3 hover:text-text">{c.library.title}</Link>
+
         <Button size="icon" variant="ghost" aria-label={c.common.remove} onClick={() => removeJob(job.id)}><Trash2 className="size-3.5" /></Button>
       </footer>
     </article>

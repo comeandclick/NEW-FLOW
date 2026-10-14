@@ -22,7 +22,7 @@ for (const theme of ['light', 'dark'] as const) test(`studio ${theme} : pages av
   const jpg = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64')
   await page.request.put(up.upload.url, { data: jpg, headers: { 'content-type': 'image/jpeg' } })
   await bridge('preview', { jobId: j.job.id, slot: 'site', path: up.path, label: 'http://localhost:3000' })
-  for (const p of ['/motion', '/site?tab=projects', '/site?tab=connect', '/site?tab=new', '/library', '/settings?tab=studio', `STUDIO:/studio/live?job=${j.job.id}`]) {
+  for (const p of ['/motion', '/site?tab=projects', '/site?tab=connect', '/site?tab=new', '/settings?tab=studio', `STUDIO:/studio/live?job=${j.job.id}`]) {
     if (p.startsWith('STUDIO:')) { await page.goto(p.slice(7)); await page.waitForTimeout(2500)
       await expect(page.getByText('Construire la scène')).toBeVisible()
       const over0 = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth); expect(over0, 'live déborde').toBeLessThanOrEqual(1)

@@ -60,7 +60,7 @@ export default function TrashPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="settings" />
       <PageHeader title={t('trash.title')} subtitle={t('trash.subtitle')} icon={<Trash2 className="size-[18px]" />}
         actions={canWrite && items && items.length > 0 && <Button variant="danger" onClick={() => setConfirm('all')}><Trash2 className="size-4" />{t('trash.purgeAll')}</Button>} />

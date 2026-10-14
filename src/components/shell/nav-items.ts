@@ -1,40 +1,42 @@
-import { Archive, Bookmark, Bug, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Handshake, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Share2, Target, Users, type LucideIcon } from 'lucide-react'
+import { Bookmark, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Handshake, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Share2, Target, Users, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
 export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages' | 'motion' | 'site'; /** other routes that keep this item highlighted */ also?: string[] }
 export type NavGroup = { label?: Key; items: NavItem[] }
 
+// Organisation (14/10/2026) : le quotidien d'abord, puis le travail, les clients, le studio, la publication et le personnel.
+// Chaque entrée peut être masquée avec le crayon (préférence gardée sur l'appareil) ; une rubrique vide disparaît.
 export const NAV: NavGroup[] = [
   {
     items: [
       { href: '', label: 'nav.home', icon: Home },
       { href: '/inbox', label: 'nav.inbox', icon: Inbox },
-      { href: '/captures', label: 'nav.captures', icon: Bookmark },
       { href: '/tasks', label: 'nav.tasks', icon: CheckSquare, also: ['/projects', '/roadmap', '/team'] },
-      { href: '/notes', label: 'nav.notes', icon: FileText, also: ['/whiteboard'] },
       { href: '/calendar', label: 'nav.calendar', icon: CalendarDays },
       { href: '/messages', label: 'nav.messages', icon: MessageSquare, badge: 'messages', also: ['/meetings'] },
+    ],
+  },
+  {
+    label: 'nav.group.work',
+    items: [
+      { href: '/notes', label: 'nav.notes', icon: FileText, also: ['/whiteboard'] },
       { href: '/files', label: 'nav.files', icon: FolderOpen },
+      { href: '/captures', label: 'nav.captures', icon: Bookmark },
+      { href: '/goals', label: 'nav.goals', icon: Target },
     ],
   },
   {
     label: 'nav.group.grow',
     items: [
-      { href: '/goals', label: 'nav.goals', icon: Target },
       { href: '/clients', label: 'nav.clients', icon: Handshake },
       { href: '/crm', label: 'nav.crm', icon: Users, also: ['/finance', '/forms'] },
     ],
-  },
-  {
-    label: 'nav.group.product',
-    items: [{ href: '/feedback', label: 'nav.feedback', icon: Bug, also: ['/releases', '/localization'] }],
   },
   {
     label: 'nav.group.studio',
     items: [
       { href: '/motion', label: 'nav.motion', icon: Clapperboard, badge: 'motion' },
       { href: '/site', label: 'nav.site', icon: Globe, badge: 'site' },
-      { href: '/library', label: 'nav.library', icon: Archive },
     ],
   },
   {
@@ -45,19 +47,20 @@ export const NAV: NavGroup[] = [
   },
   {
     label: 'nav.group.personal',
-    items: [{ href: '/focus', label: 'nav.focus', icon: Clock, also: ['/habits'] }],
+    items: [
+      { href: '/focus', label: 'nav.focus', icon: Clock, also: ['/habits'] },
+      { href: '/me', label: 'perso.navLabel', icon: Lock },
+    ],
   },
 ]
 
 export const NAV_FOOTER: NavItem[] = [
-  { href: '/me', label: 'perso.navLabel', icon: Lock },
   { href: '/settings', label: 'nav.settings', icon: Settings, also: ['/automations', '/activity', '/trash'] },
 ]
 
 /** Sub-pages grouped under a parent entry; rendered as tabs at the top of each page. */
 export const HUBS: Record<string, { href: string; label: Key }[]> = {
   tasks: [{ href: '/tasks', label: 'nav.tasks' }, { href: '/projects', label: 'nav.projects' }, { href: '/roadmap', label: 'nav.roadmap' }, { href: '/team', label: 'nav.team' }],
-  product: [{ href: '/feedback', label: 'nav.feedback' }, { href: '/releases', label: 'nav.releases' }, { href: '/localization', label: 'nav.localization' }],
   notes: [{ href: '/notes', label: 'nav.notes' }, { href: '/whiteboard', label: 'nav.whiteboard' }],
   messages: [{ href: '/messages', label: 'nav.messages' }, { href: '/meetings', label: 'nav.meetings' }],
   crm: [{ href: '/crm', label: 'nav.crm' }, { href: '/finance', label: 'nav.finance' }, { href: '/forms', label: 'nav.forms' }],

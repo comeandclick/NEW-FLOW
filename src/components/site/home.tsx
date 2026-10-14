@@ -2,8 +2,8 @@
 import Link from 'next/link'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, Check, ChevronRight, Hash, Sparkles } from 'lucide-react'
-import { PricingCard, type Offre } from './pricing-card'
+import { ArrowRight, Check, ChevronRight, Hash } from 'lucide-react'
+import { OffresPubliques } from './offres-publiques'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/misc'
 import { Reveal, Container, Faq } from './blocks'
@@ -201,18 +201,11 @@ export function Rules() {
 /* ───────────── Pricing ───────────── */
 export function PricingBox() {
   const t = useT()
-  const offre: Offre = { icon: Sparkles, nom: 'Flow', pastille: t('v.price.badge'), prix: t('v.price.big'), periode: t('v.price.per'), cta: t('v.price.cta'), href: '/register', principale: true,
-    pour: t('v.price.text'), inclus: ([1, 2, 3, 4] as const).map((n) => t(`v.price.${n}` as Key)) }
   return (
     <Container id="tarif" className="scroll-mt-16 py-16 sm:py-24">
       <Reveal>
-        <div className="grid items-center gap-10 lg:grid-cols-[1fr_auto]">
-          <div>
-            <H2>{t('v.price.title')}</H2>
-            <p className="mt-4 max-w-md text-[16px] leading-relaxed text-text-2">{t('v.price.text')}</p>
-          </div>
-          <PricingCard o={offre} className="mx-auto lg:mx-0" />
-        </div>
+        <div className="mb-10 text-center"><H2>{t('v.price.title')}</H2><p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-text-2">{t('v.price.text')}</p></div>
+        <OffresPubliques />
       </Reveal>
     </Container>
   )

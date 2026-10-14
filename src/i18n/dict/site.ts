@@ -110,7 +110,7 @@ export const site = {
     's.mod.auto.d': 'Réagissez aux événements : notifier l’équipe ou publier un message.',
     's.mod.admin': 'Équipe et sécurité',
     's.mod.admin.d': 'Rôles, invitations par lien, journal d’activité, corbeille et export.',
-    's.pricing.title': 'Gratuit, simplement.',
+    's.pricing.title': 'Des offres simples, pour toi ou ton équipe.',
     's.pricing.sub': 'Pendant le lancement, tout Flow est ouvert, sans limite artificielle.',
     's.pricing.plan': 'Flow',
     's.pricing.price': '0 €',

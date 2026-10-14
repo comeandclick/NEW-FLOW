@@ -11,6 +11,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/overlay'
 import { ApiTab } from './api-tab'
 import { StudioTab } from './studio-tab'
+import { BillingTab } from './billing-tab'
 import { ProfileTab } from './profile-tab'
 import { PreferencesTab } from './preferences-tab'
 import { Section } from './section'
@@ -25,20 +26,20 @@ import { enablePush, pushPermission } from '@/lib/push'
 import { useI18n } from '@/i18n/provider'
 import type { Role } from '@/lib/types'
 
-type Tab = 'profile' | 'workspace' | 'members' | 'preferences' | 'api' | 'studio'
+type Tab = 'profile' | 'workspace' | 'members' | 'billing' | 'preferences' | 'api' | 'studio'
 const EXPORT_TABLES = ['projects', 'tasks', 'notes', 'events', 'goals', 'crm_contacts', 'crm_deals', 'invoices', 'forms', 'habits', 'automations', 'files']
 
 function SettingsInner() {
   const { t } = useI18n()
   const q = useSearchParams().get('tab')
-  const [tab, setTab] = useState<Tab>(q === 'members' || q === 'workspace' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile')
+  const [tab, setTab] = useState<Tab>(q === 'members' || q === 'workspace' || q === 'billing' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile')
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="settings" />
       <PageHeader title={t('set.title')} icon={<Settings className="size-[18px]" />} />
       <Tabs className="mb-6 max-w-full overflow-x-auto" value={tab} onChange={setTab} items={[
-        { value: 'profile', label: t('set.tab.profile') }, { value: 'workspace', label: t('set.tab.workspace') }, { value: 'members', label: t('set.tab.members') }, { value: 'preferences', label: t('set.tab.preferences') }, { value: 'api', label: t('set.tab.api') }, { value: 'studio', label: t('set.tab.studio') }]} />
-      {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'members' && <MembersTab />}{tab === 'preferences' && <PreferencesTab />}{tab === 'api' && <ApiTab />}{tab === 'studio' && <StudioTab />}
+        { value: 'profile', label: t('set.tab.profile') }, { value: 'workspace', label: t('set.tab.workspace') }, { value: 'members', label: t('set.tab.members') }, { value: 'billing', label: 'Abonnement' }, { value: 'preferences', label: t('set.tab.preferences') }, { value: 'api', label: t('set.tab.api') }, { value: 'studio', label: t('set.tab.studio') }]} />
+      {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'members' && <MembersTab />}{tab === 'billing' && <BillingTab />}{tab === 'preferences' && <PreferencesTab />}{tab === 'api' && <ApiTab />}{tab === 'studio' && <StudioTab />}
     </div>
   )
 }

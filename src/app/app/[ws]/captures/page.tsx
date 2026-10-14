@@ -70,7 +70,7 @@ function CapturesInner() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <PageHeader title={t('cap.title')} subtitle={t('cap.sub')} icon={<Bookmark className="size-[18px]" />} actions={canWrite ? <div className="flex flex-wrap gap-2"><InstallShortcut /><AddCapture onAdded={captures.refresh} /></div> : undefined} />
 
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3">

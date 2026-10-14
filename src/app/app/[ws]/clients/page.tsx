@@ -78,7 +78,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-6">
+    <div className="mx-auto w-full max-w-[1800px] p-4 md:p-6">
       <PageHeader title={t('cli.title')} subtitle={t('cli.sub')} icon={<Handshake className="size-4" />}
         actions={canWrite && <Button variant="primary" size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />{t('cli.new')}</Button>} />
       {clients.loading && !clients.data.length

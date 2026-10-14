@@ -190,7 +190,7 @@ function PreparePage() {
   const STEP_LABELS = [t('soc.prep.step1'), t('soc.prep.step2'), t('soc.prep.step3'), t('soc.prep.step4'), t('soc.prep.step5')]
 
   return (
-    <div className="mx-auto max-w-3xl p-4 pb-6 md:p-6">
+    <div className="mx-auto w-full max-w-[1800px] p-4 pb-6 md:p-6">
       <PageHeader icon={<Clapperboard className="size-4" />} title={t('soc.prep.title')} subtitle={t('soc.prep.sub')} />
 
       {/* Steps — dots on mobile, labels on desktop */}
