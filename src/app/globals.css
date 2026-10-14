@@ -189,6 +189,11 @@ html, body { background: var(--bg); min-height: 100%; }
    (--app-h, mesurée dans app-shell), la barre du bas est posée en bas de l'app, et le haut descend un peu sous l'heure. */
 @media (display-mode: standalone) and (max-width: 767px) {
   .app-ui { bottom: auto; height: var(--app-h, 100lvh); }
+  /* même correction pour tout ce qui s'ouvre par-dessus (menu latéral, voile, fenêtres, recherche…) : sinon iOS les
+     arrête à la hauteur raccourcie et laisse un trou en bas de l'écran (15/10/2026) */
+  .fixed.inset-0, .fixed.inset-y-0 { bottom: auto; height: var(--app-h, 100lvh); }
+  html, body { min-height: var(--app-h, 100lvh); }
+  html.clavier .fixed.inset-0, html.clavier .fixed.inset-y-0 { top: var(--vv-top, 0px); height: var(--vv-h, 100dvh); }
   .app-ui .safe-top { padding-top: calc(env(safe-area-inset-top) + 6px); }
 }
 
