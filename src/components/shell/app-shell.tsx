@@ -16,7 +16,7 @@ import { exitDemo } from '@/lib/demo/runtime'
 import { useStudioActivity } from '@/lib/studio/activity'
 import { useI18n, useT } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
-import { HUBS, MOBILE_TABS, NAV, NAV_FOOTER, type NavItem } from './nav-items'
+import { HUBS, NAV, NAV_FOOTER, type NavItem } from './nav-items'
 import { CommandPalette } from './command-palette'
 import { NotificationsMenu } from './notifications'
 import { WorkspaceSwitcher } from './workspace-switcher'
@@ -70,6 +70,21 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     set(); window.addEventListener('resize', set); window.addEventListener('orientationchange', set)
     return () => { window.removeEventListener('resize', set); window.removeEventListener('orientationchange', set) }
+  }, [])
+  // Mobile (site et web app) : quand le clavier s'ouvre, l'app prend exactement la partie visible de l'écran, donc la zone
+  // de saisie (assistant, messages…) reste collée juste au-dessus du clavier, sans que la page saute ni zoome.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv || window.matchMedia('(min-width: 768px)').matches) return
+    const root = document.documentElement
+    const maj = () => {
+      const ouvert = window.innerHeight - vv.height > 120
+      root.classList.toggle('clavier', ouvert)
+      root.style.setProperty('--vv-h', `${vv.height}px`); root.style.setProperty('--vv-top', `${vv.offsetTop}px`)
+      if (ouvert) window.scrollTo(0, 0)
+    }
+    maj(); vv.addEventListener('resize', maj); vv.addEventListener('scroll', maj)
+    return () => { vv.removeEventListener('resize', maj); vv.removeEventListener('scroll', maj); root.classList.remove('clavier') }
   }, [])
   // menu personnalisable (crayon) : entrées masquées gardées sur l'appareil ; widget « abonnement » refermable (revient après 14 jours)
   const [masques, setMasques] = useState<string[]>([])
@@ -273,21 +288,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main id="main" className="main-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
 
-        <nav className="mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-bg/90 backdrop-blur-xl safe-bottom md:hidden" aria-label="Mobile">
-          {MOBILE_TABS.map((href) => {
-            const item = NAV.flatMap((g) => g.items).find((i) => i.href === href)!
-            const active = isActive(href)
-            const badge = item.badge === 'messages' ? unread.count : 0
-            return (
-              <Link key={href} href={base + href} aria-current={active ? 'page' : undefined} className={cn('relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors active:bg-surface-2', active ? 'text-text' : 'text-text-3')}>
-                {active && <motion.span layoutId="tab-line" className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-text" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
-                <item.icon className="size-5" />{t(item.label)}
-                {badge > 0 && <span className="absolute right-[26%] top-1 rounded-full bg-text px-1 text-[9px] font-semibold leading-4 text-bg">{badge}</span>}
-              </Link>
-            )
-          })}
-          <button onClick={() => setMobileOpen(true)} className="flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium text-text-3 transition-colors active:bg-surface-2"><LayoutGrid className="size-5" />{t('nav.more')}</button>
-        </nav>
       </div>
 
       <CommandPalette open={palette} setOpen={setPalette} />

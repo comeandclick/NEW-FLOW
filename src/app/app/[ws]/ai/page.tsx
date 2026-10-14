@@ -2,8 +2,9 @@
 // Assistant (14/10/2026) : vraie IA (Claude, si la clé ANTHROPIC_API_KEY est configurée) qui répond par une phrase courte
 // + des widgets (tâches, clients en attente, vidéo, agenda, productions). Sans clé ou en démo, la compréhension locale prend le relais.
 // La bulle « réflexion » se transforme (morphose) en réponse puis en widget.
-import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, BarChart3, CalendarDays, CalendarPlus, CheckSquare, Film, Handshake, RotateCcw, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowUp, BarChart3, CalendarDays, CalendarPlus, CheckSquare, Film, Handshake, SquarePen, Sparkles } from 'lucide-react'
+import { getDb } from '@/lib/supabase/client'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
@@ -34,6 +35,38 @@ export default function AiPage() {
   const [attente, setAttente] = useState<string | null>(null) // id de la réponse en cours (bulle qui se transforme)
   const [ia, setIa] = useState<boolean | null>(null)
   const end = useRef<HTMLDivElement>(null)
+  const zone = useRef<HTMLTextAreaElement>(null)
+  // Historique gardé sur le compte (table ai_conversations, même conversation sur tous les appareils) ; tant que la table
+  // n'existe pas, il reste sur l'appareil. Seul « Nouvelle conversation » repart de zéro.
+  const [convId, setConvId] = useState<string | null>(null)
+  const charge = useRef(false)
+  const cleLocale = `flow_ia_conv:${ws.id}`
+  const charger = useCallback(async () => {
+    if (!userId) return
+    let local: { id: string; msgs: Msg[] } | null = null
+    try { local = JSON.parse(localStorage.getItem(cleLocale) || 'null') } catch {}
+    if (!isDemo) {
+      const { data, error } = await getDb().from('ai_conversations').select('id,messages,updated_at').eq('user_id', userId).eq('workspace_id', ws.id).order('updated_at', { ascending: false }).limit(1).maybeSingle()
+      if (!error) { if (data) { setConvId(data.id); setMsgs((data.messages ?? []) as Msg[]); charge.current = true; return } }
+    }
+    if (local) { setConvId(local.id); setMsgs(local.msgs ?? []) }
+    charge.current = true
+  }, [userId, ws.id, isDemo, cleLocale])
+  useEffect(() => { void charger() }, [charger])
+  // revenir sur l'onglet ou l'app : on reprend la conversation la plus récente (envoyée depuis un autre appareil)
+  useEffect(() => { const f = () => { if (document.visibilityState === 'visible' && !attenteRef.current) void charger() }; document.addEventListener('visibilitychange', f); return () => document.removeEventListener('visibilitychange', f) }, [charger])
+  const attenteRef = useRef(false)
+  async function sauver(liste: Msg[]) {
+    const id = convId ?? crypto.randomUUID()
+    if (!convId) setConvId(id)
+    const garde = liste.slice(-60)
+    try { localStorage.setItem(cleLocale, JSON.stringify({ id, msgs: garde })) } catch {}
+    if (isDemo || !userId) return
+    await getDb().from('ai_conversations').upsert({ id, user_id: userId, workspace_id: ws.id, titre: garde.find((m) => m.role === 'user')?.content.slice(0, 80) ?? null, messages: garde, updated_at: new Date().toISOString() })
+  }
+  function nouvelle() { setMsgs([]); setConvId(null); try { localStorage.removeItem(cleLocale) } catch {} }
+  // la zone de saisie grandit avec le texte (jusqu'à 6 lignes), le texte revient à la ligne au lieu de déborder
+  useEffect(() => { const z = zone.current; if (!z) return; z.style.height = 'auto'; z.style.height = `${Math.min(z.scrollHeight, 160)}px` }, [input])
   // suggestions tirées de CET espace (pas d'exemples venus d'autres projets)
   const clientsQ = useLive<{ name: string }>('clients', { select: 'name', eq: { workspace_id: ws.id }, is: { deleted_at: null }, limit: 1 })
   const videosQ = useLive<{ titre: string; video_nom: string | null }>('motion_projets', { select: 'titre,video_nom', eq: { workspace_id: ws.id }, limit: 20 })
@@ -52,7 +85,7 @@ export default function AiPage() {
     if (!text.trim() || !userId || attente) return
     const id = crypto.randomUUID()
     const next: Msg[] = [...msgs, { id: id + 'q', role: 'user', content: text.trim() }]
-    setMsgs(next); setInput(''); setAttente(id); compter()
+    setMsgs(next); setInput(''); setAttente(id); attenteRef.current = true; compter()
     const ctx = { wsId: ws.id, userId, locale }
     try {
       let reply = '', actions: AiAction[] = [], widgets: Widget[] = []
@@ -68,16 +101,17 @@ export default function AiPage() {
         else { await new Promise((r) => setTimeout(r, 450)); const r = await localAssistant(text, ctx); reply = r.text; actions = r.actions }
       }
       for (const a of actions) await runAction(a, ctx)
-      setMsgs([...next, { id, role: 'assistant', content: reply, widgets }])
-    } catch { setMsgs([...next, { id, role: 'assistant', content: t('ai.error') }]) } finally { setAttente(null) }
+      const fin: Msg[] = [...next, { id, role: 'assistant', content: reply, widgets }]
+      setMsgs(fin); void sauver(fin)
+    } catch { setMsgs([...next, { id, role: 'assistant', content: t('ai.error') }]) } finally { setAttente(null); attenteRef.current = false }
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[1100px] flex-col px-4 pt-6 sm:px-6">
+    <div className="mx-auto flex h-full w-full max-w-[1100px] flex-col px-3 pt-4 sm:px-6 sm:pt-6">
       <div className="mb-2 flex items-center gap-3">
         <span className="grid size-9 place-items-center rounded-lg bg-text text-bg"><Sparkles className="size-[18px]" strokeWidth={1.75} /></span>
         <div className="min-w-0 flex-1"><h1 className="text-lg font-semibold tracking-tight">{t('ai.title')}</h1><p className="text-xs text-text-3">{ia === false ? 'Mode local : compréhension des demandes courantes, sans service externe.' : 'Connaît ton espace à jour : tâches, agenda, clients, discussions, fichiers…'}</p></div>
-        {msgs.length > 0 && <Button size="sm" variant="ghost" onClick={() => setMsgs([])}><RotateCcw className="size-3.5" />{t('ai.clear')}</Button>}
+        {msgs.length > 0 && <Button size="sm" variant="ghost" onClick={nouvelle}><SquarePen className="size-3.5" />Nouvelle conversation</Button>}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
@@ -127,10 +161,10 @@ export default function AiPage() {
         <div ref={end} />
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); void ask(input) }} className="sticky bottom-0 mb-3 flex items-end gap-2 rounded-2xl border border-border-strong bg-surface p-2 shadow-md transition-shadow focus-within:border-text/40 max-md:mb-[calc(64px+env(safe-area-inset-bottom))]">
-        <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={1} placeholder="Demande-moi tes tâches, un client, une vidéo…" aria-label={t('ai.placeholder')}
+      <form onSubmit={(e) => { e.preventDefault(); void ask(input) }} className="sticky bottom-0 mb-2 flex shrink-0 items-end gap-2 rounded-2xl border border-border-strong bg-surface p-1.5 shadow-md transition-shadow focus-within:border-text/40 sm:mb-4">
+        <textarea ref={zone} value={input} onChange={(e) => setInput(e.target.value)} rows={1} placeholder="Demande-moi tes tâches, un client, une vidéo…" aria-label={t('ai.placeholder')}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input) } }}
-          className="max-h-40 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-[14px] outline-none placeholder:text-text-3" />
+          className="max-h-40 min-h-9 min-w-0 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-2.5 py-2 text-[14px] leading-5 outline-none placeholder:text-text-3 [overflow-wrap:anywhere]" />
         <button type="submit" disabled={!input.trim() || !!attente} aria-label={t('msg.send')} className={cn('grid size-9 shrink-0 place-items-center rounded-xl bg-text text-bg transition-opacity', (!input.trim() || attente) && 'opacity-30')}><ArrowUp className="size-4" /></button>
       </form>
     </div>

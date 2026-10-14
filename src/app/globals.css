@@ -167,9 +167,16 @@ button, [role='button'], a, summary { -webkit-tap-highlight-color: transparent; 
 }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-top { padding-top: env(safe-area-inset-top); }
-/* Main scroll area: leaves room for the mobile bottom nav + iOS home indicator. Resets on md+ (desktop sidebar). */
+/* Zone qui défile : plus de barre du bas sur mobile (menu latéral seul, 14/10/2026), juste la place de la barre d'accueil iOS. */
 .main-scroll {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Mobile : un champ en dessous de 16 px fait zoomer iOS à chaque saisie ; on force 16 px partout (site et web app). */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), textarea, select, [contenteditable='true'], .ProseMirror { font-size: 16px !important; }
+  /* clavier ouvert : l'app prend la partie visible de l'écran (mesurée dans app-shell) */
+  html.clavier .app-ui { top: var(--vv-top, 0px); bottom: auto; height: var(--vv-h, 100dvh); }
+  html.clavier .main-scroll { padding-bottom: 0; }
 }
 @media (min-width: 768px) {
   .main-scroll { padding-bottom: 0; }
@@ -182,7 +189,6 @@ html, body { background: var(--bg); min-height: 100%; }
    (--app-h, mesurée dans app-shell), la barre du bas est posée en bas de l'app, et le haut descend un peu sous l'heure. */
 @media (display-mode: standalone) and (max-width: 767px) {
   .app-ui { bottom: auto; height: var(--app-h, 100lvh); }
-  .app-ui .mobile-nav { position: absolute; }
   .app-ui .safe-top { padding-top: calc(env(safe-area-inset-top) + 6px); }
 }
 
