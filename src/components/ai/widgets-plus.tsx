@@ -20,6 +20,7 @@ import type { Widget } from '@/lib/ai-widgets'
 import { Avatar } from '@/components/ui/misc'
 import { Cadre, Vide, ligne } from '@/components/ai/widgets'
 import { cn } from '@/lib/utils'
+import { Miniature } from '@/components/common/miniature'
 
 const Pastille = ({ lib, ton }: { lib: string; ton: 'ok' | 'alerte' | 'danger' | 'info' | 'neutre' }) => (
   <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', { ok: 'bg-success/15 text-success', alerte: 'bg-warning/15 text-warning', danger: 'bg-danger/15 text-danger', info: 'bg-info/15 text-info', neutre: 'bg-text/10 text-text-2' }[ton])}>{lib}</span>
@@ -101,7 +102,7 @@ function WidgetNotes({ recherche }: { recherche?: string }) {
 const taille = (o: number | null) => (!o ? '' : o > 1e6 ? `${(o / 1e6).toFixed(1)} Mo` : `${Math.max(1, Math.round(o / 1e3))} Ko`)
 function WidgetFichiers({ genre }: { genre: 'tous' | 'images' | 'videos' | 'documents' }) {
   const { ws } = useWorkspace()
-  const q = useLive<FileRow>('files', { select: 'id,name,folder,size,mime_type,created_at', eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false], limit: 80 })
+  const q = useLive<FileRow>('files', { select: 'id,name,folder,size,mime_type,created_at,storage_path', eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false], limit: 80 })
   const liste = q.data.filter((f) => { const m = f.mime_type ?? ''
     return genre === 'tous' || (genre === 'images' && m.startsWith('image/')) || (genre === 'videos' && m.startsWith('video/')) || (genre === 'documents' && !m.startsWith('image/') && !m.startsWith('video/')) }).slice(0, 10)
   const Ic = (m: string | null) => (m?.startsWith('image/') ? ImageIcon : m?.startsWith('video/') ? Film : FileText)
@@ -111,7 +112,8 @@ function WidgetFichiers({ genre }: { genre: 'tous' | 'images' | 'videos' | 'docu
         <ul className="divide-y divide-border">{liste.map((f, i) => { const I = Ic(f.mime_type), neuf = Date.now() - new Date(f.created_at).getTime() < 864e5
           return (
             <motion.li key={f.id} custom={i} variants={ligne} initial="hidden" animate="show" className="flex items-center gap-3 px-4 py-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-text/5"><I className="size-4 text-text-2" strokeWidth={1.75} /></span>
+              {f.mime_type?.startsWith('image/') || f.mime_type?.startsWith('video/') ? <Miniature petit path={f.storage_path} mime={f.mime_type} nom={f.name} />
+                : <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-text/5"><I className="size-4 text-text-2" strokeWidth={1.75} /></span>}
               <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px]">{f.name}</span><span className="block text-xs text-text-3">{f.folder && f.folder !== '/' ? `${f.folder} · ` : ''}{taille(f.size)}</span></span>
               {neuf ? <Pastille lib="Nouveau" ton="info" /> : <span className="shrink-0 text-xs text-text-3">{format(new Date(f.created_at), 'd MMM', { locale: fr })}</span>}
             </motion.li>) })}</ul>

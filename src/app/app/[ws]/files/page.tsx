@@ -5,7 +5,8 @@ import { fr, enUS } from 'date-fns/locale'
 import { Download, Folder, FolderPlus, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ElementFinder, IconeDocument, IconeDossier, Visionneuse } from '@/components/common/finder'
+import { ElementFinder, IconeDossier, Visionneuse } from '@/components/common/finder'
+import { Miniature } from '@/components/common/miniature'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui/misc'
@@ -132,7 +133,7 @@ export default function FilesPage() {
               {files.map((f, k) => (
                 <ElementFinder key={f.id} i={childFolders.length + k} nom={f.name} onOuvrir={() => open(f)}
                   sous={q ? `${f.folder} · ${formatBytes(f.size)}` : `${formatBytes(f.size)} · ${format(new Date(f.created_at), 'd MMM', { locale: dfl })}`}
-                  icone={<IconeDocument mime={f.mime_type} nom={f.name} className="h-[66px] w-[54px]" />}
+                  icone={<Miniature path={f.storage_path} mime={f.mime_type} nom={f.name} />}
                   menu={<Menu align="end" width={190} trigger={({ toggle }) => <button onClick={toggle} className="grid size-7 place-items-center rounded-full bg-surface/90 text-text-2 shadow-sm backdrop-blur hover:text-text" aria-label={t('common.more')}><MoreHorizontal className="size-4" /></button>}>
                     {(close) => <><MenuItem icon={<Download className="size-4" />} onClick={() => { close(); void download(f) }}>{t('common.download')}</MenuItem>
                       {canWrite && <><MenuItem icon={<Pencil className="size-4" />} onClick={() => { close(); setText(f.name); setDlg({ kind: 'rename', file: f }) }}>{t('files.rename')}</MenuItem>
