@@ -19,7 +19,8 @@ const ETAPES: Record<string, string> = { reflexion: 'Réflexion', deroule: 'Dér
 export function DemandesAtelier({ onVoir, kind = 'motion' }: { onVoir?: () => void; kind?: 'motion' | 'site' }) {
   const { data, refresh } = usePoll(studioApi.jobs, 6000, true)
   const [occupe, setOccupe] = useState<string | null>(null)
-  const jobs = (data?.jobs ?? []).filter((j) => j.kind === kind).slice(0, 8)
+  // consignes envoyées aux agents depuis l'assistant (rangées côté base comme « site ») : affichées avec les demandes motion
+  const jobs = (data?.jobs ?? []).filter((j) => (j.spec?.consigne ? kind === 'motion' : j.kind === kind)).slice(0, 8)
   const agir = async (j: LiveJob, quoi: 'cancel' | 'retry' | 'remove') => {
     if (quoi === 'cancel' && !confirm(`Annuler « ${j.title} » ? L'agent s'arrête.`)) return
     setOccupe(j.id)

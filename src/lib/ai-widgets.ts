@@ -25,33 +25,36 @@ export type Widget =
   | { type: 'focus' }
   | { type: 'creation'; c: Creation }
   | { type: 'video_demande'; d: DemandeVideo }
+  | { type: 'envoi_agent'; titre: string; consigne: string; agent?: string; note?: string }
   | { type: 'modele_motion'; client: string; titre: string; idee: string; format?: string; duree?: number }
 
 const obj = (props: Record<string, unknown> = {}, required: string[] = []) => ({ type: 'object', properties: props, required })
 const choix = (valeurs: string[]) => ({ type: 'string', enum: valeurs })
 // outils décrits à l'IA — un appel d'outil = un widget à afficher
 export const OUTILS = [
-  { name: 'afficher_taches', description: 'Tâches de l\'utilisateur (travail du jour, de la semaine, retards, toutes).', input_schema: obj({ periode: choix(['jour', 'semaine', 'retard', 'toutes']) }, ['periode']) },
-  { name: 'afficher_clients', description: 'Liste des clients. filtre=tous pour « mes clients », « quels sont mes clients », « liste des clients » (TOUS, chacun avec son état) ; filtre=attente SEULEMENT si on demande qui attend quelque chose / qui est en retard.', input_schema: obj({ filtre: choix(['tous', 'attente']) }, ['filtre']) },
-  { name: 'afficher_client', description: 'Fiche détaillée d\'UN client précis (vidéos, modifications, à faire, derniers messages). nom = nom du client tel qu\'écrit dans les données.', input_schema: obj({ nom: { type: 'string' } }, ['nom']) },
-  { name: 'afficher_video', description: 'Affiche une vidéo (TikTok, mini-cours, pub…) avec un bouton Télécharger. recherche = mots-clés du titre.', input_schema: obj({ recherche: { type: 'string' } }, ['recherche']) },
-  { name: 'afficher_agenda', description: 'Événements du calendrier (jour ou semaine).', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
-  { name: 'afficher_productions', description: 'Vidéos de l\'Atelier (motion design) et leur avancement. statut facultatif : a_valider, a_corriger, en_cours, valide, publie.', input_schema: obj({ statut: { type: 'string' } }) },
-  { name: 'afficher_notes', description: 'Notes et documents (récents, épinglés), avec recherche facultative par mots du titre.', input_schema: obj({ recherche: { type: 'string' } }) },
-  { name: 'afficher_fichiers', description: 'Fichiers de l\'espace (récents), filtrables par genre.', input_schema: obj({ genre: choix(['tous', 'images', 'videos', 'documents']) }, ['genre']) },
-  { name: 'afficher_discussions', description: 'Discussions (canaux et messages privés) : non_lues = messages pas encore lus ; recentes = dernières conversations.', input_schema: obj({ filtre: choix(['non_lues', 'recentes']) }, ['filtre']) },
-  { name: 'afficher_activite', description: 'Fil d\'activité de l\'équipe (qui a fait quoi).', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
-  { name: 'afficher_objectifs', description: 'Objectifs et leur progression (en bonne voie, en retard, atteints).', input_schema: obj() },
-  { name: 'afficher_crm', description: 'Affaires commerciales du CRM (pipeline par étape, montants).', input_schema: obj({ vue: choix(['en_cours', 'gagnees', 'toutes']) }, ['vue']) },
-  { name: 'afficher_equipe', description: 'Membres de l\'équipe et agents IA, avec disponibilité et charge. filtre=agents pour les agents IA, disponibles pour qui est libre.', input_schema: obj({ filtre: choix(['tous', 'agents', 'disponibles']) }, ['filtre']) },
-  { name: 'afficher_bilan', description: 'Bilan chiffré (tâches faites, retards, rendez-vous, clients en attente, temps de focus) du jour ou de la semaine.', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
-  { name: 'afficher_projets', description: 'Projets de l\'espace avec leur avancement (tâches faites / total) et leur état.', input_schema: obj() },
-  { name: 'afficher_focus', description: 'Temps de travail concentré (focus) du jour et des 7 derniers jours.', input_schema: obj() },
-  { name: 'preparer_video', description: 'Prépare le lancement d\'une vidéo motion design pour un client (envoyée à l\'Atelier, qui la confie à un agent IA). « la vidéo de demain pour le TikTok de X » = client X, publication demain, modèle habituel (laisse modele VIDE si tu ne sais pas : le widget propose le modèle habituel ou fait choisir). modele = titre d\'un modèle connu (Mini-cours, Pub produit, Teaser, Post réseaux, ou un modèle motion maison du dossier du client). publication = AAAA-MM-JJ. duree en secondes.',
+  { name: 'afficher_taches', description: 'Tâches de l\'utilisateur.', input_schema: obj({ periode: choix(['jour', 'semaine', 'retard', 'toutes']) }, ['periode']) },
+  { name: 'afficher_clients', description: 'Clients : tous (« mes clients ») ou attente (qui attend quelque chose).', input_schema: obj({ filtre: choix(['tous', 'attente']) }, ['filtre']) },
+  { name: 'afficher_client', description: 'Fiche d\'un client.', input_schema: obj({ nom: { type: 'string' } }, ['nom']) },
+  { name: 'afficher_video', description: 'Une vidéo (lecteur + Télécharger). recherche = mots du titre.', input_schema: obj({ recherche: { type: 'string' } }, ['recherche']) },
+  { name: 'afficher_agenda', description: 'Agenda.', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
+  { name: 'afficher_productions', description: 'Vidéos de l\'Atelier. statut : a_valider, a_corriger, en_cours, valide, publie.', input_schema: obj({ statut: { type: 'string' } }) },
+  { name: 'afficher_notes', description: 'LISTE de notes (pas pour lire une note : réponds en texte).', input_schema: obj({ recherche: { type: 'string' } }) },
+  { name: 'afficher_fichiers', description: 'Fichiers récents.', input_schema: obj({ genre: choix(['tous', 'images', 'videos', 'documents']) }, ['genre']) },
+  { name: 'afficher_discussions', description: 'Discussions : non lues ou récentes.', input_schema: obj({ filtre: choix(['non_lues', 'recentes']) }, ['filtre']) },
+  { name: 'afficher_activite', description: 'Fil d\'activité.', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
+  { name: 'afficher_objectifs', description: 'Objectifs et progression.', input_schema: obj() },
+  { name: 'afficher_crm', description: 'Affaires du CRM.', input_schema: obj({ vue: choix(['en_cours', 'gagnees', 'toutes']) }, ['vue']) },
+  { name: 'afficher_equipe', description: 'Équipe et agents IA avec disponibilité.', input_schema: obj({ filtre: choix(['tous', 'agents', 'disponibles']) }, ['filtre']) },
+  { name: 'afficher_bilan', description: 'Bilan chiffré.', input_schema: obj({ periode: choix(['jour', 'semaine']) }, ['periode']) },
+  { name: 'afficher_projets', description: 'Projets et avancement.', input_schema: obj() },
+  { name: 'afficher_focus', description: 'Temps de focus.', input_schema: obj() },
+  { name: 'preparer_video', description: 'Lancer une vidéo motion pour un client. modele vide = habituel. publication AAAA-MM-JJ, duree en s.',
     input_schema: obj({ client: { type: 'string' }, ...Object.fromEntries(['modele', 'sujet', 'publication', 'duree', 'note'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['client']) },
-  { name: 'proposer_modele_motion', description: 'Propose un NOUVEAU modèle (template) de vidéo motion pour un client, imaginé à partir de son dossier privé (description du projet, notes, idées). idee = le déroulé précis en quelques lignes : format, durée, scènes dans l\'ordre, texte à l\'écran, voix, musique, ce qui revient à chaque épisode. L\'utilisateur peut l\'enregistrer dans le dossier du client puis lancer une vidéo avec.',
+  { name: 'envoyer_agent', description: 'Consigne pour un agent IA (terminal). consigne complète ; note = titre de la note jointe ; agent = seulement s\'il est nommé.',
+    input_schema: obj({ titre: { type: 'string' }, consigne: { type: 'string' }, ...Object.fromEntries(['agent', 'note'].map((k) => [k, { type: ['string', 'null'] }])) }, ['titre', 'consigne']) },
+  { name: 'proposer_modele_motion', description: 'Nouveau modèle vidéo pour un client. idee = déroulé précis (format, durée, scènes, texte, voix).',
     input_schema: obj({ client: { type: 'string' }, titre: { type: 'string' }, idee: { type: 'string' }, ...Object.fromEntries(['format', 'duree'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['client', 'titre', 'idee']) },
-  { name: 'preparer_creation', description: 'Prépare la création d\'une tâche, d\'un rendez-vous (evenement) ou d\'une note, dans un formulaire que l\'utilisateur valide. Remplis tout ce qui est dit ou déductible ; laisse VIDE ce qui manque (le formulaire le demandera). date = AAAA-MM-JJ, heure = HH:MM (heure de Paris). assigne = nom exact d\'un membre, ou « agent IA » pour un agent IA disponible. avec = personnes invitées (membres ou clients). duree en minutes. priorite = low, medium, high ou urgent. Omets un champ inconnu.',
+  { name: 'preparer_creation', description: 'Formulaire tâche / evenement / note, sur demande explicite. Champs inconnus omis. date AAAA-MM-JJ, heure HH:MM, assigne = membre ou « agent IA », avec = invités, duree en min, priorite low/medium/high/urgent.',
     input_schema: obj({ objet: choix(['tache', 'evenement', 'note']), ...Object.fromEntries(['titre', 'date', 'heure', 'duree', 'assigne', 'avec', 'lieu', 'priorite', 'contenu', 'client'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['objet']) },
 ] as const
 
@@ -77,6 +80,7 @@ export function versWidget(nom: string, e: Record<string, unknown>): Widget | nu
     case 'afficher_focus': return { type: 'focus' }
     case 'preparer_video': return str(e.client) ? { type: 'video_demande', d: { client: str(e.client, 80)!, modele: str(e.modele, 80), sujet: str(e.sujet, 300), note: str(e.note, 1000),
       publication: str(e.publication, 10) && /^\d{4}-\d{2}-\d{2}$/.test(str(e.publication, 10)!) ? str(e.publication, 10) : undefined, duree: Number(e.duree) >= 5 && Number(e.duree) <= 600 ? Math.round(Number(e.duree)) : undefined } } : null
+    case 'envoyer_agent': return str(e.consigne) ? { type: 'envoi_agent', titre: str(e.titre, 100) ?? 'Consigne', consigne: str(e.consigne, 4000)!, agent: str(e.agent, 60), note: str(e.note, 160) } : null
     case 'proposer_modele_motion': return str(e.client) && str(e.idee) ? { type: 'modele_motion', client: str(e.client, 80)!, titre: str(e.titre, 100) ?? 'Nouveau modèle', idee: str(e.idee, 3000)!, format: str(e.format, 12), duree: Number(e.duree) >= 5 && Number(e.duree) <= 600 ? Math.round(Number(e.duree)) : undefined } : null
     case 'preparer_creation': {
       const date = str(e.date, 10), heure = str(e.heure, 5)
@@ -93,6 +97,7 @@ export function versWidget(nom: string, e: Record<string, unknown>): Widget | nu
 
 /** Résumé d'un widget pour l'historique de la conversation (l'IA sait ce qui est affiché, et ce qui manque à un formulaire). */
 export function resumeWidget(w: Widget): string {
+  if (w.type === 'envoi_agent') return `[envoi à un agent préparé : « ${w.titre} » ${w.note ? `(note « ${w.note} »)` : ''} : ${w.consigne.slice(0, 300)}]`
   if (w.type === 'video_demande') return `[widget de lancement de vidéo affiché : ${JSON.stringify(w.d)} ; si l'utilisateur précise quelque chose, rappelle preparer_video avec TOUS les champs]`
   if (w.type === 'modele_motion') return `[modèle motion proposé pour ${w.client} : « ${w.titre} » : ${w.idee.slice(0, 400)}]`
   if (w.type !== 'creation') return `[widget affiché : ${w.type}${'periode' in w ? ' ' + w.periode : ''}${'filtre' in w ? ' ' + w.filtre : ''}${'nom' in w ? ' ' + w.nom : ''}]`

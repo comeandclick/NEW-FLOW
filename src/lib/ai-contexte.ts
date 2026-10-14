@@ -9,12 +9,21 @@ import { texteDeNote } from '@/lib/client-notes'
 const court = (t: unknown, n = 140) => (typeof t === 'string' ? (t.length > n ? t.slice(0, n) + '…' : t) : t)
 const jourIso = (d: Date) => d.toISOString()
 
-export async function contexteEspace(db: SupabaseClient, wsId: string, userId: string) {
+const sansAccents = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+/** La question parle-t-elle de ce titre ? (« la note Organisation : agents… », « où en est MyUstadh ») */
+function cite(question: string, titre: string) {
+  const q = sansAccents(question), t = sansAccents(titre).replace(/^.*? · /, '')
+  if (t.length > 3 && q.includes(t)) return true
+  const mots = t.split(/[^a-z0-9]+/).filter((m) => m.length >= 4)
+  return mots.length > 0 && mots.filter((m) => q.includes(m)).length / mots.length >= 0.6
+}
+
+export async function contexteEspace(db: SupabaseClient, wsId: string, userId: string, question = '') {
   const maintenant = new Date(), dans14 = new Date(Date.now() + 14 * 864e5), il7 = new Date(Date.now() - 7 * 864e5), aube = new Date(); aube.setHours(0, 0, 0, 0)
   const r = await Promise.all([
     db.from('workspaces').select('name').eq('id', wsId).maybeSingle(),
     db.from('workspace_members').select('user_id,role,profile:profiles!workspace_members_user_id_fkey(full_name,email,preferences)').eq('workspace_id', wsId),
-    db.from('tasks').select('id,title,status,priority,due_date,assignee_id,project_id,completed_at,tags').eq('workspace_id', wsId).is('deleted_at', null).order('due_date', { ascending: true, nullsFirst: false }).limit(150),
+    db.from('tasks').select('id,title,status,priority,due_date,assignee_id,project_id,completed_at,tags,created_by').eq('workspace_id', wsId).is('deleted_at', null).order('due_date', { ascending: true, nullsFirst: false }).limit(150),
     db.from('events').select('id,title,start_at,end_at,location,description,attendees').eq('workspace_id', wsId).is('deleted_at', null).gte('end_at', jourIso(new Date(Date.now() - 2 * 864e5))).lte('start_at', jourIso(dans14)).order('start_at').limit(40),
     db.from('clients').select('id,name,company,cadence,notes').eq('workspace_id', wsId).is('deleted_at', null).limit(40),
     db.from('client_todos').select('client_id,title,due_date,done').eq('workspace_id', wsId).is('deleted_at', null).eq('done', false).limit(80),
@@ -25,7 +34,7 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
     db.from('activity_logs').select('action,entity_type,user_id,created_at,meta').eq('workspace_id', wsId).order('created_at', { ascending: false }).limit(25),
     db.from('goals').select('title,current,target,unit,due_date,status').eq('workspace_id', wsId).is('deleted_at', null).limit(20),
     db.from('crm_deals').select('title,value,stage,probability,close_date').eq('workspace_id', wsId).is('deleted_at', null).limit(40),
-    db.from('notes').select('id,title,updated_at').eq('workspace_id', wsId).is('deleted_at', null).order('updated_at', { ascending: false }).limit(12),
+    db.from('notes').select('id,title,updated_at,created_by,content,tags').eq('workspace_id', wsId).is('deleted_at', null).order('updated_at', { ascending: false }).limit(60),
     db.from('projects').select('id,name,status').eq('workspace_id', wsId).is('deleted_at', null).limit(30),
     db.from('time_entries').select('started_at,ended_at,kind').eq('workspace_id', wsId).eq('user_id', userId).gte('started_at', jourIso(il7)).limit(200),
     db.from('motion_projets').select('titre,client,serie,numero,statut,avancement,etape,video_nom').eq('workspace_id', wsId).limit(40),
@@ -50,8 +59,12 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
   const retard = ouvertes.filter((t) => t.due_date && new Date(t.due_date) < aube)
   const prochaines = ouvertes.filter((t) => t.due_date && new Date(t.due_date) >= aube && new Date(t.due_date) <= dans7)
   const sansDate = ouvertes.filter((t) => !t.due_date && ['in_progress', 'in_review'].includes(t.status))
-  const ligneT = (t: any) => `- ${court(t.title, 70)}${t.due_date ? ` (${j(t.due_date)})` : ''}${t.priority === 'urgent' || t.priority === 'high' ? ` [${t.priority === 'urgent' ? 'urgent' : 'haute'}]` : ''}${nom(t.assignee_id) ? ` → ${nom(t.assignee_id)}` : ''}${t.status === 'in_progress' ? ' (en cours)' : ''}`
+  const ligneT = (t: any) => `- ${court(t.title, 70)}${t.due_date ? ` (${j(t.due_date)})` : ''}${t.priority === 'urgent' || t.priority === 'high' ? ` [${t.priority === 'urgent' ? 'urgent' : 'haute'}]` : ''}${nom(t.assignee_id) ? ` → ${t.assignee_id === userId ? 'moi' : nom(t.assignee_id)}` : ''}${t.status === 'in_progress' ? ' (en cours)' : ''}${t.created_by ? ` [créée par ${t.created_by === userId ? 'moi' : nom(t.created_by) ?? '?'}]` : ''}`
+  // notes citées dans la question : texte COMPLET, en tête (l'assistant peut les lire, les analyser, retrouver « la demande n° 3 »)
+  const citees = question ? ((notes ?? []) as any[]).filter((n) => n.title && cite(question, n.title)).slice(0, 2) : []
+  const clientsCites = question ? ((clients ?? []) as any[]).filter((c) => cite(question, c.name) || (c.company && cite(question, c.company))) : []
   const blocs: [string, string[]][] = [
+    ...citees.map((n): [string, string[]] => [`NOTE CITÉE « ${n.title} » (écrite par ${n.created_by === userId ? 'moi' : nom(n.created_by) ?? '?'}, modifiée ${j(n.updated_at)}), TEXTE COMPLET`, [String(court(texteDeNote(n.content), 2500) || '(vide)')]]),
     ['ESPACE', [`${ws?.name ?? ''} · utilisateur : ${membres.find((m) => m.moi)?.nom ?? ''} · ${ouvertes.length} tâches ouvertes, ${retard.length} en retard, ${((taches ?? []) as any[]).filter((t) => t.completed_at && new Date(t.completed_at) > il7).length} faites en 7 j`]],
     ['MEMBRES', [[...new Set(membres.map((m) => `${m.nom}${m.agentIA ? ' (agent IA)' : ''}${m.moi ? ' (moi)' : ''}`))].join(', ')]],
     ['AGENTS DE L\'ATELIER', agentsAtelier.map((a) => `- ${a.nom} (${a.compte}) : ${a.etat}`)],
@@ -68,19 +81,21 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
       const n = ((notesClients ?? []) as any[]).filter((x) => (x.tags ?? []).includes(`client:${c.id}`))
       const series = [...new Set(((prods ?? []) as any[]).filter((p) => p.client === c.name && p.serie).map((p) => p.serie))]
       if (!c.notes && !n.length && !series.length) return ''
-      return `- ${c.name} :${c.notes ? ` ${court(String(c.notes).replace(/\s+/g, ' '), 700)}` : ''}${series.length ? ` | séries vidéo habituelles : ${series.join(', ')}` : ''}${n.map((x: any) => ` | ${(x.tags ?? []).includes('modele-motion') ? 'modèle motion' : (x.tags ?? []).includes('idee-video') ? 'idée de vidéo' : 'note'} « ${court(String(x.title).replace(`${c.name} · `, ''), 60)} » : ${court(texteDeNote(x.content).replace(/\s+/g, ' '), 260)}`).join('')}`
+      const fort = clientsCites.includes(c) // client dont parle la question : dossier détaillé
+      return `- ${c.name} :${c.notes ? ` ${court(String(c.notes).replace(/\s+/g, ' '), fort ? 1500 : 220)}` : ''}${series.length ? ` | séries vidéo habituelles : ${series.join(', ')}` : ''}${n.map((x: any) => ` | ${(x.tags ?? []).includes('modele-motion') ? 'modèle motion' : (x.tags ?? []).includes('idee-video') ? 'idée de vidéo' : 'note'} « ${court(String(x.title).replace(`${c.name} · `, ''), 60)} » : ${fort ? court(texteDeNote(x.content).replace(/\s+/g, ' '), 600) : ''}`).join('')}`
     })],
     ['DISCUSSIONS RÉCENTES', ((convs ?? []) as any[]).map((c) => ({ c, m: (msgs as any[]).filter((x) => x.conversation_id === c.id).slice(0, 2) })).filter((x) => x.m.length).slice(0, 6).map(({ c, m }) => `- ${c.type === 'dm' ? 'privé' : '#' + c.name} : ${m.map((x: any) => `${nom(x.user_id) ?? '?'} « ${court(x.content ?? x.kind, 60)} »`).join(' / ')}`)],
     ['PRODUCTIONS MOTION', ((prods ?? []) as any[]).slice(0, 12).map((p) => `- ${p.numero ? `n° ${p.numero} ` : ''}${court(p.titre, 50)} (${p.client}${p.serie ? ', ' + p.serie : ''}) : ${p.statut}, ${p.avancement} %`)],
     ['OBJECTIFS', ((objectifs ?? []) as any[]).slice(0, 6).map((g) => `- ${court(g.title, 60)} : ${Math.round((Number(g.current) / Math.max(1, Number(g.target))) * 100)} %`)],
     ['CRM', ((deals ?? []) as any[]).filter((d) => !['gagné', 'perdu'].includes(d.stage)).slice(0, 8).map((d) => `- ${court(d.title, 50)} : ${d.value} € (${d.stage})`)],
     ['FICHIERS RÉCENTS', [((fichiers ?? []) as any[]).slice(0, 8).map((f) => court(f.name, 40)).join(', ')]],
-    ['NOTES RÉCENTES', [((notes ?? []) as any[]).slice(0, 8).map((n) => court(n.title || 'Sans titre', 40)).join(', ')]],
+    // notes : titre et auteur ; texte court pour les plus récentes (le texte complet de celles citées est en tête)
+    ['NOTES (titre, auteur)', ((notes ?? []) as any[]).filter((n) => !(n.tags ?? []).includes('client-interne') && !citees.includes(n)).slice(0, 14).map((n, i) => `- « ${court(n.title || 'Sans titre', 60)} » (par ${n.created_by === userId ? 'moi' : nom(n.created_by) ?? '?'}, ${j(n.updated_at)})${i < 4 ? ` : ${court(texteDeNote(n.content).replace(/\s*\n\s*/g, ' / '), 160)}` : ''}`)],
     ['PROJETS', [((projets ?? []) as any[]).slice(0, 12).map((p) => p.name).join(', ')]],
     ['ACTIVITÉ RÉCENTE', ((activite ?? []) as any[]).slice(0, 8).map((a) => `- ${j(a.created_at)} ${nom(a.user_id) ?? 'quelqu\'un'} : ${a.action}${a.entity_type ? ' ' + a.entity_type : ''}`)],
     ['FOCUS', [`aujourd'hui ${Math.round(minutes.filter((x) => x.j).reduce((a, x) => a + x.m, 0))} min · 7 jours ${Math.round(minutes.reduce((a, x) => a + x.m, 0))} min`]],
   ]
   let texte = ''
-  for (const [titre, lignes] of blocs) { const l = lignes.filter((x) => x && x.trim() && x !== '- '); if (!l.length) continue; const b = `${titre}\n${l.join('\n')}\n`; if (texte.length + b.length > 9000) continue; texte += b }
+  for (const [titre, lignes] of blocs) { const l = lignes.filter((x) => x && x.trim() && x !== '- '); if (!l.length) continue; const b = `${titre}\n${l.join('\n')}\n`; if (texte.length + b.length > 8000) continue; texte += b }
   return { maintenant: maintenant.toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), texte }
 }
