@@ -58,7 +58,7 @@ export function ConnectClient() {
       {view === 'done' && <>
         <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/10 text-success"><Check className="size-6" /></span>
         <h1 className="mt-4 text-xl font-semibold">Mac relié</h1>
-        <p className="mt-2 text-sm text-text-2">{name ? `« ${name} » est relié à ton compte Flow.` : 'Ton Mac est relié à ton compte Flow.'} Tu peux fermer cette page : l’installateur termine tout seul.</p>
+        <p className="mt-2 text-sm text-text-2">{name ? `« ${name} » est relié à ton compte Flow.` : 'Ton Mac est relié à ton compte Flow.'} Tu peux fermer cette page.</p>
         <Link href="/app" className="mt-5 inline-flex h-11 items-center justify-center rounded-xl border border-border-strong px-5 text-[15px] font-medium">Ouvrir Flow</Link>
       </>}
       {view === 'error' && <>
@@ -68,7 +68,7 @@ export function ConnectClient() {
       </>}
       {view === 'nocode' && <>
         <h1 className="text-xl font-semibold">Aucun code reçu</h1>
-        <p className="mt-2 text-sm text-text-2">Cette page s’ouvre toute seule depuis l’installateur Flow Studio sur ton Mac. Télécharge-le depuis Flow : Création de site &gt; Connexion du Mac.</p>
+        <p className="mt-2 text-sm text-text-2">Pour relier ton Mac, ouvre le logiciel Atelier : il affiche un code. Tape-le dans Flow : Paramètres &gt; Atelier (Mac).</p>
         <Link href="/app" className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text">Ouvrir Flow</Link>
       </>}
     </main>

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { CheckCircle2, ChevronDown, Download, KeyRound, Laptop, MonitorPlay, ShieldCheck, Unplug, WifiOff } from 'lucide-react'
+import { CheckCircle2, ChevronDown, KeyRound, Laptop, ShieldCheck, Unplug, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Card } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -9,15 +9,13 @@ import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
 import { useStudio } from '@/lib/studio/store'
 import { studioApi, usePoll, type LiveDevice } from '@/lib/studio/api'
-import { CopyBox } from '@/app/studio/install/copy-box'
-import { SetupPanel } from './setup-panel'
 
 const SAMPLE = 'FLOW-7K3Q-9XM2'
 const CODE_RE = /^FLOW-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 
 type Dev = { id: string; name: string; lastSeen: string | number; online?: boolean; claudeOk?: boolean | null; version?: string | null }
 
-/** Connexion du Mac : état de l'appareil, téléchargement du logiciel Flow Studio, code de liaison, logiciels installés. */
+/** Connexion du Mac : le logiciel Atelier (il remplace Flow Studio, 14/10/2026) affiche un code de liaison, à taper ici. */
 export function ConnectPanel({ live = false }: { live?: boolean }) {
   const { locale } = useI18n()
   const c = studioCopy(locale)
@@ -28,12 +26,10 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
   const simUnpair = useStudio((s) => s.unpair)
   const polled = usePoll(studioApi.devices, 3000, live)
   const devices: Dev[] = live ? ((polled.data?.devices ?? []) as LiveDevice[]) : simDevices
-  const origin = typeof window === 'undefined' ? '' : window.location.origin
   const ua = typeof navigator === 'undefined' ? '' : `${navigator.platform} ${navigator.userAgent}`
   const plat: 'mac' | 'windows' | 'other' = /Win/i.test(ua) ? 'windows' : /Mac/i.test(ua) && !/iPhone|iPad|iPod/i.test(ua) ? 'mac' : 'other'
   const [code, setCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
   const main = devices.find((d) => d.online) ?? devices[0]
 
   const format = (v: string) => {
@@ -47,12 +43,12 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
     try { const { device } = await studioApi.confirm(code); setCode(''); toast.success(c.connect.paired, { description: device.name }); void polled.refresh() }
     catch (e) { setErr((e as { status?: number }).status === 429 ? 'Trop d\'essais, réessaie dans quelques minutes.' : c.connect.invalid) }
   }
-  const openStudio = async (d: Dev) => { setBusy('studio'); try { await studioApi.setup(d.id, { action: 'open_studio' }); toast.success(l.studioOpening) } catch { toast.error('Erreur') } finally { setBusy(null) } }
   const unlink = (d: Dev) => { if (!confirm(en ? 'Unlink this Mac? The software will show a new code.' : 'Dissocier ce Mac ? Le logiciel affichera un nouveau code.')) return; if (live) void studioApi.removeDevice(d.id).then(() => polled.refresh()); else simUnpair(d.id) }
 
-  const download = plat === 'windows'
-    ? <p className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-text-2">{l.windowsSoon}</p>
-    : <a href="/studio/Flow-Studio-Installer.dmg" download className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-text shadow-sm transition-colors hover:bg-accent-hover sm:w-auto"><Download className="size-4" />{l.downloadInstaller}</a>
+  // l'Atelier est déjà installé sur le Mac d'Aymen : on explique où trouver le code
+  const etapes = en
+    ? ['Open Atelier on your Mac.', 'Settings → Flow → “Link to Flow”: a FLOW-XXXX-XXXX code appears.', 'Type it below. Done: videos launched here start on the Mac.']
+    : ['Ouvre Atelier sur ton Mac.', 'Paramètres → Flow → « Relier à Flow » : un code FLOW-XXXX-XXXX s\'affiche.', 'Tape-le ci-dessous. C\'est fait : les vidéos lancées ici démarrent sur le Mac.']
 
   return (
     <div className="space-y-5">
@@ -66,7 +62,6 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
               <p className="text-[13px] text-text-3">{c.connect.lastSeen} : {new Date(main.lastSeen).toLocaleTimeString(locale, { timeStyle: 'short' })}{live && main.claudeOk != null ? ` · ${main.claudeOk ? l.claudeOk : l.claudeNo}` : ''}{live && main.version ? ` · v${main.version}` : ''}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {live && main.online && <Button size="sm" variant="primary" loading={busy === 'studio'} onClick={() => void openStudio(main)}><MonitorPlay className="size-3.5" />{l.openStudio}</Button>}
               <Button size="sm" variant="outline" onClick={() => unlink(main)}><Unplug className="size-3.5" />{c.connect.unlink}</Button>
             </div>
           </div>
@@ -74,10 +69,9 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
         </Card>
       ) : (
         <Card className="space-y-5 p-5 max-md:p-4">
-          <div className="flex items-center gap-3"><span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-3 text-text-3"><Laptop className="size-6" /></span><div><p className="text-base font-semibold text-text">{c.connect.devicesEmpty}</p><p className="text-[13px] text-text-3">{c.connect.subtitle}</p></div></div>
-          {download}
-          {plat === 'other' && <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-2">{l.notMac}</p>}
-          <ol className="space-y-2">{l.downloadSteps.map((x, i) => <li key={x} className="flex gap-3 text-[13px] text-text-2"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">{i + 1}</span><span className="pt-0.5">{x}</span></li>)}</ol>
+          <div className="flex items-center gap-3"><span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-surface-3 text-text-3"><Laptop className="size-6" /></span><div><p className="text-base font-semibold text-text">{en ? 'Atelier is not linked yet' : 'L\'Atelier n\'est pas encore relié'}</p><p className="text-[13px] text-text-3">{en ? 'The Mac app that makes the videos.' : 'Le logiciel du Mac qui fabrique les vidéos.'}</p></div></div>
+          {plat === 'other' && <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-2">{en ? 'Do this from the Mac where Atelier is installed, or type the code shown on the Mac here.' : 'Le code s\'affiche sur le Mac où l\'Atelier est installé : tu peux le taper ici depuis ton téléphone.'}</p>}
+          <ol className="space-y-2">{etapes.map((x, i) => <li key={x} className="flex gap-3 text-[13px] text-text-2"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">{i + 1}</span><span className="pt-0.5">{x}</span></li>)}</ol>
         </Card>
       )}
 
@@ -97,19 +91,9 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
         </Card>
       )}
 
-      {/* 3. Logiciels installés sur le Mac */}
-      {live && devices.slice(0, 1).map((d) => <SetupPanel key={d.id} device={d as LiveDevice} onChanged={() => void polled.refresh()} />)}
 
       {/* 4. Autre Mac / partage / sécurité (repliés) */}
       <Card className="divide-y divide-border">
-        <details className="group p-4">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-text"><span className="flex items-center gap-2"><Download className="size-4 text-text-3" />{main ? (en ? 'Install on another Mac' : 'Installer sur un autre Mac') : l.install}</span><ChevronDown className="size-4 text-text-3 transition-transform group-open:rotate-180" /></summary>
-          <div className="mt-3 space-y-3">
-            {main && download}
-            <p className="text-[13px] font-medium text-text-2">{l.installLink}</p>
-            <CopyBox text={`${origin}/studio/install`} label={c.common.copy} copied={c.common.copied} share={{ title: l.installShare, url: `${origin}/studio/install` }} />
-          </div>
-        </details>
         <details className="group p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-text"><span className="flex items-center gap-2"><ShieldCheck className="size-4 text-text-3" />{c.connect.securityTitle}</span><ChevronDown className="size-4 text-text-3 transition-transform group-open:rotate-180" /></summary>
           <ul className="mt-3 space-y-1.5 text-[13px] text-text-2">{[c.connect.sec1, c.connect.sec2, c.connect.sec3].map((x) => <li key={x} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-text-3" />{x}</li>)}</ul>
