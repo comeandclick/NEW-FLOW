@@ -13,22 +13,24 @@ const ETAT: Record<string, [string, string]> = {
   draft: ['Brouillon', 'text-text-3'], queued: ['En attente du Mac', 'text-text-2'], starting: ['L\'agent démarre', 'text-sky-500'], running: ['L\'agent travaille', 'text-sky-500'],
   paused: ['En pause', 'text-text-3'], needs_answer: ['Question pour toi', 'text-amber-500'], done: ['Prête à valider', 'text-emerald-500'], failed: ['Arrêtée avant la fin', 'text-rose-500'], cancelled: ['Annulée', 'text-text-3'],
 }
-const ETAPES: Record<string, string> = { reflexion: 'Réflexion', deroule: 'Déroulé', images_cles: 'Images clés', montage: 'Montage', voix: 'Voix', bruitages: 'Bruitages', musique: 'Musique', mixage: 'Mixage', verification: 'Vérifications', export: 'Export', envoi: 'Envoi', deliver: 'Envoi' }
+const ETAPES: Record<string, string> = { reflexion: 'Réflexion', deroule: 'Déroulé', images_cles: 'Images clés', montage: 'Montage', voix: 'Voix', bruitages: 'Bruitages', musique: 'Musique', mixage: 'Mixage', verification: 'Vérifications', export: 'Export', envoi: 'Envoi', deliver: 'Envoi',
+  comprehension: 'Compréhension', coffre: 'Coffre Obsidian', design: 'Design', construction: 'Construction', contenu: 'Contenus', polissage: 'Polissage', deploiement: 'Mise en ligne', livraison: 'Livraison' }
 
-export function DemandesAtelier({ onVoir }: { onVoir?: () => void }) {
+export function DemandesAtelier({ onVoir, kind = 'motion' }: { onVoir?: () => void; kind?: 'motion' | 'site' }) {
   const { data, refresh } = usePoll(studioApi.jobs, 6000, true)
   const [occupe, setOccupe] = useState<string | null>(null)
-  const jobs = (data?.jobs ?? []).filter((j) => j.kind === 'motion').slice(0, 8)
+  const jobs = (data?.jobs ?? []).filter((j) => j.kind === kind).slice(0, 8)
   const agir = async (j: LiveJob, quoi: 'cancel' | 'retry' | 'remove') => {
     if (quoi === 'cancel' && !confirm(`Annuler « ${j.title} » ? L'agent s'arrête.`)) return
     setOccupe(j.id)
     try { if (quoi === 'remove') await studioApi.remove(j.id); else await studioApi.control(j.id, quoi); await refresh() } catch { toast.error('Action impossible') } finally { setOccupe(null) }
   }
-  if (!jobs.length) return <Card><EmptyState title="Aucune demande pour l'instant" hint="Les vidéos lancées ici partent vers l'Atelier du Mac, puis apparaissent dans « Productions »." /></Card>
+  if (!jobs.length) return <Card><EmptyState title="Aucune demande pour l'instant" hint={kind === 'site' ? "Les sites lancés ici partent vers l'Atelier du Mac, puis apparaissent dans « Projets »." : "Les vidéos lancées ici partent vers l'Atelier du Mac, puis apparaissent dans « Productions »."} /></Card>
   return (
     <Card className="divide-y divide-border">
       {jobs.map((j) => {
-        const [lib, cls] = ETAT[j.status] ?? [j.status, '']
+        const [lib0, cls] = ETAT[j.status] ?? [j.status, '']
+        const lib = kind === 'site' && j.status === 'done' ? 'Prêt à valider' : lib0
         const actif = ['queued', 'starting', 'running', 'needs_answer', 'paused'].includes(j.status)
         return (
           <div key={j.id} className="flex items-center gap-3 px-4 py-3">

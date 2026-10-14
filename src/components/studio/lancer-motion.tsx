@@ -25,7 +25,7 @@ type ClientRow = { id: string; name: string; color: string | null }
 type Prod = { serie: string | null; numero: number | null }
 const MARQUES = ['Kalimat', 'Lumora']
 
-function Etape({ n, titre, children, aide }: { n: number; titre: string; aide?: string; children: React.ReactNode }) {
+export function Etape({ n, titre, children, aide }: { n: number; titre: string; aide?: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
       <div className="flex items-baseline gap-2">
@@ -37,7 +37,7 @@ function Etape({ n, titre, children, aide }: { n: number; titre: string; aide?: 
     </section>
   )
 }
-const Puce = ({ actif, children, onClick, disabled, title }: { actif: boolean; children: React.ReactNode; onClick: () => void; disabled?: boolean; title?: string }) => (
+export const Puce = ({ actif, children, onClick, disabled, title }: { actif: boolean; children: React.ReactNode; onClick: () => void; disabled?: boolean; title?: string }) => (
   <button type="button" onClick={onClick} disabled={disabled} title={title} aria-pressed={actif}
     className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45',
       actif ? 'border-transparent bg-text text-surface' : 'border-border bg-surface text-text-2 hover:text-text')}>{children}</button>
