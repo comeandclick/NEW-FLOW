@@ -66,6 +66,10 @@ export function LancerMotion({ onLance }: { onLance?: () => void }) {
   const [texteOn, setTexteOn] = useState(false)
   const [texte, setTexte] = useState('')
   const [options, setOptions] = useState(false)
+  // agent : null = celui des réglages de l'Atelier (Automatique = le premier terminal libre)
+  const [agent, setAgent] = useState<string | null>(null)
+  const agents = atelier?.setup?.atelier?.agents ?? []
+  const agentReglage = atelier?.setup?.atelier?.reglages.compteAgents ?? 'auto'
   const [format, setFormat] = useState<Format>(modele.format)
   const [duree, setDuree] = useState(modele.duree)
   const [musique, setMusique] = useState(true)
@@ -104,6 +108,7 @@ export function LancerMotion({ onLance }: { onLance?: () => void }) {
         atelier: 1, wsSlug: ws.slug, client: nomClient, clientId, modele: modele.id, modeleTitre: modele.titre, serie: serie || null, numero,
         sujet: sujet.trim(), notes: notes.trim(), consignes: modele.consignes, format, duree, fps: 60, musique, publication: publication || null,
         voix: voixOn ? { id: voix, titre: VOIX[voix].titre, texte: texteOn ? texte.trim() : '' } : null,
+        ...(agent ? { agent } : {}),
       }
       // résumé lisible (le serveur exige au moins 50 caractères) ; l'Atelier construit la consigne de l'agent à partir de `spec`
       const resume = ['Demande de vidéo motion design pour l\'Atelier :', `${nomClient} · ${modele.titre}${numero ? ` n° ${numero}` : ''}`, sujet.trim() && `Sujet : ${sujet.trim()}`, notes.trim() && `Notes : ${notes.trim()}`,
@@ -181,6 +186,25 @@ export function LancerMotion({ onLance }: { onLance?: () => void }) {
             </div>
           )}
         </Etape>
+
+        {agents.length > 0 && (
+          <Etape n={5} titre="Quel agent ?" aide="la demande s'écrit dans son terminal">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[{ compte: 'auto', etat: 'libre', nom: 'le premier libre' }, ...agents].map((a) => {
+                const choisi = (agent ?? agentReglage) === a.compte
+                const etat = a.compte === 'auto' ? null : a.etat === 'libre' ? 'Libre' : a.etat === 'occupe' ? 'Occupé' : 'Fermé'
+                return (
+                  <button key={a.compte} type="button" onClick={() => setAgent(a.compte)} aria-pressed={choisi}
+                    className={cn('rounded-xl border px-3 py-2 text-left transition-colors', choisi ? 'border-accent bg-accent-soft ring-1 ring-accent' : 'border-border hover:bg-surface-2', a.compte !== 'auto' && a.etat !== 'libre' && !choisi && 'opacity-60')}>
+                    <span className="block text-sm font-semibold">{a.compte === 'auto' ? 'Automatique' : a.compte}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-text-3">{etat && <span className={cn('size-2 rounded-full', a.etat === 'libre' ? 'bg-success' : a.etat === 'occupe' ? 'bg-warning' : 'bg-text-3')} />}{etat ?? a.nom}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {(agent ?? agentReglage) !== 'auto' && agents.find((a) => a.compte === (agent ?? agentReglage))?.etat !== 'libre' && <p className="text-xs text-text-2">Cet agent n&apos;est pas libre : la vidéo attendra qu&apos;il ait fini.</p>}
+          </Etape>
+        )}
 
         <div className="rounded-xl border border-border">
           <button type="button" onClick={() => setOptions((o) => !o)} aria-expanded={options} className="flex w-full items-center justify-between px-3.5 py-3 text-sm font-medium">

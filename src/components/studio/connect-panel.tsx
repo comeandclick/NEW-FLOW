@@ -9,6 +9,7 @@ import { useI18n } from '@/i18n/provider'
 import { studioCopy } from '@/lib/studio/copy'
 import { useStudio } from '@/lib/studio/store'
 import { studioApi, usePoll, type LiveDevice } from '@/lib/studio/api'
+import { AtelierReglagesPanel } from '@/components/studio/atelier-reglages'
 
 const SAMPLE = 'FLOW-7K3Q-9XM2'
 const CODE_RE = /^FLOW-[A-Z0-9]{4}-[A-Z0-9]{4}$/
@@ -74,6 +75,9 @@ export function ConnectPanel({ live = false }: { live?: boolean }) {
           <ol className="space-y-2">{etapes.map((x, i) => <li key={x} className="flex gap-3 text-[13px] text-text-2"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent-ink">{i + 1}</span><span className="pt-0.5">{x}</span></li>)}</ol>
         </Card>
       )}
+
+      {/* 1 bis. Réglages de l'Atelier et agents (modifiables ici, enregistrés sur le Mac) */}
+      {live && main && <AtelierReglagesPanel device={main as LiveDevice} onSent={() => void polled.refresh()} />}
 
       {/* 2. Code de liaison (si pas encore relié, ou pour un autre Mac) */}
       {(!main || !live) && (

@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type Mode = 'loading' | 'live' | 'demo' | 'setup' | 'anon'
 export type SetupComponent = { id: string; name: string; group: 'ia' | 'motion' | 'outils' | 'site'; state: 'ok' | 'missing' | 'warn' | 'installing' | 'error' | 'waiting'; detail?: string; version?: string; required?: boolean; cost?: 'free' | 'paid'; installable?: boolean; note?: string }
-export type SetupState = { at: string; components: SetupComponent[]; installing?: { id: string; label: string; step: string; pct: number; log: string[] } | null; engine?: string | null; platform?: string }
+/** Atelier (Mac) : réglages et agents envoyés par le pont, modifiables depuis Flow (Paramètres → Atelier). */
+export type AtelierAgent = { compte: 'eren' | 'seikqit' | 'lidaf'; nom: string; etat: 'libre' | 'occupe' | 'ferme' }
+export type AtelierReglages = { theme: 'auto' | 'clair' | 'sombre'; accent: string; zoom: number; densite: string; notif: { valider: boolean; voix: boolean; rendu: boolean; demande: boolean }
+  flowAuto: boolean; demarrageMac: boolean; pageDemarrage: string; studioPort: number; arreterStudios: boolean; compteAgents: 'auto' | 'eren' | 'seikqit' | 'lidaf'; envoiAgents: 'terminal' | 'cache'; maj?: string; majPar?: string }
+export type AtelierEtat = { reglages: AtelierReglages; agents: AtelierAgent[]; attente: number; enCours: { titre: string; compte: string | null }[]; version: string; maj: string }
+export type SetupState = { atelier?: AtelierEtat; at: string; components: SetupComponent[]; installing?: { id: string; label: string; step: string; pct: number; log: string[] } | null; engine?: string | null; platform?: string }
 export type LiveDevice = { setup?: SetupState | null; id: string; name: string; os: string; pairedAt: string; lastSeen: string; online: boolean; busyJob: string | null; version: string | null; claudeOk: boolean | null }
 export type LiveEvent = { id: number; at: string; level: 'info' | 'success' | 'warning' | 'error' | 'question'; kind: string; title: string; body: string | null; data: { from?: string; mode?: string; state?: string; files?: { name: string; kind: string }[]; step?: string; progress?: number; questionId?: string } | null }
 export type LiveQuestion = { id: string; text: string; choices: string[] | null; askedAt: string; answer: string | null; answeredAt: string | null }
@@ -44,6 +49,7 @@ export const studioApi = {
   devices: () => sf<{ devices: LiveDevice[] }>('devices'),
   preview: (id: string) => sf<{ slots: Record<string, PreviewSlot> }>(`jobs/${id}/preview`),
   setup: (deviceId: string, b: { action: 'install' | 'login' | 'rescan' | 'open_studio' | 'open_claude'; component?: string; choice?: string }) => post<{ ok: true }>(`devices/${deviceId}/setup`, b),
+  reglerAtelier: (deviceId: string, reglages: Partial<AtelierReglages>) => post<{ ok: true }>(`devices/${deviceId}/setup`, { action: 'reglages', reglages }),
   removeDevice: (id: string) => sf<{ ok: true }>(`devices?id=${id}`, { method: 'DELETE' }),
   confirm: (code: string) => post<{ device: LiveDevice }>('pair/confirm', { code }),
   library: () => sf<{ items: LibraryRow[] }>('library'),
