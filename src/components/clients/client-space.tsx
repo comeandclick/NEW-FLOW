@@ -99,14 +99,24 @@ function Summary(p: Inner) {
   const { t } = useI18n()
   const dfl = useDateLocale()
   const s = useMemo(() => monthSummary({ cadence: p.cadence, per_period: p.perPeriod }, p.files, p.todos), [p.cadence, p.perPeriod, p.files, p.todos])
-  const items: { icon: React.ReactNode; text: string; tone?: 'warn' | 'accent' }[] = [
-    { icon: <Video className="size-3.5" />, text: s.planned ? t('cli.sum.month', { n: s.delivered, p: s.planned }) : t('cli.sum.monthFree', { n: s.delivered }) },
+  // avec un rythme prévu, la barre « Ce mois-ci » (plus bas) remplace cette pastille
+  const items: { icon: React.ReactNode; text: string; tone?: 'warn' | 'accent' }[] = s.planned ? [] : [
+    { icon: <Video className="size-3.5" />, text: t('cli.sum.monthFree', { n: s.delivered }) },
   ]
   if (s.toReview) items.push({ icon: <Clock className="size-3.5" />, text: t('cli.toReview', { n: s.toReview }), tone: 'accent' })
   if (s.changes) items.push({ icon: <AlertTriangle className="size-3.5" />, text: t('cli.sum.changes', { n: s.changes }), tone: 'warn' })
   if (s.next) items.push({ icon: <Check className="size-3.5" />, text: t('cli.sum.next', { t: s.next.title, d: format(new Date(`${s.next.due_date}T12:00:00`), 'EEEE d MMM', { locale: dfl }) }) })
   if (s.late && p.viewer === 'team') items.push({ icon: <AlertTriangle className="size-3.5" />, text: t('cli.sum.late', { n: s.late }), tone: 'warn' })
+  // barre d'avancement du mois (vidéos livrées sur le rythme prévu), visible par l'équipe et par le client
+  const pct = s.planned ? Math.min(100, Math.round((s.delivered / s.planned) * 100)) : null
   return (
+    <div className="space-y-2.5">
+    {pct !== null && (
+      <div className="rounded-xl border border-border bg-surface p-3.5 shadow-sm">
+        <div className="flex items-baseline justify-between text-[12.5px]"><span className="font-medium">Ce mois-ci</span><span className="tabular-nums text-text-3">{s.delivered} / {s.planned} vidéo(s) · {pct} %</span></div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-text/10"><div className={cn('h-full rounded-full transition-[width] duration-700', pct >= 100 ? 'bg-success' : 'bg-text')} style={{ width: `${pct}%` }} /></div>
+      </div>
+    )}
     <ul className="flex flex-wrap gap-2" aria-label={t('cli.sum.label')}>
       {items.map((it, i) => (
         <li key={i} className={cn('inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px]',
@@ -115,6 +125,7 @@ function Summary(p: Inner) {
         </li>
       ))}
     </ul>
+    </div>
   )
 }
 
@@ -139,7 +150,7 @@ function FilesBlock(p: Inner) {
       </div>
       {groups.length === 0
         ? <EmptyState icon={<Video className="size-5" />} title={t('cli.files.empty')} />
-        : <ul className="space-y-3">{groups.map((g) => <li key={g.title}><FileGroup {...p} versions={g.versions} /></li>)}</ul>}
+        : <ul className="grid gap-3 sm:grid-cols-2">{groups.map((g) => <li key={g.title} className="min-w-0"><FileGroup {...p} versions={g.versions} /></li>)}</ul>}
       <UploadDialog {...p} open={sending} onClose={() => setSending(false)} />
     </Card>
   )
