@@ -8,7 +8,8 @@ import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
-import { buildContext, localAssistant, runAction, type AiAction } from '@/lib/ai-local'
+import { localAssistant, runAction, type AiAction } from '@/lib/ai-local'
+import { useLive } from '@/lib/hooks/use-live'
 import { comprendre, type Widget } from '@/lib/ai-widgets'
 import { WidgetAssistant } from '@/components/ai/widgets'
 import { useI18n } from '@/i18n/provider'
@@ -22,10 +23,7 @@ function parseActions(text: string): { clean: string; actions: AiAction[] } {
   return { clean, actions }
 }
 const compter = () => { try { const j = new Date().toDateString(), d = JSON.parse(localStorage.getItem('flow_ia_jour') || '{}'); localStorage.setItem('flow_ia_jour', JSON.stringify({ jour: j, n: (d.jour === j ? d.n : 0) + 1 })) } catch {} }
-const SUGGESTIONS = [
-  { I: CheckSquare, t: 'Mes tâches du jour' }, { I: Handshake, t: 'Quels clients attendent quelque chose ?' },
-  { I: Film, t: 'Donne-moi la vidéo du cours « les pronoms »' }, { I: CalendarDays, t: 'Mon agenda de la semaine' },
-]
+
 
 export default function AiPage() {
   const { t, locale } = useI18n()
@@ -36,6 +34,16 @@ export default function AiPage() {
   const [attente, setAttente] = useState<string | null>(null) // id de la réponse en cours (bulle qui se transforme)
   const [ia, setIa] = useState<boolean | null>(null)
   const end = useRef<HTMLDivElement>(null)
+  // suggestions tirées de CET espace (pas d'exemples venus d'autres projets)
+  const clientsQ = useLive<{ name: string }>('clients', { select: 'name', eq: { workspace_id: ws.id }, is: { deleted_at: null }, limit: 1 })
+  const videosQ = useLive<{ titre: string; video_nom: string | null }>('motion_projets', { select: 'titre,video_nom', eq: { workspace_id: ws.id }, limit: 20 })
+  const video = videosQ.data.find((v) => v.video_nom)
+  const SUGGESTIONS = [
+    { I: CheckSquare, t: 'Qu\'est-ce que je dois faire aujourd\'hui ?' },
+    clientsQ.data[0] ? { I: Handshake, t: `Où en est ${clientsQ.data[0].name} ?` } : { I: Handshake, t: 'Quels clients attendent quelque chose ?' },
+    video ? { I: Film, t: `Montre-moi la vidéo « ${video.titre} »` } : { I: Film, t: 'Résume ma semaine' },
+    { I: CalendarDays, t: 'Mon agenda de la semaine' },
+  ]
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, attente])
 
   async function ask(text: string) {
@@ -47,8 +55,9 @@ export default function AiPage() {
     try {
       let reply = '', actions: AiAction[] = [], widgets: Widget[] = []
       if (!isDemo) {
-        const snap = await buildContext(ws.id, userId)
-        const res = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: next.map(({ role, content }) => ({ role, content })), context: snap, locale }) })
+        // l'historique garde la trace des widgets déjà montrés, pour que la conversation continue normalement
+        const histo = next.map(({ role, content, widgets }) => ({ role, content: content || (widgets?.length ? `[widget affiché : ${widgets.map((w) => w.type).join(', ')}]` : '…') }))
+        const res = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: histo, wsId: ws.id, locale }) })
         if (res.ok) { const j = await res.json(); const p = parseActions(j.text ?? ''); reply = p.clean; actions = p.actions; widgets = j.widgets ?? []; setIa(true) } else setIa(false)
       } else setIa(false)
       if (!reply && !widgets.length) {
@@ -65,7 +74,7 @@ export default function AiPage() {
     <div className="mx-auto flex h-full w-full max-w-[1100px] flex-col px-4 pt-6 sm:px-6">
       <div className="mb-2 flex items-center gap-3">
         <span className="grid size-9 place-items-center rounded-lg bg-text text-bg"><Sparkles className="size-[18px]" strokeWidth={1.75} /></span>
-        <div className="min-w-0 flex-1"><h1 className="text-lg font-semibold tracking-tight">{t('ai.title')}</h1><p className="text-xs text-text-3">{ia === false ? 'Mode local : compréhension des demandes courantes, sans service externe.' : 'Répond avec des widgets : tâches, clients, vidéos, agenda.'}</p></div>
+        <div className="min-w-0 flex-1"><h1 className="text-lg font-semibold tracking-tight">{t('ai.title')}</h1><p className="text-xs text-text-3">{ia === false ? 'Mode local : compréhension des demandes courantes, sans service externe.' : 'Connaît ton espace à jour : tâches, agenda, clients, discussions, fichiers…'}</p></div>
         {msgs.length > 0 && <Button size="sm" variant="ghost" onClick={() => setMsgs([])}><RotateCcw className="size-3.5" />{t('ai.clear')}</Button>}
       </div>
 

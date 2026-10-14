@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerDb } from '@/lib/supabase/server'
 import { sameOrigin } from '@/lib/security'
 import { OUTILS, versWidget } from '@/lib/ai-widgets'
+import { contexteEspace } from '@/lib/ai-contexte'
 
 export const runtime = 'nodejs'
 const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5-5'
@@ -25,19 +26,29 @@ export async function POST(req: Request) {
   const { data: { user } } = await db.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   if (limited(user.id)) return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
-  let body: { messages?: Msg[]; context?: unknown; locale?: string }
+  let body: { messages?: Msg[]; context?: unknown; locale?: string; wsId?: string }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'bad_request' }, { status: 400 }) }
-  const messages = (body.messages ?? []).slice(-12).filter((m) => typeof m.content === 'string' && m.content.length < 4000)
+  const messages = (body.messages ?? []).slice(-8).filter((m) => typeof m.content === 'string' && m.content.length < 4000)
   if (!messages.length || messages[messages.length - 1].role !== 'user') return NextResponse.json({ error: 'bad_request' }, { status: 400 })
 
-  const aujourdhui = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' })
-  const system = `Tu es l'assistant de Flow, l'espace de travail de l'utilisateur (tâches, agenda, messages, clients, vidéos de l'Atelier). Nous sommes le ${aujourdhui}.
-Réponds en ${body.locale === 'en' ? 'anglais' : 'français'}, chaleureux et bref (1 à 3 phrases).
-Dès que la réponse se montre mieux qu'elle ne se dit, appelle un outil d'affichage : il remplace une longue liste par un widget propre.
-Ex. « mes tâches du jour » → une phrase courte (« Voici tes tâches du jour : ») puis afficher_taches ; « quels clients attendent ? » → afficher_clients ;
-« donne-moi le TikTok du cours comment dire je en arabe » → afficher_video avec recherche « comment dire je ». N'énumère pas toi-même ce que montre le widget.
-Pour créer quelque chose, ajoute une ligne exacte <action>{"type":"create_task","title":"..."}</action> (ou create_note avec "body", create_event avec "at" en ISO-8601), seulement si l'utilisateur le demande.
-Aperçu de l'espace (JSON) : ${JSON.stringify(body.context ?? {}).slice(0, 12000)}`
+  // données de l'espace lues ici, avec la session de l'utilisateur (ses droits), donc toujours à jour
+  const wsId = String(body.wsId ?? '')
+  const { data: membre } = wsId ? await db.from('workspace_members').select('user_id').eq('workspace_id', wsId).eq('user_id', user.id).maybeSingle() : { data: null }
+  const contexte = membre ? await contexteEspace(db, wsId, user.id).catch(() => null) : null
+  const system = `Tu es l'assistant de Flow, l'outil de travail de l'utilisateur (tâches, agenda, discussions, clients, fichiers, objectifs, CRM, motion design avec l'Atelier).
+Tu parles ${body.locale === 'en' ? 'anglais' : 'français'}, en tutoyant, de façon chaleureuse, claire et brève (1 à 4 phrases), sans jargon. Pas de tiret cadratin.
+
+RÈGLES
+- Tu t'appuies UNIQUEMENT sur les données de l'espace ci-dessous (à jour au moment de la question). Si une information n'y est pas, dis-le simplement ; n'invente jamais un nom, une date, un chiffre ou un client.
+- Dates : nous sommes le ${contexte?.maintenant ?? new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })} (heure de Paris). Dis « aujourd'hui », « demain », « jeudi 16 », jamais les dates techniques.
+- Quand la réponse se montre mieux qu'elle ne se dit (une liste de tâches, des clients, une vidéo, l'agenda, les productions), écris une phrase courte (« Voici tes tâches du jour : ») PUIS appelle l'outil d'affichage correspondant. N'énumère pas toi-même ce que montre le widget.
+- Pour le reste (conseils, résumé, priorités, rédaction d'un message ou d'un compte rendu, explication), réponds normalement en texte, en citant les vrais éléments de l'espace.
+- Créer quelque chose seulement si l'utilisateur le demande : ajoute une ligne exacte <action>{"type":"create_task","title":"..."}</action>, <action>{"type":"create_note","title":"...","body":"..."}</action> ou <action>{"type":"create_event","title":"...","at":"AAAA-MM-JJTHH:MM:00"}</action> (heure de Paris) et confirme en une phrase. S'il manque une information indispensable (la date d'un rendez-vous par exemple), demande-la d'abord au lieu de deviner.
+- Agents IA : ce sont les membres marqués agentIA et les agents de l'Atelier (avec leur état libre / occupé / limite). Si on te demande un agent disponible, propose celui qui est libre.
+- Reste dans le sujet de CET espace : n'évoque jamais d'autres projets ou entreprises que ceux présents dans les données.
+
+DONNÉES DE L'ESPACE
+${contexte?.texte ?? 'indisponibles'}`
 
   // 1) Claude (clé Anthropic) si elle existe ; 2) sinon Groq (gratuit) : une seule clé, et on passe au modèle suivant quand l'un atteint
   //    sa limite (les limites gratuites de Groq sont par compte ET par modèle) ; 3) sinon la page bascule sur la compréhension locale.
@@ -57,14 +68,14 @@ Aperçu de l'espace (JSON) : ${JSON.stringify(body.context ?? {}).slice(0, 12000
       }
       if (!groq) return NextResponse.json({ error: 'upstream', status: r.status }, { status: 502 })
     }
-    const modeles = (process.env.GROQ_MODELES ?? 'llama-3.3-70b-versatile,openai/gpt-oss-120b,qwen/qwen3-32b,llama-3.1-8b-instant').split(',').map((m) => m.trim()).filter(Boolean)
+    const modeles = (process.env.GROQ_MODELES ?? 'openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b').split(',').map((m) => m.trim()).filter(Boolean)
     const outils = OUTILS.map((o) => ({ type: 'function', function: { name: o.name, description: o.description, parameters: o.input_schema } }))
     for (const modele of modeles) {
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${groq}` },
-        body: JSON.stringify({ model: modele, max_tokens: 1200, temperature: 0.4, messages: [{ role: 'system', content: system }, ...messages], tools: outils, tool_choice: 'auto' }),
+        body: JSON.stringify({ model: modele, max_tokens: 900, temperature: 0.4, messages: [{ role: 'system', content: system }, ...messages], tools: outils, tool_choice: 'auto' }),
       })
-      if (r.status === 429 || r.status === 404 || r.status === 400 || r.status >= 500) continue // limite atteinte ou modèle indisponible → modèle suivant
+      if (r.status === 429 || r.status === 413 || r.status === 404 || r.status === 400 || r.status >= 500) continue // limite atteinte ou modèle indisponible → modèle suivant
       if (!r.ok) return NextResponse.json({ error: 'upstream', status: r.status }, { status: 502 })
       const data = await r.json()
       const m = data.choices?.[0]?.message ?? {}
