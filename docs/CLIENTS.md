@@ -30,3 +30,17 @@ L'équipe reçoit une notification (dans Flow et en push) quand le client écrit
 - `tests/clients.test.ts` : jeton, chemins, versions, regroupement.
 - `e2e/flow.spec.ts` « clients (demo mode) » : un message de l'équipe arrive chez le client ; le client ne voit aucune navigation, demande une modification, l'état change ; un lien inconnu affiche un message clair.
 - `e2e/audit.spec.ts` : la liste, la fiche et `/c/demo` respectent WCAG 2 A et AA, en thème sombre et en thème clair.
+
+## En ligne depuis le 14/10/2026
+Migration passée par Aymen (SQL Editor), Flow déployé. Contrôle en ligne avec un client temporaire, supprimé ensuite, sans notification envoyée :
+- l'espace se lit par le lien ;
+- la vidéo est lisible par son lien signé ;
+- le jeton n'est jamais renvoyé ;
+- l'envoi se fait dans le dossier du client ;
+- un fichier de 60 Mo est refusé ;
+- le chemin d'un autre client est refusé ;
+- un jeton inconnu donne 404 ;
+- la page n'est pas indexée ;
+- la lecture anonyme des tables ne voit rien.
+
+Démo en ligne : aucune erreur de console sur la liste, la fiche et `/c/demo`.
