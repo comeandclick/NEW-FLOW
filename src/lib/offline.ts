@@ -15,37 +15,57 @@ const MAX_TOTAL = 4_500_000
 
 type Entry<T> = { t: number; v: T }
 
+// Copie en mémoire + index (taille, date) : lire ou écrire ne décode plus tout le cache à chaque requête (14/10/2026 :
+// makeRoom relisait et décodait jusqu'à 4,5 Mo à CHAQUE écriture, plusieurs fois par page : lenteur aux clics et à l'ouverture).
+const memoire = new Map<string, { raw: string; v: unknown }>()
+let index: Map<string, { t: number; size: number }> | null = null
+function lireIndex() {
+  if (index) return index
+  index = new Map()
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (!k?.startsWith(PREFIX)) continue
+    const raw = localStorage.getItem(k) ?? ''
+    const t = Number(raw.match(/^\{"t":(\d+)/)?.[1] ?? 0) // l'horodatage est en tête : pas besoin de tout décoder
+    index.set(k, { t, size: raw.length })
+  }
+  return index
+}
+
 export function readCache<T>(key: string): T | null {
+  const m = memoire.get(key)
+  if (m) return m.v as T
   try {
     const raw = localStorage.getItem(PREFIX + key)
-    return raw ? (JSON.parse(raw) as Entry<T>).v : null
+    if (!raw) return null
+    const v = (JSON.parse(raw) as Entry<T>).v
+    memoire.set(key, { raw: '', v })
+    return v
   } catch { return null }
 }
 
 export function writeCache<T>(key: string, value: T) {
   try {
-    const raw = JSON.stringify({ t: Date.now(), v: value } satisfies Entry<T>)
+    const corps = JSON.stringify(value)
+    if (memoire.get(key)?.raw === corps) return // rien n'a changé : pas d'écriture
+    memoire.set(key, { raw: corps, v: value })
+    const raw = `{"t":${Date.now()},"v":${corps}}`
     if (raw.length > MAX_ITEM) return
-    makeRoom(raw.length)
+    makeRoom(raw.length, PREFIX + key)
     localStorage.setItem(PREFIX + key, raw)
+    lireIndex().set(PREFIX + key, { t: Date.now(), size: raw.length })
   } catch {
     try { makeRoom(MAX_TOTAL) } catch {}
   }
 }
 
-function makeRoom(extra: number) {
-  const items: { k: string; t: number; size: number }[] = []
+function makeRoom(extra: number, remplace?: string) {
+  const idx = lireIndex()
   let total = 0
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (!k?.startsWith(PREFIX)) continue
-    const raw = localStorage.getItem(k) ?? ''
-    let t = 0
-    try { t = (JSON.parse(raw) as Entry<unknown>).t } catch {}
-    items.push({ k, t, size: raw.length }); total += raw.length
-  }
-  items.sort((a, b) => a.t - b.t)
-  while (total + extra > MAX_TOTAL && items.length) { const o = items.shift()!; localStorage.removeItem(o.k); total -= o.size }
+  for (const [k, e] of idx) if (k !== remplace) total += e.size
+  if (total + extra <= MAX_TOTAL) return
+  const items = [...idx].filter(([k]) => k !== remplace).sort((a, b) => a[1].t - b[1].t)
+  while (total + extra > MAX_TOTAL && items.length) { const [k, e] = items.shift()!; localStorage.removeItem(k); idx.delete(k); memoire.delete(k.slice(PREFIX.length)); total -= e.size }
 }
 
 export type Identity = { id: string; profile: unknown }
@@ -63,6 +83,7 @@ export function clearOfflineData(includeIdentity = true) {
     const drop: string[] = []
     for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith(PREFIX) || (includeIdentity && (k === IDENT || k === 'flow_last_ws'))) drop.push(k) }
     drop.forEach((k) => localStorage.removeItem(k))
+    memoire.clear(); index = null
   } catch {}
   try { navigator.serviceWorker?.controller?.postMessage({ type: 'clear' }) } catch {}
 }

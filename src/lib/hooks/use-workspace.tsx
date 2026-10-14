@@ -35,12 +35,14 @@ export function WorkspaceProvider({ slug, children, fallback, notFound }: { slug
   useEffect(() => {
     if (!userId) return
     let alive = true
-    setState('loading')
+    // espace déjà connu sur cet appareil : on l'ouvre tout de suite, la requête ne fait que le mettre à jour
+    const connu = !isDemoBrowser() ? readCache<Workspace>(`ws:${slug}`) : null
+    if (connu) { setWs(connu); setState('ok') } else setState('loading')
     getDb().from('workspaces').select('*').eq('slug', slug).maybeSingle().then(({ data, error }) => {
       if (!alive) return
-      if (data) { setWs(data as Workspace); setState('ok'); if (!isDemoBrowser()) { writeCache(`ws:${slug}`, data); try { localStorage.setItem('flow_last_ws', slug) } catch {} } }
+      if (data) { setWs((p) => (p && JSON.stringify(p) === JSON.stringify(data) ? p : (data as Workspace))); setState('ok'); if (!isDemoBrowser()) { writeCache(`ws:${slug}`, data); try { localStorage.setItem('flow_last_ws', slug) } catch {} } }
       else if (error) { const c = readCache<Workspace>(`ws:${slug}`); if (c) { setWs(c); setState('ok') } else setState('missing') }
-      else setState('missing')
+      else { setWs(null); setState('missing') }
     })
     return () => { alive = false }
   }, [slug, userId])

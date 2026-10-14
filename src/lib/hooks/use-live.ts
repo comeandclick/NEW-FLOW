@@ -24,16 +24,20 @@ type Opts<T> = {
  * Fetch a table and keep it fresh through realtime events.
  * `data` can be patched optimistically via `setData`; a refetch reconciles with the server.
  */
+let hydrate = false
+const cleDe = (table: string, o: Opts<any>) => JSON.stringify({ table, select: o.select ?? '*', eq: o.eq, is: o.is, inn: o.in, order: o.order, limit: o.limit, enabled: o.enabled ?? true })
+
 export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
   const { select = '*', eq, is, in: inn, order, limit, enabled = true, live = true, channelFilter, transform } = opts
-  const [data, setData] = useState<T[]>([])
-  const [loading, setLoading] = useState(enabled)
+  // après le premier affichage (hydratation), une page qui s'ouvre montre tout de suite les données déjà connues
+  const [data, setData] = useState<T[]>(() => { const c = hydrate && enabled && !isDemoBrowser() ? readCache<any[]>(cleDe(table, opts)) : null; return c ? (transform ? transform(c) : (c as T[])) : [] })
+  const [loading, setLoading] = useState(() => enabled && !(hydrate && !isDemoBrowser() && readCache(cleDe(table, opts))))
   const [error, setError] = useState<string | null>(null)
   const seq = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Computed on every render on purpose: `in` lists (e.g. message ids) must change the key when their content changes.
-  const key = JSON.stringify({ table, select, eq, is, inn, order, limit, enabled })
+  const key = cleDe(table, opts)
   const transformRef = useRef(transform)
   useEffect(() => { transformRef.current = transform })
 
@@ -59,6 +63,7 @@ export function useLive<T = any>(table: string, opts: Opts<T> = {}) {
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    hydrate = true
     // Paint the last known rows immediately (also what an offline reload shows), then refresh from the server.
     const cached = enabled && !isDemoBrowser() ? readCache<any[]>(key) : null
     if (cached) { setData(transformRef.current ? transformRef.current(cached) : (cached as T[])); setLoading(false) } else setLoading(true)
