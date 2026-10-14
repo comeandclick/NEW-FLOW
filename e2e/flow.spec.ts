@@ -73,11 +73,13 @@ test.describe('app (demo mode)', () => {
   })
 
   test('every module loads without console errors', async ({ page }) => {
+    // une vingtaine de pages, la première compilation en mode développement est lente
+    test.setTimeout(180_000)
     const errors: string[] = []
     page.on('pageerror', (e) => errors.push(e.message))
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
     await startDemo(page)
-    for (const r of ['tasks', 'notes', 'calendar', 'messages', 'meetings', 'files', 'projects', 'goals', 'crm', 'finance', 'automations', 'forms', 'whiteboard', 'focus', 'habits', 'ai', 'trash', 'activity', 'settings']) {
+    for (const r of ['tasks', 'notes', 'calendar', 'messages', 'meetings', 'files', 'projects', 'goals', 'crm', 'finance', 'automations', 'forms', 'whiteboard', 'focus', 'habits', 'ai', 'trash', 'activity', 'settings', 'captures', 'inbox']) {
       await page.goto(`/app/demo/${r}`)
       await page.waitForTimeout(700)
       expect(await page.locator('main').innerText(), r).not.toContain('404')

@@ -285,7 +285,7 @@ function PublishPage() {
               onClick={() => { setScheduled(true); setScheduledAt(todayNoon()) }}
               className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[12px] text-text-2 transition-colors hover:border-accent hover:text-accent"
             >
-              <Clock className="size-3" />Aujourd'hui à midi
+              <Clock className="size-3" />Aujourd’hui à midi
             </button>
           </div>
           <div className="flex items-center gap-3">

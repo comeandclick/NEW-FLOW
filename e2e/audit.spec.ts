@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
 const PUBLIC = ['/', '/features', '/pricing', '/security', '/changelog', '/about', '/contact', '/login', '/register', '/legal/privacy']
-const APP = ['', '/tasks', '/notes', '/calendar', '/messages', '/files', '/projects', '/goals', '/crm', '/finance', '/forms', '/automations', '/whiteboard', '/focus', '/habits', '/ai', '/trash', '/activity', '/settings', '/meetings', '/inbox', '/roadmap', '/team', '/feedback', '/releases', '/localization', '/me', '/search?q=a', '/motion', '/site', '/site?tab=projects', '/site?tab=connect', '/library']
+const APP = ['', '/tasks', '/notes', '/calendar', '/messages', '/files', '/projects', '/goals', '/crm', '/finance', '/forms', '/automations', '/whiteboard', '/focus', '/habits', '/ai', '/trash', '/activity', '/settings', '/meetings', '/inbox', '/captures', '/roadmap', '/team', '/feedback', '/releases', '/localization', '/me', '/search?q=a', '/motion', '/site', '/site?tab=projects', '/site?tab=connect', '/library']
 
 for (const theme of ['dark', 'light'] as const) {
   test.describe(`a11y ${theme}`, () => {
@@ -15,6 +15,8 @@ for (const theme of ['dark', 'light'] as const) {
       })
     }
     test('app pages', async ({ page }) => {
+      // une trentaine de pages analysées une par une : le délai par défaut (60 s) ne suffit pas
+      test.setTimeout(APP.length * 15_000)
       await page.goto('/demo'); await page.waitForURL(/\/app\/demo/)
       const bad: string[] = []
       for (const p of APP) {
