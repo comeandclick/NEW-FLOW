@@ -11,6 +11,7 @@ import { useT } from '@/i18n/provider'
 import { PLATFORM_COLORS, PLATFORM_LABELS, type Platform, type SocialAccount } from '@/lib/social/types'
 import { cn } from '@/lib/utils'
 import { PlatformIcon } from '@/components/social/platform-icon'
+import { isDemoBrowser } from '@/lib/demo/runtime'
 
 const PLATFORMS: Platform[] = ['instagram', 'facebook', 'tiktok', 'linkedin']
 
@@ -25,6 +26,8 @@ function AccountsPage() {
   const [disconnectId, setDisconnectId] = useState<string | null>(null)
 
   async function loadAccounts() {
+    // mode démo : pas de session côté serveur, l'API répondrait 401 ; la page reste vide (« Non configuré »)
+    if (isDemoBrowser()) { setLoading(false); return }
     setLoading(true)
     try {
       const [accRes, cfgRes] = await Promise.all([

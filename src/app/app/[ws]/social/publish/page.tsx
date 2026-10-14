@@ -15,6 +15,7 @@ import { PLATFORM_COLORS, PLATFORM_LABELS, PLATFORM_LIMITS, type Platform, type 
 import { PlatformIcon } from '@/components/social/platform-icon'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { isDemoBrowser } from '@/lib/demo/runtime'
 
 function todayNoon(): string {
   const d = new Date()
@@ -45,6 +46,8 @@ function PublishPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function loadData() {
+    // mode démo : pas de session côté serveur, l'API répondrait 401
+    if (isDemoBrowser()) { setLoadingAccounts(false); return }
     setLoadingAccounts(true)
     const [accRes, draftRes] = await Promise.all([
       fetch(`/api/social/accounts?ws=${ws.slug}`),
@@ -285,7 +288,7 @@ function PublishPage() {
               onClick={() => { setScheduled(true); setScheduledAt(todayNoon()) }}
               className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[12px] text-text-2 transition-colors hover:border-accent hover:text-accent"
             >
-              <Clock className="size-3" />Aujourd’hui à midi
+              <Clock className="size-3" />{t('soc.pub.todayNoon')}
             </button>
           </div>
           <div className="flex items-center gap-3">

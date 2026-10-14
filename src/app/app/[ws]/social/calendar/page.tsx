@@ -12,6 +12,7 @@ import { useT } from '@/i18n/provider'
 import { PLATFORM_COLORS, type Platform, type SocialPost } from '@/lib/social/types'
 import { PlatformIcon } from '@/components/social/platform-icon'
 import { cn } from '@/lib/utils'
+import { isDemoBrowser } from '@/lib/demo/runtime'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'var(--text-3)',
@@ -38,6 +39,8 @@ function CalendarPage() {
   const weekStartsOn = 1 as const
 
   async function loadPosts() {
+    // mode démo : pas de session côté serveur, l'API répondrait 401
+    if (isDemoBrowser()) { setLoading(false); return }
     setLoading(true)
     try {
       const res = await fetch(`/api/social/posts?ws=${ws.slug}&limit=100`)

@@ -13,6 +13,7 @@ import { PLATFORM_COLORS, PLATFORM_LABELS, type Platform, type SocialAccount, ty
 import { PlatformIcon } from '@/components/social/platform-icon'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import { isDemoBrowser } from '@/lib/demo/runtime'
 
 type Step = 1 | 2 | 3 | 4 | 5
 
@@ -74,6 +75,8 @@ function PreparePage() {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   async function loadData() {
+    // mode démo : pas de session côté serveur, l'API répondrait 401
+    if (isDemoBrowser()) return
     const [tRes, aRes, sRes] = await Promise.all([
       fetch(`/api/social/templates?ws=${ws.slug}`),
       fetch(`/api/social/accounts?ws=${ws.slug}`),
