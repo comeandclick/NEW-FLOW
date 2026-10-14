@@ -369,7 +369,7 @@ export const settings = {
     'set.members.email': 'Email address',
     'set.members.role': 'Role',
     'set.members.link': 'Invitation link',
-    'set.members.linkHint': 'Share this link — it is valid for 7 days.',
+    'set.members.linkHint': 'Share this link. It is valid for 7 days.',
     'set.members.pending': 'Pending invitations',
     'set.members.remove': 'Remove',
     'set.members.removed': 'Member removed',
