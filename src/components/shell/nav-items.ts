@@ -1,4 +1,4 @@
-import { Bookmark, CalendarDays, CheckSquare, Clapperboard, Clock, Globe, Handshake, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, Settings, Share2, Target, Users, type LucideIcon } from 'lucide-react'
+import { Bookmark, CalendarDays, CheckSquare, Clapperboard, Clock, FileSignature, Gauge, Globe, Handshake, Inbox, FileText, FolderOpen, Home, Lock, MessageSquare, ScanLine, Settings, Share2, Target, Users, Wrench, type LucideIcon } from 'lucide-react'
 import type { Key } from '@/i18n/dict'
 
 export type NavItem = { href: string; label: Key; icon: LucideIcon; badge?: 'messages' | 'motion' | 'site'; /** other routes that keep this item highlighted */ also?: string[] }
@@ -33,6 +33,16 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // Gestion façon Sphinx Manager (15/10/2026) : visible seulement si l'une des fonctionnalités de gestion est choisie
+    label: 'nav.group.gestion',
+    items: [
+      { href: '/gestion', label: 'nav.gestion', icon: Gauge, also: ['/gestion/clients', '/gestion/equipe', '/gestion/articles', '/gestion/import'] },
+      { href: '/gestion/devis', label: 'nav.gestion.facturation', icon: FileSignature, also: ['/gestion/factures'] },
+      { href: '/gestion/interventions', label: 'nav.gestion.interventions', icon: Wrench },
+      { href: '/gestion/scan', label: 'nav.gestion.scan', icon: ScanLine },
+    ],
+  },
+  {
     label: 'nav.group.studio',
     items: [
       { href: '/motion', label: 'nav.motion', icon: Clapperboard, badge: 'motion' },
@@ -64,6 +74,8 @@ export const HUBS: Record<string, { href: string; label: Key }[]> = {
   notes: [{ href: '/notes', label: 'nav.notes' }, { href: '/whiteboard', label: 'nav.whiteboard' }],
   messages: [{ href: '/messages', label: 'nav.messages' }, { href: '/meetings', label: 'nav.meetings' }],
   crm: [{ href: '/crm', label: 'nav.crm' }, { href: '/finance', label: 'nav.finance' }, { href: '/forms', label: 'nav.forms' }],
+  gestion: [{ href: '/gestion', label: 'nav.gestion' }, { href: '/gestion/clients', label: 'nav.gestion.clients' }, { href: '/gestion/equipe', label: 'nav.gestion.equipe' }, { href: '/gestion/articles', label: 'nav.gestion.articles' }, { href: '/gestion/import', label: 'nav.gestion.import' }],
+  facturation: [{ href: '/gestion/devis', label: 'nav.gestion.devis' }, { href: '/gestion/factures', label: 'nav.gestion.factures' }],
   focus: [{ href: '/focus', label: 'nav.focus' }, { href: '/habits', label: 'nav.habits' }],
   settings: [{ href: '/settings', label: 'nav.settings' }, { href: '/automations', label: 'nav.automations' }, { href: '/activity', label: 'nav.activity' }, { href: '/trash', label: 'nav.trash' }],
   social: [

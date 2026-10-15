@@ -63,7 +63,7 @@ export function createSeed(): DemoDB {
     profile(THOMAS, 'Thomas Leroy', 'thomas.leroy@flow.app', 'offline'),
   ]
   const workspaces: Row[] = [
-    { id: WS, name: 'Flow Demo', slug: DEMO_WORKSPACE_SLUG, logo_url: null, owner_id: ME, plan: 'free', settings: {}, created_at: created, updated_at: created },
+    { id: WS, name: 'Flow Demo', slug: DEMO_WORKSPACE_SLUG, logo_url: null, owner_id: ME, plan: 'free', settings: { entreprise: { nom: 'Flow Démo Services', forme: 'SARL', adresse: '10 rue de la Paix', cp: '75002', ville: 'Paris', siret: '912 345 678 00011', tva_intra: 'FR12 912345678', tel: '01 23 45 67 89', email: 'contact@flow-demo.fr', iban: 'FR76 3000 6000 0112 3456 7890 189', conditions: 'Paiement à 30 jours. Acompte de 30 % à la commande.', mentions: 'Pénalités de retard : 3 fois le taux d’intérêt légal. Indemnité forfaitaire pour frais de recouvrement : 40 €.', validite_jours: 30, tva_defaut: 20 } }, created_at: created, updated_at: created },
   ]
   const workspace_members: Row[] = ([[ME, 'owner'], [LEA, 'admin'], [KARIM, 'member'], [SOPHIE, 'member'], [THOMAS, 'viewer']] as const).map(
     ([user, role], i) => ({ id: uid('wm', i + 1), workspace_id: WS, user_id: user, role, invited_by: i === 0 ? null : ME, joined_at: created }),
@@ -336,10 +336,42 @@ export function createSeed(): DemoDB {
     CT(6, 'Post 5 : les jours de la semaine', 22, false),
   ]
 
+  // Gestion façon Sphinx (15/10/2026) : fiches clients complètes, catalogue, devis, factures, interventions
+  const VILLES = [['12 rue des Lilas', '75011', 'Paris'], ['4 avenue Foch', '69006', 'Lyon'], ['27 quai de la Loire', '75019', 'Paris'], ['8 place du Marché', '92100', 'Boulogne'], ['3 impasse Verte', '93100', 'Montreuil']]
+  crm_contacts.forEach((c, i) => Object.assign(c, { kind: 'pro', address: VILLES[i][0], zip: VILLES[i][1], city: VILLES[i][2], siret: `8${i}2 345 678 000${i}${i}`, ref_externe: `C${String(100 + i).padStart(5, '0')}` }))
+  crm_contacts.push({ id: uid('crmc', 9), workspace_id: WS, name: 'Jean Dupont', email: 'jean.dupont@exemple.fr', phone: '+33 6 98 76 54 32', company: null, position: null, status: 'customer', tags: [], notes: 'Code portail 4512B', kind: 'particulier', address: '45 rue Oberkampf', zip: '75011', city: 'Paris', siret: null, ref_externe: 'C00110', created_by: ME, created_at: created, updated_at: created, deleted_at: null })
+  const gestion_articles: Row[] = ([
+    ['CHE-200', 'Chauffe-eau électrique 200 L', 'Plomberie', 'u', 690, 20], ['MO-H', 'Main d’œuvre technicien', 'Main d’œuvre', 'h', 55, 20], ['DEP-F', 'Forfait déplacement', 'Main d’œuvre', 'forfait', 45, 20],
+    ['CLIM-35', 'Climatiseur mural 3,5 kW', 'Climatisation', 'u', 1290, 20], ['GAZ-R32', 'Recharge gaz R32 (kg)', 'Climatisation', 'kg', 85, 20], ['MIT-34', 'Mitigeur thermostatique', 'Plomberie', 'u', 149, 10],
+    ['CHA-ENT', 'Entretien annuel chaudière', 'Chauffage', 'forfait', 129, 10], ['TUB-16', 'Tube multicouche 16 mm (m)', 'Plomberie', 'm', 4.2, 20],
+  ] as const).map(([ref, label, category, unit, price_ht, tva], i) => ({ id: uid('gart', i + 1), workspace_id: WS, ref, label, description: null, category, unit, price_ht, tva, ref_externe: ref, created_by: ME, created_at: created, updated_at: created, deleted_at: null }))
+  const L = (i: number, qty: number) => { const a = gestion_articles[i]; return { article_id: a.id, ref: a.ref, label: a.label, qty, unit: a.unit, price_ht: a.price_ht, tva: a.tva } }
+  const tot = (lines: Row[]) => { const ht = lines.reduce((x, l) => x + l.qty * l.price_ht, 0), tva = lines.reduce((x, l) => x + l.qty * l.price_ht * l.tva / 100, 0); return { total_ht: Math.round(ht * 100) / 100, total_tva: Math.round(tva * 100) / 100, total_ttc: Math.round((ht + tva) * 100) / 100 } }
+  const GD = (n: number, kind: string, number: string, contact: number, status: string, issued: number, lines: Row[], extra: Row = {}): Row => ({
+    id: uid('gdoc', n), workspace_id: WS, kind, number, ref_externe: null, contact_id: uid('crmc', contact), parent_id: null, title: null, status, intervention_type: null, priority: 'normale',
+    issued_at: day(issued), due_at: null, start_at: null, end_at: null, address: null, lines, discount: 0, ...tot(lines), travaux: null, notes: null, assigned_to: [], task_id: null, event_id: null,
+    signer_name: null, signature: null, signed_at: null, signed_via: null, decided_by: null, decided_at: null, public_token: `demo${String(n).padStart(32, '0')}`, sent_at: null, sent_to: null, paid_at: null,
+    closed_at: null, closed_by: null, file_path: null, ai_data: null, created_by: ME, updated_by: null, created_at: at(issued), updated_at: at(issued), deleted_at: null, ...extra,
+  })
+  const gestion_documents: Row[] = [
+    GD(1, 'devis', `DE-${now.getFullYear()}-0001`, 9, 'accepte', -20, [L(0, 1), L(1, 3), L(2, 1)], { title: 'Remplacement chauffe-eau', signer_name: 'Jean Dupont', signed_at: at(-18), signed_via: 'lien', decided_at: at(-18), due_at: day(10) }),
+    GD(2, 'devis', `DE-${now.getFullYear()}-0002`, 1, 'en_attente', -6, [L(3, 2), L(1, 6), L(4, 2)], { title: 'Climatisation open space', due_at: day(24), sent_at: at(-5), sent_to: 'camille@atelier-nord.fr' }),
+    GD(3, 'devis', `DE-${now.getFullYear()}-0003`, 3, 'refuse', -12, [L(5, 4), L(1, 4)], { title: 'Mitigeurs sanitaires', decided_at: at(-8), decided_by: LEA }),
+    GD(4, 'devis', `DE-${now.getFullYear()}-0004`, 4, 'brouillon', -1, [L(6, 3), L(2, 1)], { title: 'Contrat entretien chaudières' }),
+    GD(5, 'facture', `FA-${now.getFullYear()}-0001`, 9, 'payee', -15, [L(0, 1), L(1, 3), L(2, 1)], { title: 'Remplacement chauffe-eau', parent_id: uid('gdoc', 1), paid_at: day(-10), due_at: day(15) }),
+    GD(6, 'facture', `FA-${now.getFullYear()}-0002`, 4, 'envoyee', -40, [L(6, 2)], { title: 'Entretien chaudières', due_at: day(-10) }),
+    GD(7, 'facture', `FA-${now.getFullYear()}-0003`, 1, 'payee', -45, [L(3, 1), L(1, 4)], { paid_at: day(-30) }),
+    GD(8, 'intervention', `IN-${now.getFullYear()}-0001`, 9, 'terminee', -16, [L(0, 1), L(1, 3)], { title: 'Pose chauffe-eau', intervention_type: 'Installation', start_at: at(-16, 9), end_at: at(-16, 12), assigned_to: [KARIM], parent_id: uid('gdoc', 1), closed_at: at(-16, 12), closed_by: KARIM, signer_name: 'Jean Dupont', signed_at: at(-16, 12), signed_via: 'sur_place', travaux: 'Dépose de l’ancien ballon, pose et mise en service du nouveau.' }),
+    GD(9, 'intervention', `IN-${now.getFullYear()}-0002`, 2, 'planifiee', -2, [], { title: 'Fuite sous évier', intervention_type: 'Dépannage', priority: 'urgente', start_at: at(1, 8, 30), end_at: at(1, 10), assigned_to: [KARIM, THOMAS], address: VILLES[1].join(' ') }),
+    GD(10, 'intervention', `IN-${now.getFullYear()}-0003`, 5, 'a_planifier', -1, [], { title: 'Dépose ancienne climatisation', intervention_type: 'Désinstallation' }),
+    GD(11, 'intervention', `IN-${now.getFullYear()}-0004`, 1, 'en_cours', 0, [L(4, 1)], { title: 'Contrôle étanchéité clim', intervention_type: 'Entretien', start_at: at(0, 14), end_at: at(0, 16), assigned_to: [THOMAS] }),
+    GD(12, 'achat', `AC-${now.getFullYear()}-0001`, 9, 'payee', -21, [{ label: 'Chauffe-eau 200 L (Cedeo)', qty: 1, unit: 'u', price_ht: 410, tva: 20 }], { title: 'Cedeo · Matériel', ref_externe: 'FC-778812' }),
+  ]
+
   const db: DemoDB = {
     profiles, workspaces, workspace_members, invitations: [], projects, tasks, task_comments, notes, note_versions, events, conversations, conversation_members, messages, reactions,
     files, meetings, goals, key_results, crm_contacts, crm_deals, automations, whiteboards, habits, habit_logs, time_entries, invoices, forms, form_responses, notifications,
-    push_subscriptions: [], activity_logs, favorites, meeting_participants: [], captures, clients, client_files, client_messages, client_todos,
+    push_subscriptions: [], activity_logs, favorites, meeting_participants: [], captures, clients, client_files, client_messages, client_todos, gestion_articles, gestion_documents,
   }
   addKalimat(db, now)
   return db

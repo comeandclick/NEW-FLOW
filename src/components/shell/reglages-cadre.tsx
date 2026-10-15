@@ -2,15 +2,15 @@
 // Paramètres « comme sur les sites en général » (14/10/2026) : une colonne de rubriques à gauche (Compte, Espace, Outils),
 // le contenu à droite. Sur téléphone, les rubriques deviennent une rangée défilante en haut.
 import Link from 'next/link'
-import { Activity, Bell, CreditCard, Globe, KeyRound, Laptop, Settings2, Trash2, User, Users, Zap } from 'lucide-react'
+import { Activity, Bell, Building2, CreditCard, Globe, KeyRound, Laptop, LayoutGrid, Settings2, Trash2, User, Users, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { cn } from '@/lib/utils'
 
-export type CleReglage = 'profile' | 'preferences' | 'billing' | 'workspace' | 'members' | 'api' | 'studio' | 'automations' | 'activity' | 'trash'
+export type CleReglage = 'profile' | 'preferences' | 'billing' | 'workspace' | 'modules' | 'entreprise' | 'members' | 'api' | 'studio' | 'automations' | 'activity' | 'trash'
 const GROUPES: { titre: string; items: { cle: CleReglage; nom: string; I: typeof User; href: string }[] }[] = [
   { titre: 'Compte', items: [{ cle: 'profile', nom: 'Profil', I: User, href: '/settings?tab=profile' }, { cle: 'preferences', nom: 'Préférences', I: Bell, href: '/settings?tab=preferences' }, { cle: 'billing', nom: 'Abonnement', I: CreditCard, href: '/settings?tab=billing' }] },
-  { titre: 'Espace', items: [{ cle: 'workspace', nom: 'Général', I: Settings2, href: '/settings?tab=workspace' }, { cle: 'members', nom: 'Membres', I: Users, href: '/settings?tab=members' }, { cle: 'api', nom: 'API', I: KeyRound, href: '/settings?tab=api' }, { cle: 'studio', nom: 'Atelier (Mac)', I: Laptop, href: '/settings?tab=studio' }] },
+  { titre: 'Espace', items: [{ cle: 'workspace', nom: 'Général', I: Settings2, href: '/settings?tab=workspace' }, { cle: 'modules', nom: 'Fonctionnalités', I: LayoutGrid, href: '/settings?tab=modules' }, { cle: 'entreprise', nom: 'Entreprise', I: Building2, href: '/settings?tab=entreprise' }, { cle: 'members', nom: 'Membres', I: Users, href: '/settings?tab=members' }, { cle: 'api', nom: 'API', I: KeyRound, href: '/settings?tab=api' }, { cle: 'studio', nom: 'Atelier (Mac)', I: Laptop, href: '/settings?tab=studio' }] },
   { titre: 'Outils', items: [{ cle: 'automations', nom: 'Automatisations', I: Zap, href: '/automations' }, { cle: 'activity', nom: 'Activité', I: Activity, href: '/activity' }, { cle: 'trash', nom: 'Corbeille', I: Trash2, href: '/trash' }] },
 ]
 export const NOM_REGLAGE = Object.fromEntries(GROUPES.flatMap((g) => g.items.map((i) => [i.cle, i.nom]))) as Record<CleReglage, string>

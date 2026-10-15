@@ -13,6 +13,8 @@ import { StudioTab } from './studio-tab'
 import { BillingTab } from './billing-tab'
 import { NOM_REGLAGE, ReglagesCadre } from '@/components/shell/reglages-cadre'
 import { ProfileTab } from './profile-tab'
+import { ModulesTab } from './modules-tab'
+import { EntrepriseTab } from './entreprise-tab'
 import { PreferencesTab } from './preferences-tab'
 import { Section } from './section'
 import { LanguageToggle, ThemeToggle } from '@/components/ui/toggles'
@@ -26,18 +28,18 @@ import { enablePush, pushPermission } from '@/lib/push'
 import { useI18n } from '@/i18n/provider'
 import type { Role } from '@/lib/types'
 
-type Tab = 'profile' | 'workspace' | 'members' | 'billing' | 'preferences' | 'api' | 'studio'
-const EXPORT_TABLES = ['projects', 'tasks', 'notes', 'events', 'goals', 'crm_contacts', 'crm_deals', 'invoices', 'forms', 'habits', 'automations', 'files']
+type Tab = 'profile' | 'workspace' | 'modules' | 'entreprise' | 'members' | 'billing' | 'preferences' | 'api' | 'studio'
+const EXPORT_TABLES = ['projects', 'tasks', 'notes', 'events', 'goals', 'crm_contacts', 'crm_deals', 'invoices', 'gestion_documents', 'gestion_articles', 'forms', 'habits', 'automations', 'files']
 
 function SettingsInner() {
   const { t } = useI18n()
   const q = useSearchParams().get('tab')
-  const tab: Tab = q === 'members' || q === 'workspace' || q === 'billing' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile'
+  const tab: Tab = q === 'members' || q === 'workspace' || q === 'modules' || q === 'entreprise' || q === 'billing' || q === 'preferences' || q === 'api' || q === 'studio' ? q : 'profile'
   void t
   return (
     <ReglagesCadre actif={tab}>
       <PageHeader title={NOM_REGLAGE[tab]} />
-      {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'members' && <MembersTab />}{tab === 'billing' && <BillingTab />}{tab === 'preferences' && <PreferencesTab />}{tab === 'api' && <ApiTab />}{tab === 'studio' && <StudioTab />}
+      {tab === 'profile' && <ProfileTab />}{tab === 'workspace' && <WorkspaceTab />}{tab === 'modules' && <ModulesTab />}{tab === 'entreprise' && <EntrepriseTab />}{tab === 'members' && <MembersTab />}{tab === 'billing' && <BillingTab />}{tab === 'preferences' && <PreferencesTab />}{tab === 'api' && <ApiTab />}{tab === 'studio' && <StudioTab />}
     </ReglagesCadre>
   )
 }

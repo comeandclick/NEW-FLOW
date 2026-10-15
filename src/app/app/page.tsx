@@ -54,7 +54,7 @@ function Router() {
     const { data, error } = await getDb().rpc('create_workspace', { p_name: name.trim(), p_slug: slug }).single()
     setBusy(false)
     if (error || !data) { toast.error(t('common.error')); return }
-    router.replace(`/app/${(data as any).slug}`)
+    router.replace(`/app/${(data as any).slug}/bienvenue`)
   }
 
   if (loading || !list) return <div className="flex min-h-dvh items-center justify-center"><Logo size={40} className="animate-pulse" /></div>

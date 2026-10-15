@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { PairResume } from '@/components/studio/pair-resume'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { Activity, Check, ChevronsUpDown, CreditCard, Info, LayoutGrid, MinusCircle, Trash2, User, Zap, PanelLeftClose, PanelLeftOpen, Pencil, Plus, X, Languages, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { useStudioActivity } from '@/lib/studio/activity'
 import { useI18n, useT } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 import { HUBS, NAV, NAV_FOOTER, type NavItem } from './nav-items'
+import { modulesActifs, routeVisible } from '@/lib/modules'
 import { CommandPalette } from './command-palette'
 import { NotificationsMenu } from './notifications'
 import { WorkspaceSwitcher } from './workspace-switcher'
@@ -88,6 +89,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [])
   // menu personnalisable (crayon) : entrées masquées gardées sur l'appareil ; widget « abonnement » refermable (revient après 14 jours)
   const [masques, setMasques] = useState<string[]>([])
+  // fonctionnalités choisies pour l'espace (Paramètres > Fonctionnalités) : les autres disparaissent du menu
+  const actifs = useMemo(() => modulesActifs(ws), [ws])
   const [edition, setEdition] = useState(false)
   const [promo, setPromo] = useState(false)
   useEffect(() => {
@@ -147,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </div>
       <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-2.5 pb-3 pt-1" aria-label="Workspace">
-        {NAV.map((g, gi) => { const visibles = g.items.filter((it) => !masques.includes(it.href)); if (!visibles.length) return null
+        {NAV.map((g, gi) => { const visibles = g.items.filter((it) => !masques.includes(it.href) && routeVisible(it.href, actifs)); if (!visibles.length) return null
           return (
           <div key={gi}>
             {g.label && !compact && <div className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-3/70">{t(g.label)}</div>}
@@ -186,7 +189,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {edition ? (
               <div className="space-y-1.5 rounded-lg border border-dashed border-border-strong p-2">
                 {masques.length > 0 && <div className="px-1 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-3/70">Ajouter</div>}
-                {NAV.flatMap((g) => g.items).filter((it) => masques.includes(it.href)).map((it) => (
+                {NAV.flatMap((g) => g.items).filter((it) => masques.includes(it.href) && routeVisible(it.href, actifs)).map((it) => (
                   <button key={it.href} onClick={() => masquer(it.href, false)} className="flex h-8 w-full items-center gap-2.5 rounded-md px-1.5 text-[13px] text-text-2 transition-colors hover:bg-text/5 hover:text-text">
                     <Plus className="size-4 text-success" /><it.icon className="size-4 text-text-3" strokeWidth={1.75} /><span className="truncate">{t(it.label)}</span>
                   </button>

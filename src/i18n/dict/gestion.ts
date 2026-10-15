@@ -1,0 +1,28 @@
+export const gestion = {
+  fr: {
+    'nav.group.gestion': 'Gestion',
+    'nav.gestion': 'Tableau de bord',
+    'nav.gestion.facturation': 'Devis & factures',
+    'nav.gestion.devis': 'Devis',
+    'nav.gestion.factures': 'Factures',
+    'nav.gestion.interventions': 'Interventions',
+    'nav.gestion.scan': 'Factures IA',
+    'nav.gestion.clients': 'Fiches clients',
+    'nav.gestion.equipe': 'Équipe',
+    'nav.gestion.articles': 'Articles',
+    'nav.gestion.import': 'Import Sphinx',
+  },
+  en: {
+    'nav.group.gestion': 'Management',
+    'nav.gestion': 'Dashboard',
+    'nav.gestion.facturation': 'Quotes & invoices',
+    'nav.gestion.devis': 'Quotes',
+    'nav.gestion.factures': 'Invoices',
+    'nav.gestion.interventions': 'Jobs',
+    'nav.gestion.scan': 'AI invoices',
+    'nav.gestion.clients': 'Customer files',
+    'nav.gestion.equipe': 'Team',
+    'nav.gestion.articles': 'Items',
+    'nav.gestion.import': 'Sphinx import',
+  },
+} as const
