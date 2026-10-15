@@ -6,7 +6,7 @@ import {
 } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
 import { motion } from 'framer-motion'
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FileUp, Lock, MoreHorizontal, Plus, Trash2, Video } from 'lucide-react'
+import { CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Download, FileUp, Lock, MoreHorizontal, Plus, Trash2, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
@@ -127,6 +127,20 @@ function CalendarPage() {
   })
   const dueOn = (d: Date) => tasks.data.filter((x) => x.due_date && isSameDay(new Date(x.due_date), d) && x.status !== 'done' && x.status !== 'cancelled')
 
+  // Une tâche porte une heure si son échéance n'est pas à minuit (heure locale) ; sinon elle va dans « Toute la journée ».
+  const taskHasTime = (x: Task) => { const d = new Date(x.due_date as string); return d.getHours() !== 0 || d.getMinutes() !== 0 }
+  const openTask = (id: string) => router.push(`/app/${ws.slug}/tasks?open=${id}`)
+  // Clic sur un jour du mois : on ouvre ce jour heure par heure (ordinateur et téléphone).
+  const openDay = (d: Date) => { setPicked(d); setCursor(d); setView('day') }
+  const timeline = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (view === 'month' || !timeline.current) return
+    const now = new Date()
+    const h = days.some((d) => isToday(d)) ? Math.max(0, now.getHours() - 1) : 8
+    timeline.current.scrollTop = h * 56
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, format(cursor, 'yyyy-MM-dd')])
+
   const step = (dir: 1 | -1) => setCursor((c) => (view === 'month' ? (dir > 0 ? addMonths(c, 1) : subMonths(c, 1)) : view === 'week' ? (dir > 0 ? addWeeks(c, 1) : subWeeks(c, 1)) : addDays(c, dir)))
   const title = view === 'month' ? format(cursor, 'LLLL yyyy', { locale: dfl }) : view === 'week' ? `${format(range.from, 'd MMM', { locale: dfl })} – ${format(range.to, 'd MMM yyyy', { locale: dfl })}` : format(cursor, 'EEEE d MMMM yyyy', { locale: dfl })
   const weekdays = eachDayOfInterval({ start: startOfWeek(new Date(), { weekStartsOn }), end: endOfWeek(new Date(), { weekStartsOn }) })
@@ -142,8 +156,8 @@ function CalendarPage() {
     <div className="flex min-h-full flex-col px-3 py-4 sm:h-full sm:px-6 sm:py-6">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:mb-4">
         <div className="flex min-w-0 items-center gap-3"><span className="hidden size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-ink sm:flex"><CalendarDays className="size-[18px]" /></span>
-          <h1 className="truncate text-xl font-semibold capitalize tracking-tight">{title}</h1></div>
-        <div className="flex items-center gap-1">
+          <h1 className="truncate text-xl font-semibold tracking-tight first-letter:uppercase">{title}</h1></div>
+        <div className="flex w-full items-center gap-1 sm:w-auto">
           <Button variant="outline" size="sm" onClick={() => { setCursor(new Date()); setPicked(new Date()) }}>{t('cal.today')}</Button>
           <Button variant="ghost" size="icon" onClick={() => step(-1)} aria-label={t('cal.prev')}><ChevronLeft className="size-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => step(1)} aria-label={t('cal.next')}><ChevronRight className="size-4" /></Button>
@@ -154,11 +168,11 @@ function CalendarPage() {
               <MenuItem icon={<Download className="size-4" />} onClick={() => { close(); exportIcs() }}>{t('ics.export')}</MenuItem>
             </>)}
           </Menu>
-          {canWrite && <Button variant="primary" size="icon" className="ml-1 sm:hidden" onClick={() => openNew(view === 'month' ? picked : cursor)} aria-label={t('cal.newEvent')}><Plus className="size-4" /></Button>}
+          {canWrite && <Button variant="primary" size="sm" className="ml-auto sm:hidden" onClick={() => openNew(view === 'month' ? picked : cursor)} aria-label={t('cal.addEvent')}><Plus className="size-3.5" />{t('cal.addShort')}</Button>}
         </div>
         <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
           <Tabs className="w-full sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" value={view} onChange={(v) => { setView(v); try { localStorage.setItem('flow_cal_view', v) } catch {} }} items={[{ value: 'month', label: t('cal.month') }, { value: 'week', label: t('cal.week') }, { value: 'day', label: t('cal.day') }]} />
-          {canWrite && <Button variant="primary" className="hidden sm:inline-flex" onClick={() => openNew(cursor)}><Plus className="size-4" />{t('cal.newEvent')}</Button>}
+          {canWrite && <Button variant="primary" className="hidden sm:inline-flex" onClick={() => openNew(view === 'month' ? picked : cursor)}><Plus className="size-4" />{t('cal.addEvent')}</Button>}
         </div>
       </div>
 
@@ -170,9 +184,9 @@ function CalendarPage() {
               const evs = eventsOn(d); const due = dueOn(d)
               return (
                 <div key={d.toISOString()}
-                  onClick={() => (window.matchMedia('(max-width: 639px)').matches ? setPicked(d) : openNew(d, true))}
+                  onClick={() => openDay(d)}
                   className={cn('group flex min-h-[52px] cursor-pointer flex-col items-center gap-0.5 overflow-hidden border-b border-r border-border/70 p-1 transition-colors hover:bg-surface-2/60 sm:min-h-[78px] sm:items-stretch', !isSameMonth(d, cursor) && 'bg-bg-subtle/60 text-text-3', isSameDay(d, picked) && 'bg-accent-soft/50 sm:bg-transparent')}>
-                  <button type="button" aria-label={format(d, 'PPPP', { locale: dfl })} onClick={(e) => { e.stopPropagation(); setPicked(d); if (window.matchMedia('(min-width: 640px)').matches) openNew(d, true) }} className={cn('mb-0.5 flex size-6 items-center justify-center rounded-full text-xs tabular-nums sm:self-start', isToday(d) && 'bg-accent font-semibold text-accent-text', !isToday(d) && isSameDay(d, picked) && 'font-semibold text-accent-ink sm:font-normal sm:text-inherit')}>{format(d, 'd')}</button>
+                  <button type="button" aria-label={format(d, 'PPPP', { locale: dfl })} onClick={(e) => { e.stopPropagation(); openDay(d) }} className={cn('mb-0.5 flex size-6 items-center justify-center rounded-full text-xs tabular-nums sm:self-start', isToday(d) && 'bg-accent font-semibold text-accent-text', !isToday(d) && isSameDay(d, picked) && 'font-semibold text-accent-ink sm:font-normal sm:text-inherit')}>{format(d, 'd')}</button>
                   <span className="flex gap-0.5 sm:hidden" aria-hidden>{[...evs.slice(0, 3).map((e) => e.color ?? COLORS[0]), ...(evs.length < 3 && due.length ? ['var(--text-3)'] : [])].map((c, i) => <span key={i} className="size-1.5 rounded-full" style={{ background: c }} />)}</span>
                   <div className="hidden flex-col gap-0.5 sm:flex">
                     {evs.slice(0, 3).map((e) => <Chip key={e.id} e={e} />)}
@@ -185,14 +199,22 @@ function CalendarPage() {
           </div>
         </motion.div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface">
+        <div ref={timeline} className="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface max-sm:max-h-[calc(100dvh-11rem)]">
           <div className={cn('sticky top-0 z-10 grid border-b border-border bg-surface/95 backdrop-blur', days.length > 1 && 'min-w-[680px]')} style={{ gridTemplateColumns: `52px repeat(${days.length}, minmax(0, 1fr))` }}>
             <div />
             {days.map((d) => (
               <div key={d.toISOString()} className="border-l border-border/70 px-2 py-2 text-center">
                 <div className="text-[11px] uppercase text-text-3">{format(d, 'EEE', { locale: dfl })}</div>
                 <div className={cn('mx-auto mt-0.5 flex size-7 items-center justify-center rounded-full text-sm tabular-nums', isToday(d) && 'bg-accent font-semibold text-accent-text')}>{format(d, 'd')}</div>
-                <div className="mt-1 space-y-0.5">{eventsOn(d).filter((e) => e.all_day).map((e) => <Chip key={e.id} e={e} />)}</div>
+                <div className="mt-1 space-y-0.5">
+                  {eventsOn(d).filter((e) => e.all_day).map((e) => <Chip key={e.id} e={e} />)}
+                  {dueOn(d).filter((x) => !taskHasTime(x)).map((x) => (
+                    <button key={x.id} onClick={() => openTask(x.id)} title={x.title} className="flex w-full items-center gap-1 truncate rounded-md border border-dashed border-border px-1.5 py-0.5 text-left text-[11px] font-medium text-text-2 hover:bg-surface-2">
+                      <CheckSquare className="size-3 shrink-0" aria-hidden /><span className="truncate">{x.title}</span>
+                    </button>
+                  ))}
+                  {days.length === 1 && eventsOn(d).length + dueOn(d).length === 0 && <p className="py-1 text-[11px] text-text-3">{t('cal.dayEmpty')}</p>}
+                </div>
               </div>
             ))}
           </div>
@@ -201,13 +223,28 @@ function CalendarPage() {
             {days.map((d) => (
               <div key={d.toISOString()} className="relative border-l border-border/70">
                 {HOURS.map((h) => <div key={h} onClick={() => openNew(d, false, h)} className="h-14 cursor-pointer border-b border-border/50 hover:bg-surface-2/50" />)}
+                {(() => {
+                  const timed = dueOn(d).filter(taskHasTime).map((x) => { const s = new Date(x.due_date as string); return { x, top: (s.getHours() + s.getMinutes() / 60) * 56 } })
+                  return timed.map(({ x, top }) => {
+                    const shared = eventsOn(d).some((e) => { if (e.all_day) return false; const s = new Date(e.start_at), en = new Date(e.end_at); const a = isSameDay(s, d) ? (s.getHours() + s.getMinutes() / 60) * 56 : 0, b = isSameDay(en, d) ? (en.getHours() + en.getMinutes() / 60) * 56 : 24 * 56; return top < b && top + 52 > a })
+                    return (
+                      <button key={x.id} onClick={() => openTask(x.id)} title={x.title}
+                        className="absolute z-[2] flex flex-col overflow-hidden rounded-lg border border-dashed border-border bg-surface px-1.5 py-1 text-left text-[11px] font-medium shadow-sm hover:bg-surface-2"
+                        style={{ top, height: 52, left: shared ? '52%' : 2, right: 2 }}>
+                        <span className="flex items-center gap-1 truncate"><CheckSquare className="size-3 shrink-0 text-accent-ink" aria-hidden /><span className="truncate">{x.title}</span></span>
+                        <span className="truncate text-[10px] text-text-3">{t('cal.task')} · {format(new Date(x.due_date as string), 'HH:mm')}</span>
+                      </button>
+                    )
+                  })
+                })()}
                 {eventsOn(d).filter((e) => !e.all_day).map((e) => {
                   const s = new Date(e.start_at); const en = new Date(e.end_at)
                   const top = isSameDay(s, d) ? (s.getHours() + s.getMinutes() / 60) * 56 : 0
                   const bottom = isSameDay(en, d) ? (en.getHours() + en.getMinutes() / 60) * 56 : 24 * 56
+                  const shared = dueOn(d).filter(taskHasTime).some((x) => { const ts = new Date(x.due_date as string); const tt = (ts.getHours() + ts.getMinutes() / 60) * 56; return tt < bottom && tt + 52 > top })
                   return (
-                    <button key={e.id} onClick={() => openEdit(e)} className="absolute inset-x-0.5 overflow-hidden rounded-lg border-l-[3px] px-1.5 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-85"
-                      style={{ top, height: Math.max(22, bottom - top - 2), background: `color-mix(in srgb, ${e.color ?? COLORS[0]} 20%, var(--surface))`, borderColor: e.color ?? COLORS[0], color: 'var(--text)' }}>
+                    <button key={e.id} onClick={() => openEdit(e)} className="absolute left-0.5 overflow-hidden rounded-lg border-l-[3px] px-1.5 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-85"
+                      style={{ top, height: Math.max(22, bottom - top - 2), right: shared ? '49%' : 2, background: `color-mix(in srgb, ${e.color ?? COLORS[0]} 20%, var(--surface))`, borderColor: e.color ?? COLORS[0], color: 'var(--text)' }}>
                       <div className="truncate">{e.title}</div><div className="truncate text-[10px] text-text-2">{format(s, 'HH:mm')} – {format(en, 'HH:mm')}</div>
                     </button>
                   )
@@ -217,29 +254,6 @@ function CalendarPage() {
             ))}
           </div>
         </div>
-      )}
-
-      {view === 'month' && (
-        <section aria-label={format(picked, 'PPPP', { locale: dfl })} className="mt-3 shrink-0 sm:hidden">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold first-letter:uppercase">{format(picked, 'EEEE d MMMM', { locale: dfl })}</h2>
-            {canWrite && <Button size="sm" onClick={() => openNew(picked, true)}><Plus className="size-3.5" />{t('cal.newEvent')}</Button>}
-          </div>
-          <ul className="space-y-1.5">
-            {eventsOn(picked).map((e) => (
-              <li key={e.id}>
-                <button onClick={() => openEdit(e)} className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-left active:bg-surface-2">
-                  <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: e.color ?? COLORS[0] }} />
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{e.title}</span>
-                    <span className="block text-xs text-text-3">{e.all_day ? t('cal.allDay') : `${format(new Date(e.start_at), 'HH:mm')} – ${format(new Date(e.end_at), 'HH:mm')}`}</span></span>
-                  {e.meeting_id && <Video className="size-4 shrink-0 text-text-3" aria-hidden />}
-                </button>
-              </li>
-            ))}
-            {dueOn(picked).map((x) => <li key={x.id} className="flex items-center gap-3 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm text-text-2"><span className="size-2 shrink-0 rounded-full bg-text-3" />{x.title}</li>)}
-            {eventsOn(picked).length + dueOn(picked).length === 0 && <li className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-text-3">—</li>}
-          </ul>
-        </section>
       )}
 
       <Dialog open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? t('cal.editEvent') : t('cal.newEvent')}

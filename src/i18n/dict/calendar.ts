@@ -21,6 +21,10 @@ export const calendar = {
     'cal.invalidRange': 'La fin doit être après le début',
     'cal.more': '+{n} de plus',
     'cal.visio': 'Ajouter une visio',
+    'cal.addEvent': 'Ajouter un événement',
+    'cal.addShort': 'Ajouter',
+    'cal.task': 'Tâche',
+    'cal.dayEmpty': 'Rien de prévu ce jour-là',
   },
   en: {
     'cal.title': 'Calendar',
@@ -44,5 +48,9 @@ export const calendar = {
     'cal.invalidRange': 'End must be after start',
     'cal.more': '+{n} more',
     'cal.visio': 'Add a video call',
+    'cal.addEvent': 'Add event',
+    'cal.addShort': 'Add',
+    'cal.task': 'Task',
+    'cal.dayEmpty': 'Nothing planned that day',
   },
 } as const

@@ -9,7 +9,7 @@ import { Lightbulb, X } from 'lucide-react'
 const ASTUCES: Record<string, { titre: string; etapes: string[] }> = {
   '': { titre: 'Bienvenue dans Flow', etapes: ['⌘K ouvre la recherche partout : pages, tâches, notes, personnes.', 'Le crayon en bas du menu masque ce que tu n\'utilises pas.', 'Demande à l\'assistant (étincelle en haut) « mes tâches de la semaine » : il répond avec un tableau.'] },
   '/tasks': { titre: 'Tâches', etapes: ['Tape une tâche et appuie sur Entrée : « demain 9h » ou « urgent » sont compris.', 'Glisse une tâche d\'une colonne à l\'autre pour changer son statut.'] },
-  '/calendar': { titre: 'Calendrier', etapes: ['Clique sur un jour pour créer un événement.', 'Exporte ton agenda en .ics pour l\'ajouter à Apple Calendrier ou Google.'] },
+  '/calendar': { titre: 'Calendrier', etapes: ['Clique sur un jour pour voir ses tâches et événements heure par heure ; « Ajouter un événement » est en haut à droite.', 'Exporte ton agenda en .ics pour l\'ajouter à Apple Calendrier ou Google.'] },
   '/messages': { titre: 'Messages', etapes: ['Double-clic sur un message pour réagir avec ❤️.', 'Glisse un fichier dans la conversation pour l\'envoyer.'] },
   '/notes': { titre: 'Notes', etapes: ['Tape « / » dans une note pour insérer un titre, une liste ou une case à cocher.'] },
   '/files': { titre: 'Fichiers', etapes: ['Glisse des fichiers n\'importe où sur la page pour les ajouter.', 'Clique sur une vidéo ou une image pour l\'ouvrir en grand, avec « Télécharger ».'] },
