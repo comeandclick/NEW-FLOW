@@ -38,7 +38,12 @@ export default function FilesPage() {
   const input = useRef<HTMLInputElement>(null)
 
   const folders = useMemo(() => {
-    const all = new Set<string>(['/', ...extraFolders, ...data.map((f) => f.folder)])
+    // chaque dossier parent existe même sans fichier direct (ex. « /Motion » qui ne contient que des sous-dossiers)
+    const all = new Set<string>(['/'])
+    for (const f of [...extraFolders, ...data.map((x) => x.folder)]) {
+      const parts = f.split('/').filter(Boolean)
+      for (let i = 1; i <= parts.length; i++) all.add('/' + parts.slice(0, i).join('/'))
+    }
     return [...all].sort()
   }, [data, extraFolders])
   const childFolders = folders.filter((f) => f !== '/' && f.startsWith(folder === '/' ? '/' : folder + '/') && f.slice(folder === '/' ? 1 : folder.length + 1).split('/').length === 1 && f !== folder)
