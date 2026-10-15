@@ -39,8 +39,12 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
     db.from('time_entries').select('started_at,ended_at,kind').eq('workspace_id', wsId).eq('user_id', userId).gte('started_at', jourIso(il7)).limit(200),
     db.from('motion_projets').select('titre,client,serie,numero,statut,avancement,etape,video_nom').eq('workspace_id', wsId).limit(40),
     db.from('notes').select('title,content,tags,created_at').eq('workspace_id', wsId).is('deleted_at', null).contains('tags', ['client-interne']).order('created_at', { ascending: false }).limit(30),
+    // gestion (devis, factures, interventions, factures reçues), fiches clients et catalogue
+    db.from('gestion_documents').select('id,kind,number,contact_id,title,status,intervention_type,priority,issued_at,due_at,start_at,address,total_ht,total_ttc,assigned_to,signer_name,signed_at,closed_at,paid_at,sent_at,created_by,travaux').eq('workspace_id', wsId).is('deleted_at', null).order('issued_at', { ascending: false }).limit(400),
+    db.from('crm_contacts').select('id,name,company,city,address,zip,phone,email,kind,siret,ref_externe').eq('workspace_id', wsId).is('deleted_at', null).limit(500),
+    db.from('gestion_articles').select('ref,label,unit,price_ht,tva,category').eq('workspace_id', wsId).is('deleted_at', null).limit(1500),
   ])
-  const [ws, mem, taches, evts, clients, ctodos, cfiles, cmsgs, convs, fichiers, activite, objectifs, deals, notes, projets, temps, prods, notesClients] = r.map((x) => x.data ?? null) as any[]
+  const [ws, mem, taches, evts, clients, ctodos, cfiles, cmsgs, convs, fichiers, activite, objectifs, deals, notes, projets, temps, prods, notesClients, gdocs, fiches, articles] = r.map((x) => x.data ?? null) as any[]
   const membres = ((mem ?? []) as any[]).map((m) => ({ id: m.user_id, nom: m.profile?.full_name ?? m.profile?.email ?? '?', role: m.role, agentIA: !!m.profile?.preferences?.bot, moi: m.user_id === userId }))
   const nom = (id: string | null) => (id ? membres.find((m) => m.id === id)?.nom ?? null : null)
   const projet = (id: string | null) => (id ? (projets ?? []).find((p: any) => p.id === id)?.name ?? null : null)
@@ -63,6 +67,7 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
   // notes citées dans la question : texte COMPLET, en tête (l'assistant peut les lire, les analyser, retrouver « la demande n° 3 »)
   const citees = question ? ((notes ?? []) as any[]).filter((n) => n.title && cite(question, n.title)).slice(0, 2) : []
   const clientsCites = question ? ((clients ?? []) as any[]).filter((c) => cite(question, c.name) || (c.company && cite(question, c.company))) : []
+  const gestion = blocsGestion((gdocs ?? []) as any[], (fiches ?? []) as any[], (articles ?? []) as any[], question, nom, userId, j)
   const blocs: [string, string[]][] = [
     ...citees.map((n): [string, string[]] => [`NOTE CITÉE « ${n.title} » (écrite par ${n.created_by === userId ? 'moi' : nom(n.created_by) ?? '?'}, modifiée ${j(n.updated_at)}), TEXTE COMPLET`, [String(court(texteDeNote(n.content), 2500) || '(vide)')]]),
     ['ESPACE', [`${ws?.name ?? ''} · utilisateur : ${membres.find((m) => m.moi)?.nom ?? ''} · ${ouvertes.length} tâches ouvertes, ${retard.length} en retard, ${((taches ?? []) as any[]).filter((t) => t.completed_at && new Date(t.completed_at) > il7).length} faites en 7 j`]],
@@ -72,6 +77,7 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
     ['TÂCHES DES 7 PROCHAINS JOURS', prochaines.slice(0, 15).map(ligneT)],
     ['EN COURS SANS DATE', sansDate.slice(0, 6).map(ligneT)],
     ['AGENDA (7 jours)', ((evts ?? []) as any[]).filter((e) => new Date(e.start_at) <= dans7 && new Date(e.end_at) >= aube).slice(0, 14).map((e) => `- ${j(e.start_at)} : ${court(e.title, 60)}${e.location ? ` @ ${court(e.location, 30)}` : ''}${(e.attendees ?? []).length ? ` avec ${(e.attendees ?? []).map(nom).filter(Boolean).join(', ')}` : ''}`)],
+    ...gestion,
     ['CLIENTS', ((clients ?? []) as any[]).map((c) => {
       const v = ((cfiles ?? []) as any[]).filter((f) => f.client_id === c.id), d = ((cmsgs ?? []) as any[]).find((m) => m.client_id === c.id), t = ((ctodos ?? []) as any[]).filter((x) => x.client_id === c.id)
       return `- ${c.name}${c.company ? ` (${court(c.company, 40)})` : ''} : ${[v.filter((f) => f.status === 'livree').length && `${v.filter((f) => f.status === 'livree').length} vidéo(s) à valider`, v.filter((f) => f.status === 'modif').length && `modifs demandées : ${v.filter((f) => f.status === 'modif').map((f) => f.title).join(', ')}`, t.length && `${t.length} à faire`, d && `dernier message de ${d.author_kind === 'client' ? 'LUI (réponse attendue)' : "l'équipe"} : « ${court(d.body, 60)} »`].filter(Boolean).join(' · ') || 'rien en attente'}`
@@ -98,4 +104,41 @@ export async function contexteEspace(db: SupabaseClient, wsId: string, userId: s
   let texte = ''
   for (const [titre, lignes] of blocs) { const l = lignes.filter((x) => x && x.trim() && x !== '- '); if (!l.length) continue; const b = `${titre}\n${l.join('\n')}\n`; if (texte.length + b.length > 8000) continue; texte += b }
   return { maintenant: maintenant.toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), texte }
+}
+
+/** Ce que l'assistant sait de la gestion : chiffres du mois, interventions à venir, devis et factures à suivre, fiche du client
+ *  ou articles cités dans la question (en détail). Lignes courtes pour tenir dans la limite de Groq. */
+function blocsGestion(docs: any[], fiches: any[], articles: any[], question: string, nom: (id: string | null) => string | null, moi: string, j: (d: string | null | undefined) => string): [string, string[]][] {
+  if (!docs.length && !articles.length) return []
+  const eur = (n: unknown) => `${Math.round(Number(n) * 100) / 100} €`
+  const auj = new Date().toISOString().slice(0, 10), mois = auj.slice(0, 7)
+  const fiche = (id: string | null) => fiches.find((f) => f.id === id)
+  const qui = (d: any) => { const f = fiche(d.contact_id); return f ? (f.company || f.name) : (d.title ?? '—') }
+  const membres = (ids: string[]) => (ids ?? []).map((u) => (u === moi ? 'moi' : nom(u) ?? '?')).join(', ')
+  const fac = docs.filter((d) => d.kind === 'facture' && !['annulee', 'brouillon'].includes(d.status))
+  const facMois = fac.filter((d) => String(d.issued_at).startsWith(mois))
+  const aEnc = fac.filter((d) => d.status !== 'payee')
+  const retard = aEnc.filter((d) => d.status === 'en_retard' || (d.due_at && d.due_at < auj))
+  const devisAtt = docs.filter((d) => d.kind === 'devis' && ['envoye', 'en_attente'].includes(d.status))
+  const inter = docs.filter((d) => d.kind === 'intervention' && !d.closed_at && d.status !== 'annulee').sort((a, b) => String(a.start_at ?? '9').localeCompare(String(b.start_at ?? '9')))
+  const achats = docs.filter((d) => d.kind === 'achat')
+  const ligneInter = (d: any) => `- ${d.number} ${d.intervention_type ?? ''} · ${qui(d)}${d.start_at ? ` · ${j(d.start_at)}` : ' · à planifier'} · ${d.status}${d.priority !== 'normale' ? ` [${d.priority}]` : ''}${d.assigned_to?.length ? ` → ${membres(d.assigned_to)}` : ''}`
+  const sans = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const q = sans(question)
+  const citee = question ? fiches.filter((f) => [f.name, f.company].some((v) => v && v.length > 2 && q.includes(sans(v)))).slice(0, 2) : []
+  const motsQ = q.split(/[^a-z0-9]+/).filter((m) => m.length >= 4)
+  const artsCites = motsQ.length && /(article|prix|tarif|combien|catalogue|reference|devis)/.test(q) ? articles.filter((a) => motsQ.some((m) => sans(`${a.ref ?? ''} ${a.label}`).includes(m))).slice(0, 12) : []
+  const out: [string, string[]][] = [
+    ['GESTION (chiffres)', [`ce mois : facturé ${eur(facMois.reduce((x, d) => x + Number(d.total_ht), 0))} HT, encaissé ${eur(facMois.filter((d) => d.status === 'payee').reduce((x, d) => x + Number(d.total_ttc), 0))} TTC · à encaisser en tout ${eur(aEnc.reduce((x, d) => x + Number(d.total_ttc), 0))} (${aEnc.length} factures, ${retard.length} en retard) · devis en attente ${devisAtt.length} (${eur(devisAtt.reduce((x, d) => x + Number(d.total_ttc), 0))}) · interventions non clôturées ${inter.length} · ${fiches.length} fiches clients · ${articles.length} articles`]],
+    ['INTERVENTIONS À VENIR / NON CLÔTURÉES', inter.slice(0, 12).map(ligneInter)],
+    ['DEVIS EN ATTENTE', devisAtt.slice(0, 8).map((d) => `- ${d.number} · ${qui(d)} · ${eur(d.total_ttc)} TTC${d.sent_at ? ` · envoyé ${j(d.sent_at)}` : ''}${d.due_at ? ` · valable jusqu'au ${j(d.due_at)}` : ''}`)],
+    ['FACTURES À ENCAISSER', aEnc.slice(0, 8).map((d) => `- ${d.number} · ${qui(d)} · ${eur(d.total_ttc)}${d.due_at ? ` · échéance ${j(d.due_at)}` : ''}${retard.includes(d) ? ' (EN RETARD)' : ''}`)],
+    ['FACTURES REÇUES RÉCENTES', achats.slice(0, 5).map((d) => `- ${d.title ?? d.number} · ${eur(d.total_ttc)} · ${j(d.issued_at)} · ${d.status}`)],
+    ...citee.map((f): [string, string[]] => [`FICHE CLIENT « ${f.company || f.name} » (gestion)`, [
+      `${f.name}${f.company ? ` (${f.company})` : ''} · ${f.kind ?? ''} · ${[f.address, f.zip, f.city].filter(Boolean).join(' ')} · ${f.phone ?? ''} · ${f.email ?? ''}${f.ref_externe ? ` · code ${f.ref_externe}` : ''}`,
+      ...docs.filter((d) => d.contact_id === f.id).slice(0, 15).map((d) => `- ${d.kind} ${d.number} · ${d.title ?? d.intervention_type ?? ''} · ${j(d.start_at ?? d.issued_at)} · ${d.status}${Number(d.total_ttc) ? ` · ${eur(d.total_ttc)}` : ''}${d.signer_name ? ` · signé par ${d.signer_name}` : ''}${d.assigned_to?.length ? ` · par ${membres(d.assigned_to)}` : ''}`),
+    ]]),
+    ['ARTICLES CITÉS', artsCites.map((a) => `- ${a.ref ? a.ref + ' ' : ''}${a.label} : ${a.price_ht} € HT / ${a.unit} (TVA ${a.tva} %)`)],
+  ]
+  return out
 }

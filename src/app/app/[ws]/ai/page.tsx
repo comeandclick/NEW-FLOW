@@ -3,7 +3,9 @@
 // + des widgets (tâches, clients en attente, vidéo, agenda, productions). Sans clé ou en démo, la compréhension locale prend le relais.
 // La bulle « réflexion » se transforme (morphose) en réponse puis en widget.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUp, BarChart3, CalendarDays, CalendarPlus, CheckSquare, Film, Handshake, SquarePen, Sparkles } from 'lucide-react'
+import { ArrowUp, BarChart3, CalendarDays, CalendarPlus, CheckSquare, Film, Handshake, Paperclip, Receipt, SquarePen, Sparkles, Wrench } from 'lucide-react'
+import { fichiersEnAttente } from '@/components/gestion/assistant-factures'
+import { aGestion, modulesActifs } from '@/lib/modules'
 import { getDb } from '@/lib/supabase/client'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -71,14 +73,16 @@ export default function AiPage() {
   const clientsQ = useLive<{ name: string }>('clients', { select: 'name', eq: { workspace_id: ws.id }, is: { deleted_at: null }, limit: 1 })
   const videosQ = useLive<{ titre: string; video_nom: string | null }>('motion_projets', { select: 'titre,video_nom', eq: { workspace_id: ws.id }, limit: 20 })
   const video = videosQ.data.find((v) => v.video_nom)
+  const gestionActive = aGestion(modulesActifs(ws))
   const SUGGESTIONS = [
     { I: CheckSquare, t: 'Qu\'est-ce que je dois faire aujourd\'hui ?' },
+    ...(gestionActive ? [{ I: Wrench, t: 'Mes interventions de la semaine' }, { I: Receipt, t: 'Quelles factures je dois encaisser ?' }] : []),
     clientsQ.data[0] ? { I: Handshake, t: `Où en est ${clientsQ.data[0].name} ?` } : { I: Handshake, t: 'Quels sont mes clients ?' },
     { I: CalendarPlus, t: 'Ajoute une tâche demain à 12h avec un agent IA dispo' },
     { I: BarChart3, t: 'Fais-moi le bilan de la semaine' },
     video ? { I: Film, t: `Montre-moi la vidéo « ${video.titre} »` } : { I: Film, t: 'Résume ma semaine' },
     { I: CalendarDays, t: 'Mon agenda de la semaine' },
-  ]
+  ].slice(0, gestionActive ? 8 : 6)
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, attente])
 
   async function ask(text: string) {
@@ -104,6 +108,16 @@ export default function AiPage() {
       const fin: Msg[] = [...next, { id, role: 'assistant', content: reply, widgets }]
       setMsgs(fin); void sauver(fin)
     } catch { setMsgs([...next, { id, role: 'assistant', content: t('ai.error') }]) } finally { setAttente(null); attenteRef.current = false }
+  }
+
+  // trombone : une facture (photo ou PDF) jointe est lue par l'IA dans un widget de la conversation
+  const joindre = useRef<HTMLInputElement>(null)
+  function joindreFactures(files: FileList | null) {
+    if (!files?.length) return
+    const cle = crypto.randomUUID()
+    fichiersEnAttente.set(cle, Array.from(files))
+    const fin: Msg[] = [...msgs, { id: cle + 'q', role: 'user', content: `Lis ${files.length > 1 ? `ces ${files.length} factures` : 'cette facture'} : ${Array.from(files).map((f) => f.name).join(', ')}` }, { id: cle, role: 'assistant', content: 'Je lis tout et je te propose la suite :', widgets: [{ type: 'lire_facture', cle }] }]
+    setMsgs(fin); void sauver(fin)
   }
 
   return (
@@ -162,6 +176,8 @@ export default function AiPage() {
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); void ask(input) }} className="sticky bottom-0 mb-2 flex shrink-0 items-end gap-2 rounded-2xl border border-border-strong bg-surface p-1.5 shadow-md transition-shadow focus-within:border-text/40 sm:mb-4">
+        {gestionActive && <><input ref={joindre} type="file" accept="image/*,application/pdf" multiple hidden onChange={(e) => { joindreFactures(e.target.files); e.target.value = '' }} />
+        <button type="button" onClick={() => joindre.current?.click()} aria-label="Joindre une facture (photo ou PDF)" title="Joindre une facture" className="grid size-9 shrink-0 place-items-center rounded-xl text-text-3 transition-colors hover:bg-surface-2 hover:text-text"><Paperclip className="size-4" /></button></>}
         <textarea ref={zone} value={input} onChange={(e) => setInput(e.target.value)} rows={1} placeholder="Demande-moi tes tâches, un client, une vidéo…" aria-label={t('ai.placeholder')}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input) } }}
           className="max-h-40 min-h-9 min-w-0 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-2.5 py-2 text-[14px] leading-5 outline-none placeholder:text-text-3 [overflow-wrap:anywhere]" />

@@ -1,4 +1,6 @@
 'use client'
+import { aGestion, modulesActifs } from '@/lib/modules'
+import { DOSSIER } from '@/lib/gestion-sync'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -40,12 +42,14 @@ export default function FilesPage() {
   const folders = useMemo(() => {
     // chaque dossier parent existe même sans fichier direct (ex. « /Motion » qui ne contient que des sous-dossiers)
     const all = new Set<string>(['/'])
-    for (const f of [...extraFolders, ...data.map((x) => x.folder)]) {
+    // la gestion range ses documents dans un dossier par type (devis, factures, ordres de mission, factures reçues)
+    const gestion = aGestion(modulesActifs(ws)) ? Object.values(DOSSIER) : []
+    for (const f of [...gestion, ...extraFolders, ...data.map((x) => x.folder)]) {
       const parts = f.split('/').filter(Boolean)
       for (let i = 1; i <= parts.length; i++) all.add('/' + parts.slice(0, i).join('/'))
     }
     return [...all].sort()
-  }, [data, extraFolders])
+  }, [data, extraFolders, ws])
   const childFolders = folders.filter((f) => f !== '/' && f.startsWith(folder === '/' ? '/' : folder + '/') && f.slice(folder === '/' ? 1 : folder.length + 1).split('/').length === 1 && f !== folder)
   const files = data.filter((f) => (q.trim() ? f.name.toLowerCase().includes(q.trim().toLowerCase()) : f.folder === folder))
   const total = data.reduce((a, f) => a + (f.size ?? 0), 0)

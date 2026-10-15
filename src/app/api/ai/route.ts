@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerDb } from '@/lib/supabase/server'
 import { sameOrigin } from '@/lib/security'
-import { OUTILS, versWidget } from '@/lib/ai-widgets'
+import { OUTILS, OUTILS_GESTION, versWidget } from '@/lib/ai-widgets'
 import { contexteEspace } from '@/lib/ai-contexte'
 
 export const runtime = 'nodejs'
@@ -35,7 +35,13 @@ export async function POST(req: Request) {
   const wsId = String(body.wsId ?? '')
   const { data: membre } = wsId ? await db.from('workspace_members').select('user_id').eq('workspace_id', wsId).eq('user_id', user.id).maybeSingle() : { data: null }
   const contexte = membre ? await contexteEspace(db, wsId, user.id, messages.filter((m) => m.role === 'user').slice(-2).map((m) => m.content).join('\n')).catch(() => null) : null
-  const system = `Tu es l'assistant de Flow, l'outil de travail de l'utilisateur (tâches, agenda, discussions, clients, fichiers, objectifs, CRM, motion design avec l'Atelier).
+  // la gestion (outils + consignes) n'est envoyée que si la question en parle : la limite gratuite de Groq est de 8 000 jetons par minute
+  const derniere = messages.filter((m) => m.role === 'user').slice(-2).map((m) => m.content).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const gestionPertinente = /(devis|factur|intervention|chantier|depann|install|ordre de mission|encaiss|impaye|paye|chiffre d|\bca\b|gagn|benefice|bilan|article|catalogue|prix|tarif|fiche|client|signe|signature|ticket|scan|technicien|achat|fournisseur|cloture|relanc)/.test(derniere)
+  const motion = /(video|motion|tiktok|reel|atelier|production|modele|template|agent)/.test(derniere)
+  const OUTILS_MOTION = ['afficher_video', 'afficher_productions', 'preparer_video', 'proposer_modele_motion', 'envoyer_agent']
+  const outilsUtiles = OUTILS.filter((o) => (gestionPertinente || !OUTILS_GESTION.includes(o.name)) && (motion || !gestionPertinente || !OUTILS_MOTION.includes(o.name)))
+  const system = `Tu es l'assistant de Flow, l'outil de travail de l'utilisateur (tâches, agenda, discussions, clients, fichiers, objectifs, CRM, gestion : devis, factures, interventions, factures reçues lues par l'IA, motion design avec l'Atelier).
 Tu parles ${body.locale === 'en' ? 'anglais' : 'français'}, en tutoyant, de façon chaleureuse, claire et brève (1 à 4 phrases), sans jargon. Pas de tiret cadratin, jamais d'emoji (ni dans le texte ni dans les widgets).
 
 RÈGLES
@@ -51,7 +57,7 @@ RÈGLES
 - VIDÉOS MOTION : « crée / lance la vidéo de demain pour le TikTok de X » = preparer_video (client X, publication = date de demain). Ne demande rien en texte : le widget propose le modèle habituel, fait choisir s'il y en a plusieurs, et a un bouton « Plus d'infos » (durée, sujet, note). MyUstadh est l'application du client Nahim : client = Nahim.
 - « Imagine un nouveau template / modèle motion pour X » : lis le dossier privé de X, puis appelle DIRECTEMENT proposer_modele_motion (jamais afficher_client à la place : le dossier est déjà dans tes données) avec une idée précise et adaptée au projet (pas générique), en reprenant les idées de vidéo déjà notées si elles collent.
 - Agents IA : ce sont les membres marqués agentIA et les agents de l'Atelier (avec leur état libre / occupé / limite). Si on te demande un agent disponible, propose celui qui est libre.
-- Reste dans le sujet de CET espace : n'évoque jamais d'autres projets ou entreprises que ceux présents dans les données.
+${gestionPertinente ? REGLES_GESTION : ''}- Reste dans le sujet de CET espace : n'évoque jamais d'autres projets ou entreprises que ceux présents dans les données.
 
 DONNÉES DE L'ESPACE
 ${contexte?.texte ?? 'indisponibles'}`
@@ -63,7 +69,7 @@ ${contexte?.texte ?? 'indisponibles'}`
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: MODEL, max_tokens: 1200, system, messages, tools: OUTILS, tool_choice: { type: 'auto' } }),
+        body: JSON.stringify({ model: MODEL, max_tokens: 1200, system, messages, tools: outilsUtiles, tool_choice: { type: 'auto' } }),
       })
       if (r.ok) {
         const data = await r.json()
@@ -75,7 +81,7 @@ ${contexte?.texte ?? 'indisponibles'}`
       if (!groq) return NextResponse.json({ error: 'upstream', status: r.status }, { status: 502 })
     }
     const modeles = (process.env.GROQ_MODELES ?? 'openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b').split(',').map((m) => m.trim()).filter(Boolean)
-    const outils = OUTILS.map((o) => ({ type: 'function', function: { name: o.name, description: o.description, parameters: o.input_schema } }))
+    const outils = outilsUtiles.map((o) => ({ type: 'function', function: { name: o.name, description: o.description, parameters: o.input_schema } }))
     for (const modele of modeles) {
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${groq}` },
@@ -94,3 +100,8 @@ ${contexte?.texte ?? 'indisponibles'}`
     return NextResponse.json({ error: 'network' }, { status: 502 })
   }
 }
+
+const REGLES_GESTION = `- GESTION (devis, factures, interventions, ordres de mission, factures reçues, fiches clients, articles) : les chiffres et listes sont dans « GESTION » et les blocs suivants. « mon CA », « combien j'ai gagné », « bilan du mois » = afficher_gestion vue=bilan (periode semaine/mois/annee). « devis en attente / à relancer » = vue=devis filtre=en_attente. « factures impayées / à encaisser » = vue=factures filtre=a_encaisser ; « en retard » = filtre=en_retard. « mes interventions », « mon planning de chantiers », « qu'a [un membre] demain » = vue=interventions (filtre a_venir, aujourdhui, non_cloturees… ; membre = la personne citée). Un client de la gestion nommé (« le dossier Dupont », « tout sur Atelier Nord ») = afficher_fiche_gestion. « prix du chauffe-eau », « mes articles » = afficher_articles. Une question précise (« combien me doit Dupont ? ») : réponds d'abord en une phrase avec le chiffre exact des données, puis le widget utile.
+- « Fais un devis / une facture pour X avec 2 chauffe-eau et 3 h de main d'œuvre », « planifie un dépannage chez X jeudi 9h avec Karim » = preparer_document (kind, client, lignes, date, heure, intervenant, type_intervention). Reprends les libellés du catalogue quand ils existent (le prix vient du catalogue). Ne dis jamais que c'est créé : l'utilisateur valide avec Créer. Une intervention planifiée arrive aussi dans Tâches et au Calendrier.
+- « La facture FA-2026-0003 est payée », « accepte le devis DE-… », « clôture l'intervention IN-… », « envoie le devis à Dupont », « PDF du devis… » = action_document (numero exact trouvé dans les données). « Lis cette facture », « scanne un ticket » = lire_facture (l'utilisateur peut aussi joindre une photo ou un PDF avec le trombone).
+`

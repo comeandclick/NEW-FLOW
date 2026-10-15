@@ -21,6 +21,7 @@ import { WidgetPlus } from '@/components/ai/widgets-plus'
 import { WidgetCreation } from '@/components/ai/widget-creation'
 import { WidgetModeleMotion, WidgetVideoDemande } from '@/components/ai/widget-video'
 import { WidgetEnvoiAgent } from '@/components/ai/widget-agent'
+import { WidgetActionDoc, WidgetArticles, WidgetDocument, WidgetFicheGestion, WidgetGestion, WidgetLireFacture } from '@/components/ai/widgets-gestion'
 
 export const ligne = { hidden: { opacity: 0, y: 6, filter: 'blur(4px)' }, show: (i: number) => ({ opacity: 1, y: 0, filter: 'blur(0px)', transition: { delay: 0.12 + i * 0.045, type: 'spring' as const, stiffness: 420, damping: 34 } }) }
 
@@ -222,6 +223,12 @@ export function WidgetAssistant({ w }: { w: Widget }) {
     case 'creation': return <WidgetCreation c={w.c} />
     case 'envoi_agent': return <WidgetEnvoiAgent titre={w.titre} consigne={w.consigne} agent={w.agent} note={w.note} />
     case 'video_demande': return <WidgetVideoDemande d={w.d} />
+    case 'gestion': return <WidgetGestion vue={w.vue} filtre={w.filtre} periode={w.periode} client={w.client} membre={w.membre} />
+    case 'fiche_gestion': return <WidgetFicheGestion nom={w.nom} />
+    case 'articles': return <WidgetArticles recherche={w.recherche} />
+    case 'document': return <WidgetDocument d={w.d} />
+    case 'action_doc': return <WidgetActionDoc numero={w.numero} action={w.action} />
+    case 'lire_facture': return <WidgetLireFacture cle={w.cle} />
     case 'modele_motion': return <WidgetModeleMotion client={w.client} titre={w.titre} idee={w.idee} format={w.format} duree={w.duree} />
     default: return <WidgetPlus w={w} />
   }

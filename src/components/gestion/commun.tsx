@@ -1,21 +1,30 @@
 'use client'
 // Briques communes du module Gestion (15/10/2026) : données en direct, pastilles d'état, filtres de période, avis de migration.
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import Link from 'next/link'
 import { endOfMonth, endOfQuarter, endOfWeek, endOfYear, startOfMonth, startOfQuarter, startOfWeek, startOfYear, subMonths } from 'date-fns'
 import { Database } from 'lucide-react'
 import { useLive } from '@/lib/hooks/use-live'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
-import { migrationManquante, statutDe, type Article, type DocKind, type Fiche, type GDoc } from '@/lib/gestion'
+import { useSession } from '@/lib/hooks/use-session'
+import { definirEspace, rattraper } from '@/lib/gestion-sync'
+import { entrepriseDe, migrationManquante, statutDe, type Article, type DocKind, type Fiche, type GDoc } from '@/lib/gestion'
 import { cn } from '@/lib/utils'
 
 export function useDocs(kind?: DocKind | DocKind[]) {
-  const { ws } = useWorkspace()
+  const { ws, canWrite } = useWorkspace()
+  const { userId } = useSession()
   const q = useLive<GDoc>('gestion_documents', {
     eq: { workspace_id: ws.id, ...(typeof kind === 'string' ? { kind } : {}) },
     ...(Array.isArray(kind) ? { in: { kind } } : {}),
     is: { deleted_at: null }, order: ['issued_at', false],
   })
+  // une fois chargés : les anciens documents ouverts rejoignent Tâches et Calendrier
+  const fiches = useLive<Fiche>('crm_contacts', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, enabled: !kind, live: false })
+  useEffect(() => {
+    definirEspace(ws.slug)
+    if (!kind && canWrite && userId && !q.loading && q.data.length && !fiches.loading) void rattraper(q.data, fiches.data, { wsId: ws.id, userId, entreprise: entrepriseDe(ws) })
+  }, [kind, canWrite, userId, q.loading, q.data, fiches.loading, fiches.data, ws])
   return { ...q, manque: migrationManquante(q.error) }
 }
 export function useArticles() {

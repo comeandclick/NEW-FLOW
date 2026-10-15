@@ -61,6 +61,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   } else return non(400)
   const { error } = await admin.from('gestion_documents').update(patch).eq('id', d.id)
   if (error) return NextResponse.json({ error: 'server' }, { status: 500, headers: NO_STORE })
+  // la tâche « Relancer le devis » est faite, l'événement de fin de validité n'a plus lieu d'être
+  if (d.kind === 'devis' && d.task_id) await admin.from('tasks').update({ status: 'done', completed_at: now }).eq('id', d.task_id)
+  if (d.kind === 'devis' && d.event_id) { await admin.from('events').update({ deleted_at: now }).eq('id', d.event_id); await admin.from('gestion_documents').update({ event_id: null }).eq('id', d.id) }
   await admin.from('activity_logs').insert({ workspace_id: d.workspace_id, user_id: null, action: patch.status ? `status:${patch.status}` : 'signed', entity_type: 'gestion_documents', entity_id: d.id, meta: { number: d.number, par: nom, via: 'lien' } })
   const { data: ws } = await admin.from('workspaces').select('slug').eq('id', d.workspace_id).maybeSingle()
   const qui = [...new Set([d.created_by, ...(d.assigned_to ?? [])].filter(Boolean))] as string[]

@@ -21,9 +21,9 @@ async function enDataUrl(url: string): Promise<{ data: string; w: number; h: num
 
 export type ContextePdf = { entreprise: Entreprise; logoUrl?: string | null; client?: Fiche | null; nomMembre: (id?: string | null) => string; devisOrigine?: string | null }
 
-export async function creerPdf(d: GDoc, ctx: ContextePdf): Promise<JsPDF> {
+export async function creerPdf(d: GDoc, ctx: ContextePdf, forcer = false): Promise<JsPDF> {
   const manque = entrepriseManque(ctx.entreprise)
-  if (manque.length) throw new Error(`Infos de l’entreprise à compléter : ${manque.join(', ')}`)
+  if (manque.length && !forcer) throw new Error(`Infos de l’entreprise à compléter : ${manque.join(', ')}`)
   const { jsPDF } = await import('jspdf')
   const autoTable = (await import('jspdf-autotable')).default
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' })

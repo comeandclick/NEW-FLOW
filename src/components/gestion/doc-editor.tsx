@@ -14,15 +14,16 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { useLive } from '@/lib/hooks/use-live'
 import { getDb } from '@/lib/supabase/client'
-import { isDemoBrowser } from '@/lib/demo/runtime'
 import {
   NOM_KIND, PRIORITES, STATUTS, STATUT_INITIAL, entrepriseDe, entrepriseManque, eur, prochainNumero, totaux, typesIntervention,
   type Article, type DocKind, type Fiche, type GDoc, type Ligne,
 } from '@/lib/gestion'
-import { imprimerPdf, pdfBase64, telechargerPdf, type ContextePdf } from '@/lib/gestion-pdf'
+import { imprimerPdf, telechargerPdf, type ContextePdf } from '@/lib/gestion-pdf'
 import { cn } from '@/lib/utils'
 import { SignaturePad } from './signature-pad'
+import { espaceClient, synchroniser } from '@/lib/gestion-sync'
 import { Pastille } from './commun'
+import { ImageFacture, useImageFacture } from './image-facture'
 
 type Draft = Partial<GDoc> & { kind: DocKind; lines: Ligne[] }
 const auj = () => new Date().toISOString().slice(0, 10)
@@ -70,6 +71,11 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
   const setLigne = (i: number, p: Partial<Ligne>) => setD((x) => ({ ...x, lines: x.lines.map((l, j) => (j === i ? { ...l, ...p } : l)) }))
   const ctxPdf = (dd: GDoc): ContextePdf => ({ entreprise, logoUrl: ws.logo_url, client: fiches.find((f) => f.id === dd.contact_id) ?? null, nomMembre: nameOf, devisOrigine: docs.find((x) => x.id === dd.parent_id)?.number ?? null })
   const manqueEnt = entrepriseManque(entreprise)
+  // facture lue par l'IA : son image d'origine, en grand
+  const cheminImage = (d.ai_data as { apercu?: string } | null)?.apercu ?? (d.file_path && /\.(jpe?g|png|webp|heic|gif)$/i.test(d.file_path) ? d.file_path : null)
+  const image = useImageFacture(open ? cheminImage : null)
+  const original = useImageFacture(open && d.file_path && d.file_path !== cheminImage ? d.file_path : null)
+  const [zoom, setZoom] = useState(false)
 
   async function enregistrer(patch: Partial<GDoc> = {}, fermer = false): Promise<GDoc | null> {
     if (!userId) return null
@@ -98,7 +104,10 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
     }
     setBusy(false)
     if (res.error || !res.data) { toast.error(res.error?.code === '23505' ? 'Ce numéro existe déjà' : 'Enregistrement impossible'); return null }
-    const saved = res.data as GDoc
+    let saved = res.data as GDoc
+    // tâche, événement et PDF dans l'espace de base
+    const liens = await synchroniser(saved, { wsId: ws.id, userId, client: fiches.find((f) => f.id === saved.contact_id) ?? null, entreprise, pdf: ctxPdf(saved) })
+    saved = { ...saved, ...liens }
     log(x.id ? (patch.status && patch.status !== d.status ? `status:${patch.status}` : 'update') : 'create', 'gestion_documents', saved.id, { number: saved.number, kind: saved.kind })
     // les intervenants nouvellement ajoutés sont prévenus
     if (saved.kind === 'intervention') for (const m of saved.assigned_to.filter((u) => !(doc?.assigned_to ?? []).includes(u)))
@@ -133,27 +142,21 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
     const { data, error } = await getDb().from('gestion_documents').insert(row).select().single()
     if (error || !data) { toast.error('Création impossible'); return }
     log('create', 'gestion_documents', (data as GDoc).id, { number: (data as GDoc).number, kind: vers, depuis: src.number })
+    await synchroniser(data as GDoc, { wsId: ws.id, userId, client, entreprise, pdf: ctxPdf(data as GDoc) })
     toast.success(`${NOM_KIND[vers]} ${(data as GDoc).number} créée`, { action: { label: 'Ouvrir', onClick: () => { window.location.href = `/app/${ws.slug}/gestion/${vers === 'facture' ? 'factures' : 'interventions'}?id=${(data as GDoc).id}` } } })
     onSaved?.(data as GDoc)
   }
-  /** Ordre de mission : une tâche pour le premier intervenant + un événement au calendrier, liés à l'intervention. */
+  /** Ordre de mission : la tâche et l'événement se créent tout seuls dès qu'il y a une date de début. */
   async function planifier() {
-    const src = d.id ? d : await enregistrer()
-    if (!src?.id || !userId) return
-    if (!src.start_at) { toast.error('Indique la date et l’heure de début'); return }
-    const titre = `${src.intervention_type ?? 'Intervention'} · ${client?.company || client?.name || src.title || ''} (${src.number})`.trim()
-    const desc = [src.travaux, src.address || client?.address, client?.phone && `Tél. ${client.phone}`].filter(Boolean).join('\n')
-    const fin = src.end_at ?? new Date(new Date(src.start_at).getTime() + 2 * 3600_000).toISOString()
-    const db = getDb()
-    let task_id = src.task_id, event_id = src.event_id
-    if (!task_id) { const r = await db.from('tasks').insert({ workspace_id: ws.id, title: titre, description: desc || null, status: 'todo', priority: src.priority === 'urgente' ? 'urgent' : src.priority === 'haute' ? 'high' : 'medium', assignee_id: src.assigned_to?.[0] ?? null, due_date: src.start_at.slice(0, 10), created_by: userId, tags: ['intervention'] }).select('id').single(); task_id = (r.data as { id: string } | null)?.id ?? null }
-    if (!event_id) { const r = await db.from('events').insert({ workspace_id: ws.id, title: titre, description: desc || null, start_at: src.start_at, end_at: fin, location: src.address || client?.address || null, attendees: src.assigned_to ?? [], task_id, created_by: userId }).select('id').single(); event_id = (r.data as { id: string } | null)?.id ?? null }
-    await enregistrer({ task_id, event_id, status: src.status === 'a_planifier' ? 'planifiee' : src.status })
-    toast.success('Tâche et événement ajoutés au calendrier')
+    if (!d.start_at) { toast.error('Indique la date et l’heure de début'); return }
+    const saved = await enregistrer({ status: d.status === 'a_planifier' ? 'planifiee' : d.status })
+    if (saved) toast.success('Dans Tâches et au Calendrier')
   }
   async function supprimer() {
     if (!d.id || !confirm(`Supprimer ${NOM_KIND[d.kind].toLowerCase()} ${d.number} ? Il ira dans la corbeille.`)) return
-    await getDb().from('gestion_documents').update({ deleted_at: new Date().toISOString() }).eq('id', d.id)
+    const now = new Date().toISOString()
+    await getDb().from('gestion_documents').update({ deleted_at: now }).eq('id', d.id)
+    if (userId) await synchroniser({ ...(d as GDoc), deleted_at: now }, { wsId: ws.id, userId, client, entreprise })
     log('delete', 'gestion_documents', d.id, { number: d.number }); onClose()
   }
   async function pdf(action: 'dl' | 'print') {
@@ -183,6 +186,13 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
           {canWrite && <Button variant="primary" loading={busy} onClick={() => enregistrer({}, true)}>Enregistrer</Button>}
         </>}>
         <div className="space-y-5">
+          {(image || cheminImage) && (
+            <section className="overflow-hidden rounded-2xl border border-border bg-surface-2/40">
+              <div className="flex items-center justify-between px-4 py-2.5 text-[13px] font-medium"><span>Facture d’origine</span>
+                <span className="flex gap-3 text-[12.5px] font-normal">{original && <a href={original} target="_blank" rel="noreferrer" className="text-text-3 hover:text-text">PDF d’origine</a>}{image && <button onClick={() => setZoom(true)} className="text-text-3 hover:text-text">Agrandir</button>}</span></div>
+              {image ? <button type="button" onClick={() => setZoom(true)} className="block w-full bg-white" aria-label="Voir la facture en grand"><img src={image} alt="Facture d’origine" className="mx-auto max-h-[60vh] w-full object-contain object-top" /></button>
+                : <div className="skeleton mx-4 mb-4 h-60 rounded-lg" />}
+            </section>)}
           {/* statut + client */}
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px]">
             <Field label={d.kind === 'achat' ? 'Fournisseur / client lié' : 'Client'}>
@@ -286,7 +296,7 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
           {canWrite && d.id && d.kind !== 'achat' && (
             <div className="flex flex-wrap gap-2">
               {d.kind === 'devis' && <><Button size="sm" onClick={() => convertir('facture')}><Receipt className="size-4" />Créer la facture</Button><Button size="sm" onClick={() => convertir('intervention')}><Wrench className="size-4" />Créer l’intervention</Button></>}
-              {d.kind === 'intervention' && <><Button size="sm" onClick={planifier} disabled={!!d.task_id && !!d.event_id}><CalendarPlus className="size-4" />{d.task_id && d.event_id ? 'Tâche et calendrier liés' : 'Ordre de mission : tâche + calendrier'}</Button><Button size="sm" onClick={() => convertir('facture')}><Receipt className="size-4" />Facturer</Button></>}
+              {d.kind === 'intervention' && <><Button size="sm" onClick={planifier} disabled={!!d.event_id}><CalendarPlus className="size-4" />{d.event_id ? 'Dans Tâches et au Calendrier' : 'Planifier (Tâches + Calendrier)'}</Button><Button size="sm" onClick={() => convertir('facture')}><Receipt className="size-4" />Facturer</Button></>}
               {d.kind === 'facture' && d.status !== 'payee' && <Button size="sm" onClick={() => enregistrer({ status: 'payee', paid_at: auj() })}><CheckCircle2 className="size-4" />Marquer payée</Button>}
             </div>)}
 
@@ -304,6 +314,7 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
         </div>
       </Dialog>
 
+      <ImageFacture src={zoom ? image : null} onClose={() => setZoom(false)} />
       <NouveauClient open={nouveauClient} onClose={() => setNouveauClient(false)} onCree={(f) => setD((x) => ({ ...x, contact_id: f.id, address: x.address || f.address || null }))} />
       {d.id && <EnvoiDialog open={envoi} onClose={() => setEnvoi(false)} doc={d as GDoc} client={client} lien={lienSignature} ctx={ctxPdf(d as GDoc)} onEnvoye={(to) => enregistrer({ sent_at: new Date().toISOString(), sent_to: to, status: d.status === 'brouillon' ? (d.kind === 'devis' ? 'envoye' : 'envoyee') : d.status })} />}
     </>
@@ -329,6 +340,7 @@ export function NouveauClient({ open, onClose, onCree, initial }: { open: boolea
     setBusy(false)
     if (error || !data) { toast.error(/column/.test(error?.message ?? '') ? 'La migration de la gestion n’est pas encore passée' : 'Enregistrement impossible'); return }
     log(initial ? 'update' : 'create', 'crm_contacts', (data as Fiche).id, { name: row.name })
+    if (!initial) void espaceClient(ws.id, userId, [{ name: row.name!, company: row.company, notes: row.notes }])
     onCree?.(data as Fiche); onClose()
   }
   const c = (k: keyof typeof vide, l: string, p: { type?: string; ph?: string; cls?: string } = {}) => <Field label={l} className={p.cls}><Input type={p.type ?? 'text'} value={f[k]} placeholder={p.ph} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></Field>
@@ -358,18 +370,24 @@ function EnvoiDialog({ open, onClose, doc, client, lien, ctx, onEnvoye }: { open
     setTo(client?.email ?? '')
     setMsg(`Bonjour${client?.name ? ` ${client.name}` : ''},\n\nVous trouverez ci-joint ${doc.kind === 'facture' ? 'la' : 'le'} ${nom} ${doc.number} d’un montant de ${eur(doc.total_ttc)} TTC.${doc.kind === 'devis' ? '\nVous pouvez le lire et le signer en ligne depuis votre téléphone ou votre ordinateur avec le lien ci-dessous.' : ''}\n\nBien cordialement,\n${e.nom ?? ws.name}`)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Envoi depuis la messagerie de l'utilisateur (la sienne, pas celle de Flow) : sur téléphone, le menu Partager joint le PDF
+  // directement au mail ; sur ordinateur, sa messagerie s'ouvre avec le message et le lien, et le PDF se télécharge pour le joindre.
   async function envoyer() {
     setBusy(true)
     try {
-      const pdf = await pdfBase64(doc, ctx)
-      const r = isDemoBrowser() ? null : await fetch('/api/gestion/envoyer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ wsId: ws.id, docId: doc.id, to: to.trim(), message: msg, pdf }) }).catch(() => null)
-      if (r?.ok) { toast.success(`Envoyé à ${to}`); log('sent', 'gestion_documents', doc.id, { to }); onEnvoye(to.trim()); onClose(); return }
-      // pas de service d'e-mail branché : on ouvre la messagerie de l'appareil avec le lien de signature, et on télécharge le PDF à joindre
+      const sujet = `${NOM_KIND[doc.kind]} ${doc.number} · ${e.nom ?? ws.name}`
       const corps = `${msg}\n\n${doc.kind === 'devis' ? 'Lire et signer en ligne' : 'Voir le document'} : ${lien}`
-      window.location.href = `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(`${NOM_KIND[doc.kind]} ${doc.number} · ${e.nom ?? ws.name}`)}&body=${encodeURIComponent(corps)}`
-      await telechargerPdf(doc, ctx)
-      toast.info('Ta messagerie s’ouvre avec le message ; le PDF vient d’être téléchargé pour le joindre.')
-      log('sent', 'gestion_documents', doc.id, { to, via: 'mailto' }); onEnvoye(to.trim()); onClose()
+      const { creerPdf, nomFichier } = await import('@/lib/gestion-pdf')
+      const fichier = new File([(await creerPdf(doc, ctx)).output('blob')], nomFichier(doc), { type: 'application/pdf' })
+      const tactile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+      if (tactile && navigator.canShare?.({ files: [fichier] })) {
+        try { await navigator.share({ files: [fichier], title: sujet, text: corps }) } catch (err) { if ((err as Error).name === 'AbortError') return; throw err }
+      } else {
+        window.location.href = `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`
+        const a = document.createElement('a'); a.href = URL.createObjectURL(fichier); a.download = fichier.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 30_000)
+        toast.info('Ta messagerie s’ouvre avec le message ; le PDF vient d’être téléchargé pour le joindre.')
+      }
+      log('sent', 'gestion_documents', doc.id, { to }); onEnvoye(to.trim()); onClose()
     } catch (err) { toast.error((err as Error).message) } finally { setBusy(false) }
   }
   return (
@@ -378,7 +396,7 @@ function EnvoiDialog({ open, onClose, doc, client, lien, ctx, onEnvoye }: { open
       <div className="space-y-3">
         <Field label="E-mail du client"><Input type="email" value={to} onChange={(ev) => setTo(ev.target.value)} placeholder="client@exemple.fr" /></Field>
         <Field label="Message"><Textarea rows={7} value={msg} onChange={(ev) => setMsg(ev.target.value)} /></Field>
-        <p className="text-[12px] text-text-3">Le PDF est joint et le message contient le lien pour {doc.kind === 'devis' ? 'lire et signer le devis' : 'voir le document'} en ligne.</p>
+        <p className="text-[12px] text-text-3">Le message part de ta propre messagerie, avec le PDF et le lien pour {doc.kind === 'devis' ? 'lire et signer le devis' : 'voir le document'} en ligne.</p>
       </div>
     </Dialog>
   )

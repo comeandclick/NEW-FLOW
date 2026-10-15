@@ -15,8 +15,9 @@ import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { useSession } from '@/lib/hooks/use-session'
 import { getDb } from '@/lib/supabase/client'
 import { CHAMPS, devinerColonnes, lireFichier, preparer, type TypeImport } from '@/lib/gestion-import'
+import { espaceClient, synchroniser } from '@/lib/gestion-sync'
 import { cn } from '@/lib/utils'
-import type { DocKind } from '@/lib/gestion'
+import type { DocKind, GDoc } from '@/lib/gestion'
 
 const TYPES: { v: TypeImport; l: string; d: string; I: typeof Users; href: string }[] = [
   { v: 'clients', l: 'Fiches clients', d: 'Codes, coordonnées, adresses, SIRET', I: Users, href: 'clients' },
@@ -74,13 +75,19 @@ export default function ImportPage() {
         if (error) throw error
         lot.forEach((c, j) => ids.set(c.cle, (crees as { id: string }[])[j].id))
       }
+      const ouverts: GDoc[] = []
       const rows = prep.rows.map((r) => (typeof r.contact_id === 'string' && r.contact_id.startsWith('@') ? { ...r, contact_id: ids.get(r.contact_id.slice(1)) ?? null } : r))
       // 2. les lignes, par paquets (les grandes listes d'articles passent sans bloquer)
       for (let i = 0; i < rows.length; i += PAQUET) {
-        const { error } = await db.from(prep.table).insert(rows.slice(i, i + PAQUET))
+        const { data: lot, error } = await db.from(prep.table).insert(rows.slice(i, i + PAQUET)).select('*')
         if (error) throw error
+        if (prep.table === 'gestion_documents') ouverts.push(...((lot ?? []) as GDoc[]).filter((d) => (d.kind === 'intervention' && !d.closed_at && d.status !== 'annulee' && (!d.start_at || d.start_at >= new Date().toISOString())) || (d.kind === 'facture' && !['payee', 'annulee'].includes(d.status) && d.due_at) || (d.kind === 'devis' && ['envoye', 'en_attente'].includes(d.status))))
         setAvance(Math.min(rows.length, i + PAQUET) / rows.length)
       }
+      // les clients importés ou créés ont aussi leur espace dans Clients
+      await espaceClient(ws.id, userId, [...prep.clientsACreer.map((c) => ({ name: c.name })), ...(prep.table === 'crm_contacts' ? rows.map((r) => ({ name: String(r.name), company: (r.company as string | null) ?? null, notes: (r.notes as string | null) ?? null })) : [])])
+      // ce qui est encore ouvert (interventions à venir, factures à encaisser, devis en attente) arrive dans Tâches et au Calendrier
+      for (const d of ouverts.slice(0, 300)) await synchroniser(d, { wsId: ws.id, userId, entreprise: {} })
       log('import', prep.table, null, { type, fichier, lignes: rows.length })
       setFini({ n: rows.length, ignores: prep.ignores, clients: prep.clientsACreer.length })
       setData(null); fiches.refresh(); articles.refresh(); docs.refresh()

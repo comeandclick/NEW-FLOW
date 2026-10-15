@@ -27,6 +27,16 @@ export type Widget =
   | { type: 'video_demande'; d: DemandeVideo }
   | { type: 'envoi_agent'; titre: string; consigne: string; agent?: string; note?: string }
   | { type: 'modele_motion'; client: string; titre: string; idee: string; format?: string; duree?: number }
+  // gestion (15/10/2026)
+  | { type: 'gestion'; vue: VueGestion; filtre?: string; periode?: 'semaine' | 'mois' | 'annee' | 'tout'; client?: string; membre?: string }
+  | { type: 'fiche_gestion'; nom: string }
+  | { type: 'articles'; recherche?: string }
+  | { type: 'document'; d: BrouillonDoc }
+  | { type: 'action_doc'; numero: string; action: ActionDoc }
+  | { type: 'lire_facture'; cle?: string }
+export type VueGestion = 'bilan' | 'devis' | 'factures' | 'interventions' | 'achats'
+export type ActionDoc = 'payer' | 'accepter' | 'refuser' | 'cloturer' | 'envoyer' | 'pdf' | 'ouvrir' | 'facturer'
+export type BrouillonDoc = { kind: 'devis' | 'facture' | 'intervention'; client?: string; titre?: string; date?: string; heure?: string; duree?: number; type_intervention?: string; intervenant?: string; travaux?: string; lignes?: { label: string; qty: number; price_ht?: number }[]; priorite?: string }
 
 const obj = (props: Record<string, unknown> = {}, required: string[] = []) => ({ type: 'object', properties: props, required })
 const choix = (valeurs: string[]) => ({ type: 'string', enum: valeurs })
@@ -54,9 +64,19 @@ export const OUTILS = [
     input_schema: obj({ titre: { type: 'string' }, consigne: { type: 'string' }, ...Object.fromEntries(['agent', 'note'].map((k) => [k, { type: ['string', 'null'] }])) }, ['titre', 'consigne']) },
   { name: 'proposer_modele_motion', description: 'Nouveau modèle vidéo pour un client. idee = déroulé précis (format, durée, scènes, texte, voix).',
     input_schema: obj({ client: { type: 'string' }, titre: { type: 'string' }, idee: { type: 'string' }, ...Object.fromEntries(['format', 'duree'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['client', 'titre', 'idee']) },
+  { name: 'afficher_gestion', description: 'Gestion (devis, factures, interventions, factures reçues, bilan chiffré). vue : bilan | devis | factures | interventions | achats. filtre : devis (en_attente, acceptes, refuses, brouillons, tous) ; factures (a_encaisser, en_retard, payees, toutes) ; interventions (a_venir, aujourdhui, non_cloturees, cloturees, a_planifier, toutes). client / membre = nom pour filtrer.',
+    input_schema: obj({ vue: choix(['bilan', 'devis', 'factures', 'interventions', 'achats']), ...Object.fromEntries(['filtre', 'periode', 'client', 'membre'].map((k) => [k, { type: ['string', 'null'] }])) }, ['vue']) },
+  { name: 'afficher_fiche_gestion', description: 'Fiche client de la gestion : coordonnées, chiffre d\'affaires, tous ses devis, factures, interventions.', input_schema: obj({ nom: { type: 'string' } }, ['nom']) },
+  { name: 'afficher_articles', description: 'Catalogue d\'articles et prix (recherche = mots).', input_schema: obj({ recherche: { type: ['string', 'null'] } }) },
+  { name: 'preparer_document', description: 'Formulaire de devis, facture ou intervention (ordre de mission), sur demande explicite. lignes = [{label, qty, price_ht?}] (price_ht vide = prix du catalogue). date AAAA-MM-JJ, heure HH:MM, duree en min, intervenant = membre.',
+    input_schema: obj({ kind: choix(['devis', 'facture', 'intervention']), lignes: { type: ['array', 'null'], items: obj({ label: { type: 'string' }, qty: { type: 'number' }, price_ht: { type: ['number', 'null'] } }, ['label']) }, ...Object.fromEntries(['client', 'titre', 'date', 'heure', 'duree', 'type_intervention', 'intervenant', 'travaux', 'priorite'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['kind']) },
+  { name: 'action_document', description: 'Action sur un devis/facture/intervention existant (numéro, ex. DE-2026-0004) : payer (facture payée), accepter, refuser, cloturer, envoyer (au client), pdf, ouvrir, facturer (créer la facture). L\'utilisateur confirme.', input_schema: obj({ numero: { type: 'string' }, action: choix(['payer', 'accepter', 'refuser', 'cloturer', 'envoyer', 'pdf', 'ouvrir', 'facturer']) }, ['numero', 'action']) },
+  { name: 'lire_facture', description: 'Ouvre la zone pour envoyer la photo ou le PDF d\'une facture : l\'IA la lit, la range, met l\'échéance au calendrier.', input_schema: obj() },
   { name: 'preparer_creation', description: 'Formulaire tâche / evenement / note, sur demande explicite. Champs inconnus omis. date AAAA-MM-JJ, heure HH:MM, assigne = membre ou « agent IA », avec = invités, duree en min, priorite low/medium/high/urgent.',
     input_schema: obj({ objet: choix(['tache', 'evenement', 'note']), ...Object.fromEntries(['titre', 'date', 'heure', 'duree', 'assigne', 'avec', 'lieu', 'priorite', 'contenu', 'client'].map((k) => [k, { type: ['string', 'number', 'null'] }])) }, ['objet']) },
 ] as const
+
+export const OUTILS_GESTION: string[] = ['afficher_gestion', 'afficher_fiche_gestion', 'afficher_articles', 'preparer_document', 'action_document', 'lire_facture']
 
 const str = (v: unknown, n = 200) => (typeof v === 'string' && v.trim() && v.trim() !== 'null' ? v.trim().slice(0, n) : undefined)
 const parmi = <T extends string>(v: unknown, liste: readonly T[], defaut: T): T => (liste.includes(v as T) ? (v as T) : defaut)
@@ -82,6 +102,16 @@ export function versWidget(nom: string, e: Record<string, unknown>): Widget | nu
       publication: str(e.publication, 10) && /^\d{4}-\d{2}-\d{2}$/.test(str(e.publication, 10)!) ? str(e.publication, 10) : undefined, duree: Number(e.duree) >= 5 && Number(e.duree) <= 600 ? Math.round(Number(e.duree)) : undefined } } : null
     case 'envoyer_agent': return str(e.consigne) ? { type: 'envoi_agent', titre: str(e.titre, 100) ?? 'Consigne', consigne: str(e.consigne, 4000)!, agent: str(e.agent, 60), note: str(e.note, 160) } : null
     case 'proposer_modele_motion': return str(e.client) && str(e.idee) ? { type: 'modele_motion', client: str(e.client, 80)!, titre: str(e.titre, 100) ?? 'Nouveau modèle', idee: str(e.idee, 3000)!, format: str(e.format, 12), duree: Number(e.duree) >= 5 && Number(e.duree) <= 600 ? Math.round(Number(e.duree)) : undefined } : null
+    case 'afficher_gestion': return { type: 'gestion', vue: parmi(e.vue, ['bilan', 'devis', 'factures', 'interventions', 'achats'], 'bilan'), filtre: str(e.filtre, 30), periode: parmi(e.periode, ['semaine', 'mois', 'annee', 'tout'] as const, 'mois'), client: str(e.client, 80), membre: str(e.membre, 80) }
+    case 'afficher_fiche_gestion': return str(e.nom) ? { type: 'fiche_gestion', nom: str(e.nom, 80)! } : { type: 'gestion', vue: 'bilan' }
+    case 'afficher_articles': return { type: 'articles', recherche: str(e.recherche, 80) }
+    case 'preparer_document': {
+      const date = str(e.date, 10), heure = str(e.heure, 5)
+      const lignes = Array.isArray(e.lignes) ? (e.lignes as Record<string, unknown>[]).filter((l) => str(l?.label)).slice(0, 30).map((l) => ({ label: str(l.label, 160)!, qty: Number(l.qty) > 0 ? Number(l.qty) : 1, price_ht: Number(l.price_ht) > 0 ? Number(l.price_ht) : undefined })) : undefined
+      return { type: 'document', d: { kind: parmi(e.kind, ['devis', 'facture', 'intervention'], 'devis'), client: str(e.client, 80), titre: str(e.titre, 160), date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined, heure: heure && /^\d{1,2}:\d{2}$/.test(heure) ? heure.padStart(5, '0') : undefined, duree: Number(e.duree) > 0 ? Math.round(Number(e.duree)) : undefined, type_intervention: str(e.type_intervention, 60), intervenant: str(e.intervenant, 80), travaux: str(e.travaux, 2000), priorite: str(e.priorite, 12), lignes } }
+    }
+    case 'action_document': return str(e.numero) ? { type: 'action_doc', numero: str(e.numero, 40)!, action: parmi(e.action, ['payer', 'accepter', 'refuser', 'cloturer', 'envoyer', 'pdf', 'ouvrir', 'facturer'], 'ouvrir') } : null
+    case 'lire_facture': return { type: 'lire_facture' }
     case 'preparer_creation': {
       const date = str(e.date, 10), heure = str(e.heure, 5)
       return { type: 'creation', c: {
@@ -100,6 +130,9 @@ export function resumeWidget(w: Widget): string {
   if (w.type === 'envoi_agent') return `[envoi à un agent préparé : « ${w.titre} » ${w.note ? `(note « ${w.note} »)` : ''} : ${w.consigne.slice(0, 300)}]`
   if (w.type === 'video_demande') return `[widget de lancement de vidéo affiché : ${JSON.stringify(w.d)} ; si l'utilisateur précise quelque chose, rappelle preparer_video avec TOUS les champs]`
   if (w.type === 'modele_motion') return `[modèle motion proposé pour ${w.client} : « ${w.titre} » : ${w.idee.slice(0, 400)}]`
+  if (w.type === 'document') return `[formulaire de ${w.d.kind} affiché avec : ${JSON.stringify(w.d)} ; si l'utilisateur complète, rappelle preparer_document avec TOUS les champs]`
+  if (w.type === 'gestion') return `[widget gestion affiché : ${w.vue}${w.filtre ? ' ' + w.filtre : ''}${w.client ? ' client ' + w.client : ''}]`
+  if (w.type === 'action_doc') return `[action proposée : ${w.action} ${w.numero}]`
   if (w.type !== 'creation') return `[widget affiché : ${w.type}${'periode' in w ? ' ' + w.periode : ''}${'filtre' in w ? ' ' + w.filtre : ''}${'nom' in w ? ' ' + w.nom : ''}]`
   const { objet, ...champs } = w.c
   return `[formulaire de création (${objet}) affiché avec : ${JSON.stringify(champs)} ; si l'utilisateur donne les infos manquantes, rappelle preparer_creation avec TOUS les champs]`
@@ -121,6 +154,20 @@ export function comprendre(texte: string): { texte: string; widgets: Widget[] } 
     const titre = texte.replace(/^.*?(t[âa]che|rendez-vous|rdv|r[ée]union|[ée]v[ée]nement|appel|note)\s*(:|pour|de|d'|qui)?\s*/i, '').replace(/\s*(demain|aujourd'hui|apr[èe]s-demain|la semaine prochaine|[àa]\s*\d{1,2}\s*h\s*\d{0,2}|avec un agent ia.*|avec\s+\S+).*$/i, '').trim()
     return { texte: 'Je prépare ça, vérifie et complète si besoin :', widgets: [{ type: 'creation', c: { objet, titre: titre || undefined, date, heure: h ? `${h[1].padStart(2, '0')}:${h[2] ?? '00'}` : undefined, avec: objet === 'evenement' ? avec : undefined, assigne: /agent ia/.test(t) ? 'agent IA' : undefined } }] }
   }
+  // gestion
+  if (/(facture|ticket).*(photo|scan|lis|lire|analyse|depose|envoie)|(photo|scan|lis|lire|analyse).*(facture|ticket)/.test(t)) return { texte: 'Envoie-moi la facture, je la lis :', widgets: [{ type: 'lire_facture' }] }
+  const nouveauDoc = t.match(/(?:cree|creer|fais|prepare|nouveau|nouvelle|ajoute|planifie)\s+(?:moi\s+)?(?:un|une|le|la)?\s*(devis|facture|intervention|ordre de mission|depannage|installation)/)
+  if (nouveauDoc) {
+    const kind = /devis/.test(nouveauDoc[1]) ? 'devis' : /facture/.test(nouveauDoc[1]) ? 'facture' : 'intervention'
+    const client = texte.match(/pour\s+(?:le client\s+|la client\s+|mme\s+|m\.?\s+|madame\s+|monsieur\s+)?([A-ZÀ-Ý][\wÀ-ÿ-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ-]+)?)/)?.[1]
+    return { texte: 'Je prépare ça, vérifie et complète :', widgets: [{ type: 'document', d: { kind, client, type_intervention: /depannage/.test(t) ? 'Dépannage' : /installation/.test(t) ? 'Installation' : undefined } }] }
+  }
+  if (/devis/.test(t)) return { texte: 'Voici tes devis :', widgets: [{ type: 'gestion', vue: 'devis', filtre: /(attente|relanc)/.test(t) ? 'en_attente' : /accept|signe/.test(t) ? 'acceptes' : /refus/.test(t) ? 'refuses' : 'tous' }] }
+  if (/intervention|depannage|chantier|ordre de mission/.test(t)) return { texte: 'Voici les interventions :', widgets: [{ type: 'gestion', vue: 'interventions', filtre: /aujourd/.test(t) ? 'aujourdhui' : /clotur/.test(t) ? 'cloturees' : 'a_venir' }] }
+  if (/facture/.test(t) && /(recu|fournisseur|depense|achat)/.test(t)) return { texte: 'Voici tes factures reçues :', widgets: [{ type: 'gestion', vue: 'achats' }] }
+  if (/(facture|encaiss|impaye|paiement)/.test(t)) return { texte: 'Voici tes factures :', widgets: [{ type: 'gestion', vue: 'factures', filtre: /retard/.test(t) ? 'en_retard' : /paye/.test(t) && !/impaye/.test(t) ? 'payees' : 'a_encaisser' }] }
+  if (/(chiffre d'affaire|chiffre d affaire|\bca\b|gains?|benefice|rentr|combien j'ai gagne|tableau de bord)/.test(t)) return { texte: 'Voici tes chiffres :', widgets: [{ type: 'gestion', vue: 'bilan', periode: /annee/.test(t) ? 'annee' : /semaine/.test(t) ? 'semaine' : 'mois' }] }
+  if (/(article|catalogue|tarif)/.test(t)) return { texte: 'Voici ton catalogue :', widgets: [{ type: 'articles', recherche: texte.replace(/^.*?(article|catalogue|tarif)s?\s*(de|du|des|pour)?\s*/i, '').trim() || undefined }] }
   const lanceVideo = t.match(/(?:cree|creer|lance|prepare|fais)\s+(?:moi\s+)?(?:la|une)\s+(?:nouvelle\s+)?(?:video|tiktok)(?:\s+de\s+(demain|aujourd'hui))?.*?(?:pour|de)\s+(?:le\s+tiktok\s+de\s+|l'?|la\s+|le\s+)?([a-z0-9][\w-]*)/)
   if (lanceVideo) {
     const d = new Date(Date.now() + (lanceVideo[1] === 'demain' ? 864e5 : 0)), iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
