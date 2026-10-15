@@ -2,7 +2,8 @@
 // Factures lues par l'IA (15/10/2026) : on dépose une photo ou un PDF, l'assistant lit la facture, reconnaît le client,
 // et propose la suite dans un widget : ranger la facture, mettre l'échéance au calendrier, créer une tâche.
 // En dessous, toutes les factures reçues, triables par client, date ou montant.
-import { useMemo, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Receipt, ScanLine } from 'lucide-react'
@@ -13,8 +14,11 @@ import { AssistantFactures } from '@/components/gestion/assistant-factures'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { eur, type GDoc } from '@/lib/gestion'
 
-export default function ScanPage() {
+export default function ScanPage() { return <Suspense><Scan /></Suspense> }
+
+function Scan() {
   const { canWrite } = useWorkspace()
+  const photoCle = useSearchParams().get('photo') ?? undefined
   const docs = useDocs()
   const fiches = useFiches()
   const articles = useArticles()
@@ -39,7 +43,7 @@ export default function ScanPage() {
     <div className="mx-auto w-full max-w-[1100px] px-4 py-6 sm:px-6">
       <PageHeader title="Factures lues par l’IA" icon={<ScanLine className="size-[18px]" />} />
       {docs.manque ? <AvisMigration /> : <>
-        {canWrite && <div className="mb-6"><AssistantFactures onOuvrir={(id) => setOuvert(docs.data.find((d) => d.id === id) ?? null)} /></div>}
+        {canWrite && <div className="mb-6"><AssistantFactures cle={photoCle} onOuvrir={(id) => setOuvert(docs.data.find((d) => d.id === id) ?? null)} /></div>}
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-[15px] font-semibold">Factures rangées <span className="font-normal text-text-3">({recues.length})</span></h2>
           <Chips value={tri} onChange={setTri} items={[{ v: 'date', l: 'Par date' }, { v: 'client', l: 'Par client' }, { v: 'montant', l: 'Par montant' }]} /></div>

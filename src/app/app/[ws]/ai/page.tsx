@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUp, BarChart3, CalendarDays, CalendarPlus, CheckSquare, Film, Handshake, Paperclip, Receipt, SquarePen, Sparkles, Wrench } from 'lucide-react'
 import { fichiersEnAttente } from '@/components/gestion/assistant-factures'
+import { BoutonPhoto } from '@/components/gestion/photo-facture'
 import { aGestion, modulesActifs } from '@/lib/modules'
 import { getDb } from '@/lib/supabase/client'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
@@ -112,11 +113,12 @@ export default function AiPage() {
 
   // trombone : une facture (photo ou PDF) jointe est lue par l'IA dans un widget de la conversation
   const joindre = useRef<HTMLInputElement>(null)
-  function joindreFactures(files: FileList | null) {
-    if (!files?.length) return
+  function joindreFactures(liste: FileList | File[] | null) {
+    const files = liste ? Array.from(liste) : []
+    if (!files.length) return
     const cle = crypto.randomUUID()
-    fichiersEnAttente.set(cle, Array.from(files))
-    const fin: Msg[] = [...msgs, { id: cle + 'q', role: 'user', content: `Lis ${files.length > 1 ? `ces ${files.length} factures` : 'cette facture'} : ${Array.from(files).map((f) => f.name).join(', ')}` }, { id: cle, role: 'assistant', content: 'Je lis tout et je te propose la suite :', widgets: [{ type: 'lire_facture', cle }] }]
+    fichiersEnAttente.set(cle, files)
+    const fin: Msg[] = [...msgs, { id: cle + 'q', role: 'user', content: `Lis ${files.length > 1 ? `ces ${files.length} factures` : 'cette facture'} : ${files.map((f) => f.name).join(', ')}` }, { id: cle, role: 'assistant', content: 'Je lis tout et je te propose la suite :', widgets: [{ type: 'lire_facture', cle }] }]
     setMsgs(fin); void sauver(fin)
   }
 
@@ -177,7 +179,8 @@ export default function AiPage() {
 
       <form onSubmit={(e) => { e.preventDefault(); void ask(input) }} className="sticky bottom-0 mb-2 flex shrink-0 items-end gap-2 rounded-2xl border border-border-strong bg-surface p-1.5 shadow-md transition-shadow focus-within:border-text/40 sm:mb-4">
         {gestionActive && <><input ref={joindre} type="file" accept="image/*,application/pdf" multiple hidden onChange={(e) => { joindreFactures(e.target.files); e.target.value = '' }} />
-        <button type="button" onClick={() => joindre.current?.click()} aria-label="Joindre une facture (photo ou PDF)" title="Joindre une facture" className="grid size-9 shrink-0 place-items-center rounded-xl text-text-3 transition-colors hover:bg-surface-2 hover:text-text"><Paperclip className="size-4" /></button></>}
+        <button type="button" onClick={() => joindre.current?.click()} aria-label="Joindre une facture (photo ou PDF)" title="Joindre une facture" className="grid size-9 shrink-0 place-items-center rounded-xl text-text-3 transition-colors hover:bg-surface-2 hover:text-text"><Paperclip className="size-4" /></button>
+        <BoutonPhoto icone label="Prendre une facture en photo" onPhotos={joindreFactures} className="-ml-2 grid size-9 shrink-0 place-items-center rounded-xl text-text-3 transition-colors hover:bg-surface-2 hover:text-text" /></>}
         <textarea ref={zone} value={input} onChange={(e) => setInput(e.target.value)} rows={1} placeholder="Demande-moi tes tâches, un client, une vidéo…" aria-label={t('ai.placeholder')}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input) } }}
           className="max-h-40 min-h-9 min-w-0 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-2.5 py-2 text-[14px] leading-5 outline-none placeholder:text-text-3 [overflow-wrap:anywhere]" />

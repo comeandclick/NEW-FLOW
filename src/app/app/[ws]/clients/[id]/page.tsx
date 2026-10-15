@@ -1,4 +1,6 @@
 'use client'
+import { FileSignature } from 'lucide-react'
+import { aGestion, modulesActifs } from '@/lib/modules'
 import { use, useCallback, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -133,6 +135,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
           <p className="truncate text-[13px] text-text-3">{[client.company, cadenceLabel(t, client)].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <FicheGestionLien nom={client.name} />
           <Button size="sm" variant="primary" onClick={() => void copy(client.access_token)}><Link2 className="size-3.5" />{t('cli.copyLink')}</Button>
           <a href={`/c/${client.access_token}`} target="_blank" rel="noopener noreferrer"><Button size="sm" variant="outline"><ExternalLink className="size-3.5" />{t('cli.openAsClient')}</Button></a>
           {canWrite && (
@@ -161,4 +164,14 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
       </Dialog>
     </div>
   )
+}
+
+/** Le même client dans la gestion (fiche avec devis, factures, interventions), retrouvé par son nom. */
+function FicheGestionLien({ nom }: { nom: string }) {
+  const { ws } = useWorkspace()
+  const gestion = aGestion(modulesActifs(ws))
+  const fiches = useLive<{ id: string; name: string }>('crm_contacts', { select: 'id,name', eq: { workspace_id: ws.id, name: nom }, is: { deleted_at: null }, enabled: gestion, live: false })
+  const f = fiches.data[0]
+  if (!gestion || !f) return null
+  return <Link href={`/app/${ws.slug}/gestion/clients/${f.id}`}><Button size="sm" variant="outline"><FileSignature className="size-3.5" />Devis, factures, interventions</Button></Link>
 }

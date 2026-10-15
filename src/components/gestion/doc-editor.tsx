@@ -304,7 +304,7 @@ export function DocEditor({ open, onClose, kind, doc, preset, docs, fiches, arti
             <div className="flex flex-wrap gap-2 text-[12.5px]">
               {parent && <Link href={`/app/${ws.slug}/gestion/${parent.kind === 'devis' ? 'devis' : parent.kind === 'facture' ? 'factures' : 'interventions'}?id=${parent.id}`} className="rounded-full border border-border px-2.5 py-1 hover:bg-surface-2">Issu de {NOM_KIND[parent.kind].toLowerCase()} {parent.number}</Link>}
               {enfants.map((e) => <Link key={e.id} href={`/app/${ws.slug}/gestion/${e.kind === 'facture' ? 'factures' : 'interventions'}?id=${e.id}`} className="rounded-full border border-border px-2.5 py-1 hover:bg-surface-2">{NOM_KIND[e.kind]} {e.number}</Link>)}
-              {d.task_id && <Link href={`/app/${ws.slug}/tasks?task=${d.task_id}`} className="rounded-full border border-border px-2.5 py-1 hover:bg-surface-2">Tâche liée</Link>}
+              {d.task_id && <Link href={`/app/${ws.slug}/tasks?open=${d.task_id}`} className="rounded-full border border-border px-2.5 py-1 hover:bg-surface-2">Tâche liée</Link>}
               {d.event_id && <Link href={`/app/${ws.slug}/calendar`} className="rounded-full border border-border px-2.5 py-1 hover:bg-surface-2">Au calendrier</Link>}
             </div>)}
 

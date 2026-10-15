@@ -1,4 +1,5 @@
 'use client'
+import { LienGestion } from '@/components/gestion/lien-gestion'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -272,6 +273,7 @@ function CalendarPage() {
               <div className="flex items-center gap-2">{draft.meeting_id && <Button size="xs" variant="primary" onClick={() => router.push(`/app/${ws.slug}/meetings/${draft.meeting_id}`)}>{t('meet.join')}</Button>}
                 <Switch checked={draft.visio} onChange={(v) => setDraft({ ...draft, visio: v })} label={t('cal.visio')} /></div></div>
             <Field label={t('cal.location')}><Input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} /></Field>
+            <LienGestion texte={draft.description} />
             <Field label={t('common.description')}><Textarea rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></Field>
             <div><span className="mb-1.5 block text-[13px] font-medium text-text-2">{t('cal.color')}</span>
               <div className="flex gap-2">{COLORS.map((c) => <button key={c} aria-label={c} onClick={() => setDraft({ ...draft, color: c })} className={cn('size-6 rounded-full ring-offset-2 ring-offset-surface transition', draft.color === c && 'ring-2 ring-text')} style={{ background: c }} />)}</div></div>

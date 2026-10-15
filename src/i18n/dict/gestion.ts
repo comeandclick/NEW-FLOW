@@ -11,6 +11,9 @@ export const gestion = {
     'nav.gestion.equipe': 'Équipe',
     'nav.gestion.articles': 'Articles',
     'nav.gestion.import': 'Import Sphinx',
+    'trash.type.gdoc': 'Devis / facture / intervention',
+    'trash.type.garticle': 'Article',
+    'search.kind.gestion': 'Gestion',
   },
   en: {
     'nav.group.gestion': 'Management',
@@ -24,5 +27,8 @@ export const gestion = {
     'nav.gestion.equipe': 'Team',
     'nav.gestion.articles': 'Items',
     'nav.gestion.import': 'Sphinx import',
+    'trash.type.gdoc': 'Quote / invoice / job',
+    'trash.type.garticle': 'Item',
+    'search.kind.gestion': 'Management',
   },
 } as const

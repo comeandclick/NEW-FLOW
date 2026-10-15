@@ -1,4 +1,6 @@
 'use client'
+import { Receipt } from 'lucide-react'
+import { aGestion, modulesActifs } from '@/lib/modules'
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -10,9 +12,9 @@ import { getDb } from '@/lib/supabase/client'
 import { useI18n } from '@/i18n/provider'
 import { cn } from '@/lib/utils'
 
-type Kind = 'tasks' | 'notes' | 'messages' | 'files' | 'contacts' | 'events' | 'goals' | 'projects' | 'clients'
+type Kind = 'tasks' | 'notes' | 'messages' | 'files' | 'contacts' | 'events' | 'goals' | 'projects' | 'clients' | 'gestion'
 type Hit = { id: string; kind: Kind; title: string; snippet?: string; href: string; meta?: string }
-const ICON: Record<Kind, typeof CheckSquare> = { tasks: CheckSquare, notes: FileText, messages: MessageSquare, files: FolderOpen, contacts: Users, events: CalendarDays, goals: Target, projects: FolderKanban, clients: Handshake }
+const ICON: Record<Kind, typeof CheckSquare> = { tasks: CheckSquare, notes: FileText, messages: MessageSquare, files: FolderOpen, contacts: Users, events: CalendarDays, goals: Target, projects: FolderKanban, clients: Handshake, gestion: Receipt }
 const LIMIT = 12
 
 /** Escapes % and _ so the user's text is matched literally by ILIKE. */
@@ -50,7 +52,7 @@ function SearchInner() {
       const wsq = (table: string, select: string) => db.from(table).select(select).eq('workspace_id', ws.id)
       const { data: convs } = await db.from('conversations').select('id,name,type').eq('workspace_id', ws.id)
       const convMap = new Map(((convs ?? []) as { id: string; name: string | null; type: string }[]).map((c) => [c.id, c]))
-      const [tasks, notes, files, contacts, events, goals, projects, msgs, clients, cmsgs] = await Promise.all([
+      const [tasks, notes, files, contacts, events, goals, projects, msgs, clients, cmsgs, gdocs] = await Promise.all([
         wsq('tasks', 'id,title,description,status').is('deleted_at', null).or(`title.ilike.${p},description.ilike.${p}`).limit(LIMIT),
         wsq('notes', 'id,title,icon,content').is('deleted_at', null).ilike('title', p).limit(LIMIT),
         wsq('files', 'id,name,folder').is('deleted_at', null).ilike('name', p).limit(LIMIT),
@@ -61,19 +63,22 @@ function SearchInner() {
         convMap.size ? db.from('messages').select('id,content,conversation_id,created_at').in('conversation_id', [...convMap.keys()]).is('deleted_at', null).ilike('content', p).order('created_at', { ascending: false }).limit(LIMIT) : Promise.resolve({ data: [] }),
         wsq('clients', 'id,name,company').is('deleted_at', null).or(`name.ilike.${p},company.ilike.${p}`).limit(LIMIT),
         wsq('client_messages', 'id,body,client_id').is('deleted_at', null).ilike('body', p).order('created_at', { ascending: false }).limit(LIMIT),
+        // devis, factures, interventions : numéro, objet, travaux, type, adresse
+        wsq('gestion_documents', 'id,kind,number,title,travaux,intervention_type,status,total_ttc').is('deleted_at', null).or(`number.ilike.${p},title.ilike.${p},travaux.ilike.${p},intervention_type.ilike.${p},address.ilike.${p},ref_externe.ilike.${p}`).limit(LIMIT),
       ])
       if (!alive) return
       const out: Hit[] = []
       for (const r of (tasks.data ?? []) as any[]) out.push({ id: r.id, kind: 'tasks', title: r.title, snippet: r.description ? around(r.description, term) : undefined, href: `${base}/tasks?open=${r.id}`, meta: t(`status.${r.status}` as 'status.todo') })
       for (const r of (notes.data ?? []) as any[]) out.push({ id: r.id, kind: 'notes', title: `${r.icon ?? ''} ${r.title || t('notes.untitled')}`.trim(), snippet: around(plain(r.content), term), href: `${base}/notes/${r.id}` })
       for (const r of (files.data ?? []) as any[]) out.push({ id: r.id, kind: 'files', title: r.name, meta: r.folder, href: `${base}/files` })
-      for (const r of (contacts.data ?? []) as any[]) out.push({ id: r.id, kind: 'contacts', title: r.name, meta: [r.company, r.email].filter(Boolean).join(' · '), href: `${base}/crm` })
+      for (const r of (contacts.data ?? []) as any[]) out.push({ id: r.id, kind: 'contacts', title: r.name, meta: [r.company, r.email].filter(Boolean).join(' · '), href: `${base}/${aGestion(modulesActifs(ws)) ? `gestion/clients/${r.id}` : 'crm'}` })
       for (const r of (events.data ?? []) as any[]) out.push({ id: r.id, kind: 'events', title: r.title, meta: new Date(r.start_at).toLocaleDateString(), href: `${base}/calendar` })
       for (const r of (goals.data ?? []) as any[]) out.push({ id: r.id, kind: 'goals', title: r.title, href: `${base}/goals` })
       for (const r of (projects.data ?? []) as any[]) out.push({ id: r.id, kind: 'projects', title: r.name, snippet: r.description ? around(r.description, term) : undefined, href: `${base}/projects/${r.id}` })
       for (const r of (msgs.data ?? []) as any[]) { const c = convMap.get(r.conversation_id); out.push({ id: r.id, kind: 'messages', title: around(r.content, term), meta: c ? (c.type === 'channel' ? `#${c.name}` : t('nav.messages')) : undefined, href: `${base}/messages/${r.conversation_id}` }) }
       for (const r of (clients.data ?? []) as any[]) out.push({ id: r.id, kind: 'clients', title: r.name, meta: r.company ?? undefined, href: `${base}/clients/${r.id}` })
       for (const r of (cmsgs.data ?? []) as any[]) out.push({ id: r.id, kind: 'clients', title: around(r.body, term), meta: t('cli.tab.chat'), href: `${base}/clients/${r.client_id}` })
+      for (const r of (gdocs.data ?? []) as any[]) out.push({ id: r.id, kind: 'gestion', title: `${r.kind === 'devis' ? 'Devis' : r.kind === 'facture' ? 'Facture' : r.kind === 'intervention' ? 'Intervention' : 'Facture reçue'} ${r.number}${r.title ? ` · ${r.title}` : ''}`, snippet: r.travaux ? around(r.travaux, term) : undefined, meta: [r.intervention_type, `${Number(r.total_ttc).toLocaleString('fr-FR')} €`].filter(Boolean).join(' · '), href: `${base}/gestion/${r.kind === 'devis' ? 'devis' : r.kind === 'facture' ? 'factures' : r.kind === 'intervention' ? 'interventions' : 'scan'}?id=${r.id}` })
       setHits(out); setLoading(false)
     }, 220)
     return () => { alive = false; clearTimeout(id) }

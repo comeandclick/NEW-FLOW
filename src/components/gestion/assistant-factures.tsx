@@ -20,6 +20,7 @@ import { enregistrerFichier, synchroniser } from '@/lib/gestion-sync'
 import { entrepriseDe, eur, prochainNumero, totaux, type GDoc, type Ligne } from '@/lib/gestion'
 import { cn } from '@/lib/utils'
 import { ImageFacture } from './image-facture'
+import { BoutonPhoto } from './photo-facture'
 
 type Lu = {
   type?: string; emetteur?: string; destinataire?: string | null; destinataire_adresse?: string | null; numero?: string | null; date?: string | null; echeance?: string | null
@@ -41,7 +42,7 @@ export function AssistantFactures({ onOuvrir, cle }: { onOuvrir?: (docId: string
   const docs = useDocs()
   const fiches = useFiches()
   const [cartes, setCartes] = useState<Carte[]>([])
-  const input = useRef<HTMLInputElement>(null), photo = useRef<HTMLInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
   const [zoom, setZoom] = useState<string | null>(null)
   const maj = (id: string, p: Partial<Carte>) => setCartes((l) => l.map((c) => (c.id === id ? { ...c, ...p } : c)))
 
@@ -123,11 +124,10 @@ export function AssistantFactures({ onOuvrir, cle }: { onOuvrir?: (docId: string
           <div className="flex items-center gap-2.5 border-b border-border px-4 py-3"><span className="flex size-8 items-center justify-center rounded-full bg-accent-soft text-accent"><Sparkles className="size-4" /></span><div><div className="text-[14px] font-semibold">Assistant factures</div><div className="text-[12px] text-text-3">Envoie une photo ou un PDF : je lis tout et je te propose la suite.</div></div></div>
           <div className="space-y-3 p-4">
             <input ref={input} type="file" accept="image/*,application/pdf" multiple hidden onChange={(e) => { if (e.target.files?.length) void analyser(e.target.files); e.target.value = '' }} />
-            <input ref={photo} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { if (e.target.files?.length) void analyser(e.target.files); e.target.value = '' }} />
             <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) void analyser(e.dataTransfer.files) }}
               className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border-strong px-4 py-6 text-center">
-              <FileUp className="size-6 text-text-3" /><p className="text-[13.5px] text-text-2">Dépose une ou plusieurs factures (photo, scan, PDF)</p>
-              <div className="flex flex-wrap justify-center gap-2"><Button onClick={() => input.current?.click()}><FileUp className="size-4" />Choisir des fichiers</Button><Button className="md:hidden" onClick={() => photo.current?.click()}><Camera className="size-4" />Prendre en photo</Button></div>
+              <FileUp className="size-6 text-text-3" /><p className="text-[13.5px] text-text-2">Prends la facture en photo, ou dépose des photos, scans ou PDF</p>
+              <div className="flex flex-wrap justify-center gap-2"><Button onClick={() => input.current?.click()}><FileUp className="size-4" />Choisir des fichiers</Button><BoutonPhoto onPhotos={(f) => void analyser(f)} /></div>
             </div>
             <AnimatePresence initial={false}>{cartes.map((c) => (
               <motion.div key={c.id} layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-xl border border-border bg-surface-2/40 p-3">

@@ -1,5 +1,8 @@
 'use client'
  
+import Link from 'next/link'
+import { ArrowUpRight } from 'lucide-react'
+import { aGestion, modulesActifs } from '@/lib/modules'
 import { HubTabs } from '@/components/shell/hub-tabs'
 import { useMemo, useState } from 'react'
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
@@ -43,6 +46,7 @@ function Stage({ id, children, count, total }: { id: string; children: React.Rea
 }
 
 export default function CrmPage() {
+  const gestion = aGestion(modulesActifs(useWorkspace().ws))
   const { t } = useI18n()
   const { ws, canWrite, log } = useWorkspace()
   const { userId } = useSession()
@@ -123,7 +127,8 @@ export default function CrmPage() {
           <div className="grid grid-cols-2 gap-3"><Field label={t('crm.company')}><Input value={cDraft.company ?? ''} onChange={(e) => setCDraft({ ...cDraft, company: e.target.value })} /></Field><Field label={t('crm.position')}><Input value={cDraft.position ?? ''} onChange={(e) => setCDraft({ ...cDraft, position: e.target.value })} /></Field>
             <Field label={t('crm.email')}><Input type="email" value={cDraft.email ?? ''} onChange={(e) => setCDraft({ ...cDraft, email: e.target.value })} /></Field><Field label={t('crm.phone')}><Input value={cDraft.phone ?? ''} onChange={(e) => setCDraft({ ...cDraft, phone: e.target.value })} /></Field></div>
           <Field label={t('common.status')}><Select value={cDraft.status ?? 'lead'} onChange={(e) => setCDraft({ ...cDraft, status: e.target.value })}>{STATUSES.map((s) => <option key={s} value={s}>{t(`crm.status.${s}`)}</option>)}</Select></Field>
-          <Field label={t('crm.notes')}><Textarea rows={3} value={cDraft.notes ?? ''} onChange={(e) => setCDraft({ ...cDraft, notes: e.target.value })} /></Field></div>}
+          <Field label={t('crm.notes')}><Textarea rows={3} value={cDraft.notes ?? ''} onChange={(e) => setCDraft({ ...cDraft, notes: e.target.value })} /></Field>
+          {cDraft.id && gestion && <Link href={`/app/${ws.slug}/gestion/clients/${cDraft.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[13px] font-medium hover:bg-surface-2">Fiche client : devis, factures, interventions<ArrowUpRight className="size-3.5 text-text-3" /></Link>}</div>}
       </Dialog>
       <Dialog open={!!dDraft} onClose={() => setDDraft(null)} title={dDraft?.id ? dDraft.title : t('crm.newDeal')}
         footer={<>{dDraft?.id && canWrite && <Button variant="ghost" className="mr-auto text-danger" onClick={async () => { await getDb().from('crm_deals').update({ deleted_at: new Date().toISOString() }).eq('id', dDraft.id); setDDraft(null); deals.refresh() }}><Trash2 className="size-4" />{t('common.delete')}</Button>}

@@ -1,5 +1,6 @@
 'use client'
  
+import { LienGestion } from '@/components/gestion/lien-gestion'
 import { useEffect, useRef, useState } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
@@ -134,6 +135,7 @@ export function TaskPanel({ taskId, open, onClose, onChanged }: { taskId: string
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
             <input value={title} readOnly={ro} onChange={(e) => { setTitle(e.target.value); if (e.target.value.trim()) debounced({ title: e.target.value.trim() }) }}
               className="w-full bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-text-3" placeholder={t('common.title')} />
+            <LienGestion texte={desc} />
             <Textarea value={desc} readOnly={ro} rows={4} placeholder={t('tasks.noDescription')} onChange={(e) => { setDesc(e.target.value); debounced({ description: e.target.value }) }} className="border-transparent bg-transparent px-0 focus:bg-surface-2/60 focus:px-3" />
 
             <div className="grid grid-cols-2 gap-3">

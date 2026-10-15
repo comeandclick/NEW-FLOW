@@ -8,7 +8,8 @@ import { NOM_KIND, eur, type Entreprise, type Fiche, type GDoc } from '@/lib/ges
 import type { ContextePdf } from '@/lib/gestion-pdf'
 
 let slugCourant = ''
-const slugDe = (_d: GDoc) => slugCourant
+/** chemin de la fiche du document, mis dans la description de sa tâche et de son événement */
+const fiche = (d: GDoc) => (slugCourant ? `Fiche : /app/${slugCourant}/gestion/${d.kind === 'devis' ? 'devis' : d.kind === 'facture' ? 'factures' : d.kind === 'intervention' ? 'interventions' : 'scan'}?id=${d.id}` : '')
 /** slug de l'espace, pour le lien vers la fiche dans la description de l'événement */
 export const definirEspace = (slug: string) => { slugCourant = slug }
 
@@ -23,14 +24,14 @@ function attendus(d: GDoc, c?: Fiche | null) {
   if (d.kind === 'intervention') {
     if (ferme || !d.start_at) return { tache: ferme ? null : d.status !== 'annulee' ? tacheInter(d, qui) : null, evt: null }
     const fin = d.end_at ?? new Date(new Date(d.start_at).getTime() + 2 * 3600_000).toISOString()
-    return { tache: tacheInter(d, qui), evt: { title: `${d.intervention_type ?? 'Intervention'} · ${qui || d.title || ''} (${d.number})`, start_at: d.start_at, end_at: fin, all_day: false, location: d.address || c?.address || null, attendees: d.assigned_to ?? [], description: [d.travaux, c?.phone && `Tél. ${c.phone}`, `Fiche : /app/${slugDe(d)}/gestion/interventions?id=${d.id}`].filter(Boolean).join('\n') || null } }
+    return { tache: tacheInter(d, qui), evt: { title: `${d.intervention_type ?? 'Intervention'} · ${qui || d.title || ''} (${d.number})`, start_at: d.start_at, end_at: fin, all_day: false, location: d.address || c?.address || null, attendees: d.assigned_to ?? [], description: [d.travaux, c?.phone && `Tél. ${c.phone}`, fiche(d)].filter(Boolean).join('\n') || null } }
   }
   if (d.kind === 'devis') {
     const ouvert = ['envoye', 'en_attente'].includes(d.status)
     const relance = d.due_at ?? (d.sent_at ? new Date(new Date(d.sent_at).getTime() + 7 * 864e5).toISOString().slice(0, 10) : null)
     return {
-      tache: ferme || d.status === 'brouillon' ? null : { title: `Relancer le devis ${d.number}${qui ? ` · ${qui}` : ''} (${eur(d.total_ttc)})`, due_date: relance, status: ouvert ? 'todo' : 'done', priority: 'medium', assignee_id: d.created_by, description: d.title },
-      evt: ferme || !ouvert || !d.due_at ? null : { title: `Fin de validité du devis ${d.number}${qui ? ` · ${qui}` : ''}`, start_at: new Date(`${d.due_at}T09:00:00`).toISOString(), end_at: new Date(`${d.due_at}T09:30:00`).toISOString(), all_day: true, location: null, attendees: d.created_by ? [d.created_by] : [], description: d.title },
+      tache: ferme || d.status === 'brouillon' ? null : { title: `Relancer le devis ${d.number}${qui ? ` · ${qui}` : ''} (${eur(d.total_ttc)})`, due_date: relance, status: ouvert ? 'todo' : 'done', priority: 'medium', assignee_id: d.created_by, description: [d.title, fiche(d)].filter(Boolean).join('\n') || null },
+      evt: ferme || !ouvert || !d.due_at ? null : { title: `Fin de validité du devis ${d.number}${qui ? ` · ${qui}` : ''}`, start_at: new Date(`${d.due_at}T09:00:00`).toISOString(), end_at: new Date(`${d.due_at}T09:30:00`).toISOString(), all_day: true, location: null, attendees: d.created_by ? [d.created_by] : [], description: [d.title, fiche(d)].filter(Boolean).join('\n') || null },
     }
   }
   if (d.kind === 'facture' || d.kind === 'achat') {
@@ -38,8 +39,8 @@ function attendus(d: GDoc, c?: Fiche | null) {
     const active = !ferme && d.status !== 'brouillon' && !!d.due_at
     const verbe = d.kind === 'achat' ? 'Régler' : 'Encaisser'
     return {
-      tache: !active ? null : { title: `${verbe} ${d.kind === 'achat' ? (d.title ?? 'la facture') : `la facture ${d.number}${qui ? ` · ${qui}` : ''}`} (${eur(d.total_ttc)})`, due_date: d.due_at, status: reglee ? 'done' : 'todo', priority: d.status === 'en_retard' ? 'high' : 'medium', assignee_id: d.created_by, description: d.title },
-      evt: !active || reglee ? null : { title: `Échéance ${d.kind === 'achat' ? (d.title ?? 'facture reçue') : `facture ${d.number}${qui ? ` · ${qui}` : ''}`} · ${eur(d.total_ttc)}`, start_at: new Date(`${d.due_at}T09:00:00`).toISOString(), end_at: new Date(`${d.due_at}T09:30:00`).toISOString(), all_day: true, location: null, attendees: d.created_by ? [d.created_by] : [], description: null },
+      tache: !active ? null : { title: `${verbe} ${d.kind === 'achat' ? (d.title ?? 'la facture') : `la facture ${d.number}${qui ? ` · ${qui}` : ''}`} (${eur(d.total_ttc)})`, due_date: d.due_at, status: reglee ? 'done' : 'todo', priority: d.status === 'en_retard' ? 'high' : 'medium', assignee_id: d.created_by, description: [d.title, fiche(d)].filter(Boolean).join('\n') || null },
+      evt: !active || reglee ? null : { title: `Échéance ${d.kind === 'achat' ? (d.title ?? 'facture reçue') : `facture ${d.number}${qui ? ` · ${qui}` : ''}`} · ${eur(d.total_ttc)}`, start_at: new Date(`${d.due_at}T09:00:00`).toISOString(), end_at: new Date(`${d.due_at}T09:30:00`).toISOString(), all_day: true, location: null, attendees: d.created_by ? [d.created_by] : [], description: fiche(d) || null },
     }
   }
   return { tache: null, evt: null }
@@ -49,7 +50,7 @@ function tacheInter(d: GDoc, qui: string) {
     title: `${d.intervention_type ?? 'Intervention'} · ${qui || d.title || ''} (${d.number})`, due_date: d.start_at?.slice(0, 10) ?? null,
     status: d.closed_at || d.status === 'terminee' ? 'done' : d.status === 'en_cours' ? 'in_progress' : 'todo',
     priority: d.priority === 'urgente' ? 'urgent' : d.priority === 'haute' ? 'high' : 'medium', assignee_id: d.assigned_to?.[0] ?? null,
-    description: [d.title, d.travaux, d.address].filter(Boolean).join('\n') || null,
+    description: [d.title, d.travaux, d.address, fiche(d)].filter(Boolean).join('\n') || null,
   }
 }
 
@@ -70,6 +71,7 @@ export async function synchroniser(d: GDoc, ctx: Ctx): Promise<{ task_id: string
       else { const r = await db.from('events').insert({ ...a.evt, task_id, workspace_id: ctx.wsId, created_by: ctx.userId }).select('id').single(); event_id = (r.data as { id: string } | null)?.id ?? null }
     } else if (event_id) { await db.from('events').update({ deleted_at: now }).eq('id', event_id); event_id = null }
   } catch { /* la synchronisation ne bloque jamais l'enregistrement du document */ }
+  if (d.kind === 'devis') void opportunite(d, ctx)
   if (task_id !== d.task_id || event_id !== d.event_id) await db.from('gestion_documents').update({ task_id, event_id }).eq('id', d.id)
   // le PDF part dans Fichiers > Gestion > <type> même si les infos de l'entreprise sont incomplètes (copie de travail)
   if (!d.deleted_at && d.kind !== 'achat' && ctx.pdf) void rangerPdf(d, ctx)
@@ -123,4 +125,16 @@ export async function rattraper(docs: GDoc[], fiches: Fiche[], ctx: Omit<Ctx, 'c
   rattrapes.add(ctx.wsId)
   const a = docs.filter((d) => !d.task_id && !d.event_id && ((d.kind === 'intervention' && !d.closed_at && d.status !== 'annulee') || (d.kind === 'facture' && !['payee', 'annulee', 'brouillon'].includes(d.status) && d.due_at) || (d.kind === 'devis' && ['envoye', 'en_attente'].includes(d.status))))
   for (const d of a.slice(0, 200)) await synchroniser(d, { ...ctx, client: fiches.find((f) => f.id === d.contact_id) ?? null, pdf: undefined })
+}
+
+/** Un devis est aussi une opportunité du CRM (pipeline) : proposition, puis gagné ou perdu selon la réponse du client. */
+async function opportunite(d: GDoc, ctx: Ctx) {
+  try {
+    const db = getDb(), titre = `Devis ${d.number}`
+    const { data: deja } = await db.from('crm_deals').select('id').eq('workspace_id', d.workspace_id).eq('title', titre).maybeSingle()
+    const stage = d.status === 'accepte' ? 'gagné' : d.status === 'refuse' ? 'perdu' : d.status === 'brouillon' ? 'qualification' : 'proposition'
+    const row = { contact_id: d.contact_id, value: Number(d.total_ht), stage, probability: stage === 'gagné' ? 100 : stage === 'perdu' ? 0 : stage === 'proposition' ? 50 : 25, close_date: d.due_at, deleted_at: d.deleted_at }
+    if (deja) await db.from('crm_deals').update(row).eq('id', (deja as { id: string }).id)
+    else if (!d.deleted_at) await db.from('crm_deals').insert({ ...row, workspace_id: d.workspace_id, title: titre, created_by: ctx.userId, position: Date.now() / 1e12 })
+  } catch { /* le CRM est un plus, jamais bloquant */ }
 }

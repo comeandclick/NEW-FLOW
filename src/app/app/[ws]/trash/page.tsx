@@ -1,5 +1,8 @@
 'use client'
  
+import { useSession } from '@/lib/hooks/use-session'
+import { synchroniser } from '@/lib/gestion-sync'
+import { entrepriseDe, type GDoc } from '@/lib/gestion'
 import { ReglagesCadre } from '@/components/shell/reglages-cadre'
 import { useCallback, useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
@@ -19,6 +22,7 @@ const SOURCES: { table: string; type: string; label: string }[] = [
   { table: 'projects', type: 'project', label: 'name' }, { table: 'files', type: 'file', label: 'name' }, { table: 'meetings', type: 'meeting', label: 'title' },
   { table: 'goals', type: 'goal', label: 'title' }, { table: 'crm_contacts', type: 'contact', label: 'name' }, { table: 'crm_deals', type: 'deal', label: 'title' },
   { table: 'whiteboards', type: 'whiteboard', label: 'name' }, { table: 'forms', type: 'form', label: 'title' }, { table: 'invoices', type: 'invoice', label: 'number' },
+  { table: 'gestion_documents', type: 'gdoc', label: 'number' }, { table: 'gestion_articles', type: 'garticle', label: 'label' },
 ]
 type Item = { id: string; table: string; type: string; title: string; deleted_at: string; path?: string }
 
@@ -26,6 +30,7 @@ export default function TrashPage() {
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
   const { ws, canWrite, isAdmin } = useWorkspace()
+  const { userId } = useSession()
   const [items, setItems] = useState<Item[] | null>(null)
   const [confirm, setConfirm] = useState<Item | 'all' | null>(null)
 
@@ -47,7 +52,9 @@ export default function TrashPage() {
   useEffect(() => { void load() }, [load])
 
   async function restore(i: Item) {
-    await getDb().from(i.table).update({ deleted_at: null }).eq('id', i.id)
+    const { data } = await getDb().from(i.table).update({ deleted_at: null }).eq('id', i.id).select().maybeSingle()
+    // un devis / une facture / une intervention restauré retrouve sa tâche, son événement et son PDF
+    if (i.table === 'gestion_documents' && data && userId) await synchroniser(data as GDoc, { wsId: ws.id, userId, entreprise: entrepriseDe(ws), pdf: { entreprise: entrepriseDe(ws), logoUrl: ws.logo_url, nomMembre: () => '' } })
     toast.success(t('common.restored')); void load()
   }
   async function purge(list: Item[]) {

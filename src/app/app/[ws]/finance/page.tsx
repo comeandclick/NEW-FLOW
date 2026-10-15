@@ -1,5 +1,8 @@
 'use client'
  
+import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
+import { aGestion, modulesActifs } from '@/lib/modules'
 import { HubTabs } from '@/components/shell/hub-tabs'
 import { useMemo, useState } from 'react'
 import { format, startOfMonth, subMonths } from 'date-fns'
@@ -28,6 +31,7 @@ export default function FinancePage() {
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
   const { ws, canWrite } = useWorkspace()
+  const gestion = aGestion(modulesActifs(ws))
   const { userId } = useSession()
   const inv = useLive<Invoice>('invoices', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['issued_at', false] })
   const contacts = useLive<Contact>('crm_contacts', { eq: { workspace_id: ws.id }, is: { deleted_at: null } })
@@ -61,6 +65,7 @@ export default function FinancePage() {
   return (
     <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6">
       <HubTabs hub="crm" />
+      {gestion && <Link href={`/app/${ws.slug}/gestion`} className="mb-4 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft/50 px-4 py-3 text-[13px]"><span className="flex-1">Les devis, factures, interventions et factures reçues se gèrent maintenant dans <b>Gestion</b> (PDF, signature, suivi). Cette page garde l’ancien suivi simple.</span><ArrowRight className="size-4" /></Link>}
       <PageHeader title={t('fin.title')} icon={<Wallet className="size-[18px]" />} actions={canWrite && <Button variant="primary" onClick={() => openNew()}><Plus className="size-4" />{t('fin.new')}</Button>} />
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[[t('fin.revenue'), stats.revenue, 'text-success'], [t('fin.pending'), stats.pending, 'text-warning'], [t('fin.expenses'), stats.expenses, 'text-danger'], [t('fin.balance'), stats.revenue - stats.expenses, '']].map(([l, v, c]) => (
         <div key={l as string} className="rounded-xl border border-border bg-surface p-4"><div className="text-xs text-text-3">{l}</div><div className={`mt-1 text-xl font-semibold tabular-nums ${c}`}>{eur(v as number)}</div></div>))}</div>
