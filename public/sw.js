@@ -90,7 +90,15 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   let url = (event.notification.data && event.notification.data.url) || '/app'
-  try { if (new URL(url, self.location.origin).origin !== self.location.origin) url = '/app' } catch { url = '/app' }
+  // liens externes autorisés : seulement le studio Remotion du Mac sur le réseau privé Tailscale (100.64.0.0/10), ouvert dans une nouvelle fenêtre
+  try {
+    const u = new URL(url, self.location.origin)
+    if (u.origin !== self.location.origin) {
+      const m = /^100\.(\d+)\./.exec(u.hostname)
+      if (u.protocol === 'http:' && m && +m[1] >= 64 && +m[1] <= 127) { event.waitUntil(self.clients.openWindow(u.href)); return }
+      url = '/app'
+    }
+  } catch { url = '/app' }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
