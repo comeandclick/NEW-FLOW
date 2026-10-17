@@ -4,7 +4,7 @@ import { DOSSIER } from '@/lib/gestion-sync'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { Download, Folder, FolderPlus, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, Download, Folder, FolderPlus, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ElementFinder, IconeDossier, Visionneuse } from '@/components/common/finder'
@@ -31,6 +31,7 @@ export default function FilesPage() {
   const { data, loading, refresh } = useLive<FileRow>('files', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false] })
   const [folder, setFolder] = useState('/')
   const [extraFolders, setExtraFolders] = useState<string[]>([])
+  const [voirPlus, setVoirPlus] = useState(false)
   const [q, setQ] = useState('')
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(0)
@@ -50,7 +51,11 @@ export default function FilesPage() {
     }
     return [...all].sort()
   }, [data, extraFolders, ws])
-  const childFolders = folders.filter((f) => f !== '/' && f.startsWith(folder === '/' ? '/' : folder + '/') && f.slice(folder === '/' ? 1 : folder.length + 1).split('/').length === 1 && f !== folder)
+  const tousLesDossiers = folders.filter((f) => f !== '/' && f.startsWith(folder === '/' ? '/' : folder + '/') && f.slice(folder === '/' ? 1 : folder.length + 1).split('/').length === 1 && f !== folder)
+  // 17/10/2026 (demande d'Aymen) : à la racine, les dossiers techniques (pièces jointes du chat, gestion, traductions) passent sous « Voir plus », en bas de page
+  const SECONDAIRES = ['/Chat', '/Gestion', '/Localisation']
+  const childFolders = folder === '/' ? tousLesDossiers.filter((f) => !SECONDAIRES.includes(f)) : tousLesDossiers
+  const dossiersPlus = folder === '/' ? tousLesDossiers.filter((f) => SECONDAIRES.includes(f)) : []
   const files = data.filter((f) => (q.trim() ? f.name.toLowerCase().includes(q.trim().toLowerCase()) : f.folder === folder))
   const total = data.reduce((a, f) => a + (f.size ?? 0), 0)
 
@@ -160,6 +165,21 @@ export default function FilesPage() {
             </motion.div>
             </AnimatePresence>
           )}
+        {!loading && !q && dossiersPlus.length > 0 && (
+          <div className="mt-8 border-t border-border pt-4">
+            <button onClick={() => setVoirPlus((v) => !v)} aria-expanded={voirPlus} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-text-3 hover:bg-surface-2 hover:text-text">
+              Voir plus ({dossiersPlus.length})<ChevronDown className={cn('size-3.5 transition-transform', voirPlus && 'rotate-180')} />
+            </button>
+            {voirPlus && (
+              <div className="mt-3 grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-10">
+                {dossiersPlus.map((f, k) => (
+                  <ElementFinder key={f} i={k} icone={<IconeDossier className="h-[60px] w-[74px]" />} nom={f.split('/').pop() ?? f}
+                    sous={`${data.filter((x) => x.folder === f || x.folder.startsWith(f + '/')).length} élément(s)`} onOuvrir={() => setFolder(f)} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
