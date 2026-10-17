@@ -1,9 +1,9 @@
 'use client'
 // Fichiers façon Finder (14/10/2026) : grandes icônes sans cadre, nom dessous, et visionneuse plein écran sans contour
 // (titre en haut à gauche, Télécharger et fermer en haut à droite). Animations d'ouverture douces.
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Download, X } from 'lucide-react'
+import { Check, Copy, Download, FileText, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function IconeDossier({ className }: { className?: string }) {
@@ -56,8 +56,18 @@ export function ElementFinder({ icone, nom, sous, onOuvrir, menu, selection, i =
 }
 
 /** Visionneuse plein écran : la vidéo / l'image / le PDF seuls, sans contour ni bloc autour. Échap ferme. */
-export function Visionneuse({ titre, url, mime, onFermer, onTelecharger, libTelecharger = 'Télécharger', sansApercu = 'Pas d\'aperçu pour ce type de fichier.' }:
-  { titre: string; url: string; mime?: string | null; onFermer: () => void; onTelecharger: () => void; libTelecharger?: string; sansApercu?: string }) {
+export function Visionneuse({ titre, url, mime, onFermer, onTelecharger, libTelecharger = 'Télécharger', sansApercu = 'Pas d\'aperçu pour ce type de fichier.', description }:
+  { titre: string; url: string; mime?: string | null; onFermer: () => void; onTelecharger: () => void; libTelecharger?: string; sansApercu?: string; description?: string | null }) {
+  // 17/10/2026 : description préparée pour la publication (vidéos Kalimat, MyUstadh, clients), affichée au clic et copiable proprement
+  const [desc, setDesc] = useState(false)
+  const [copie, setCopie] = useState(false)
+  const copier = async () => {
+    if (!description) return
+    try { await navigator.clipboard.writeText(description.trim()) } catch {
+      const z = document.createElement('textarea'); z.value = description.trim(); document.body.appendChild(z); z.select(); document.execCommand('copy'); z.remove()
+    }
+    setCopie(true); setTimeout(() => setCopie(false), 1800)
+  }
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onFermer(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [onFermer])
   const m = mime ?? ''
   return (
@@ -65,6 +75,7 @@ export function Visionneuse({ titre, url, mime, onFermer, onTelecharger, libTele
       className="fixed inset-0 z-[80] flex flex-col bg-black/92 backdrop-blur-xl" onClick={onFermer}>
       <div className="flex shrink-0 items-center gap-3 px-4 py-3 safe-top text-white sm:px-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="min-w-0 flex-1 truncate text-[15px] font-medium">{titre}</h2>
+        {description && <button onClick={() => setDesc((v) => !v)} aria-expanded={desc} className={cn('inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors', desc ? 'bg-white text-black' : 'bg-white/12 hover:bg-white/20')}><FileText className="size-4" />Description</button>}
         <button onClick={onTelecharger} className="inline-flex h-9 items-center gap-2 rounded-full bg-white/12 px-4 text-[13px] font-medium transition-colors hover:bg-white/20"><Download className="size-4" />{libTelecharger}</button>
         <button onClick={onFermer} aria-label="Fermer" className="grid size-9 place-items-center rounded-full bg-white/12 transition-colors hover:bg-white/20"><X className="size-4" /></button>
       </div>
@@ -76,6 +87,18 @@ export function Visionneuse({ titre, url, mime, onFermer, onTelecharger, libTele
           : m === 'application/pdf' ? <iframe src={url} title={titre} className="h-full w-full max-w-5xl rounded-md bg-white" />
           : <p className="text-sm text-white/70">{sansApercu}</p>}
       </motion.div>
+      {description && desc && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} onClick={(e) => e.stopPropagation()}
+          className="mx-auto mb-4 w-[calc(100%-2rem)] max-w-xl shrink-0 rounded-2xl bg-white/10 p-4 text-white safe-bottom sm:mb-8">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-[13px] font-medium text-white/70">Description à publier</span>
+            <button onClick={copier} className="inline-flex h-8 items-center gap-2 rounded-full bg-white px-3.5 text-[13px] font-medium text-black transition-opacity hover:opacity-90">
+              {copie ? <><Check className="size-4" />Copiée</> : <><Copy className="size-4" />Copier</>}
+            </button>
+          </div>
+          <p className="max-h-[32vh] overflow-y-auto whitespace-pre-wrap break-words text-[14px] leading-relaxed">{description.trim()}</p>
+        </motion.div>
+      )}
     </motion.div>
   )
 }

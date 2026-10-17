@@ -34,7 +34,7 @@ export default function FilesPage() {
   const [q, setQ] = useState('')
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(0)
-  const [preview, setPreview] = useState<{ file: FileRow; url: string } | null>(null)
+  const [preview, setPreview] = useState<{ file: FileRow; url: string; description?: string | null } | null>(null)
   const [dlg, setDlg] = useState<{ kind: 'folder' } | { kind: 'rename'; file: FileRow } | { kind: 'move'; file: FileRow } | null>(null)
   const [text, setText] = useState('')
   const input = useRef<HTMLInputElement>(null)
@@ -80,6 +80,13 @@ export default function FilesPage() {
   async function open(f: FileRow) {
     const url = await signedUrl('files', f.storage_path)
     setPreview({ file: f, url })
+    // description de publication : fiche Motion liée à cette vidéo (table motion_projets, écrite par Atelier)
+    if (f.mime_type?.startsWith('video/')) {
+      const db = getDb()
+      const { data } = await db.from('motion_projets').select('resume').eq('workspace_id', ws.id).eq('video_chemin', f.storage_path).not('resume', 'is', null).limit(1)
+      const resume = data?.[0]?.resume ?? (await db.from('motion_projets').select('resume').eq('workspace_id', ws.id).eq('video_nom', f.name).not('resume', 'is', null).limit(1)).data?.[0]?.resume
+      if (resume) setPreview((p) => (p && p.file.id === f.id ? { ...p, description: resume } : p))
+    }
   }
   async function download(f: FileRow) {
     const url = await signedUrl('files', f.storage_path)
@@ -157,7 +164,7 @@ export default function FilesPage() {
 
       <AnimatePresence>
         {preview && <Visionneuse key={preview.file.id} titre={preview.file.name} url={preview.url} mime={preview.file.mime_type} onFermer={() => setPreview(null)}
-          onTelecharger={() => void download(preview.file)} libTelecharger={t('common.download')} sansApercu={t('files.noPreview')} />}
+          onTelecharger={() => void download(preview.file)} libTelecharger={t('common.download')} sansApercu={t('files.noPreview')} description={preview.description} />}
       </AnimatePresence>
       <Dialog open={!!dlg && dlg.kind !== 'move'} onClose={() => setDlg(null)} title={dlg?.kind === 'rename' ? t('files.rename') : t('files.newFolder')} size="sm"
         footer={<><Button onClick={() => setDlg(null)}>{t('common.cancel')}</Button><Button variant="primary" onClick={submit} disabled={!text.trim()}>{t('common.save')}</Button></>}>
