@@ -7,6 +7,9 @@ import { fr, enUS } from 'date-fns/locale'
 import { ChevronDown, Download, Folder, FolderPlus, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { AnimatePresence, motion } from 'framer-motion'
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ElementFinder, IconeDossier, Visionneuse } from '@/components/common/finder'
 import { Miniature } from '@/components/common/miniature'
 import { Button } from '@/components/ui/button'
@@ -22,16 +25,35 @@ import { useI18n } from '@/i18n/provider'
 import { cn, formatBytes } from '@/lib/utils'
 import type { FileRow } from '@/lib/types'
 
+// 17/10/2026 (demande d'Aymen) : les dossiers se déplacent par glisser (souris sur ordinateur, appui long puis glisser sur téléphone) ;
+// les autres se poussent en douceur. L'ordre est gardé pour tout l'espace (réglages, si administrateur) et sur l'appareil.
+function DossierDeplacable({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+      className={cn('rounded-xl', isDragging && 'scale-[1.06] opacity-90 shadow-lg')}>
+      {children}
+    </div>
+  )
+}
+
 
 export default function FilesPage() {
   const { t, locale } = useI18n()
   const dfl = locale === 'fr' ? fr : enUS
-  const { ws, canWrite, nameOf, log } = useWorkspace()
+  const { ws, canWrite, nameOf, log, isAdmin } = useWorkspace()
   const { userId } = useSession()
   const { data, loading, refresh } = useLive<FileRow>('files', { eq: { workspace_id: ws.id }, is: { deleted_at: null }, order: ['created_at', false] })
   const [folder, setFolder] = useState('/')
   const [extraFolders, setExtraFolders] = useState<string[]>([])
   const [voirPlus, setVoirPlus] = useState(false)
+  // ordre des dossiers, par dossier parent : réglages de l'espace, sinon mémoire de l'appareil
+  const [ordres, setOrdres] = useState<Record<string, string[]>>(() => {
+    const espace = ((ws.settings as { ordreDossiers?: Record<string, string[]> })?.ordreDossiers) ?? {}
+    try { return { ...espace, ...JSON.parse(localStorage.getItem(`flow-ordre-dossiers-${ws.id}`) || '{}') } } catch { return espace }
+  })
+  const capteurs = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 260, tolerance: 8 } }))
   const [q, setQ] = useState('')
   const [drag, setDrag] = useState(false)
   const [busy, setBusy] = useState(0)
@@ -54,7 +76,20 @@ export default function FilesPage() {
   const tousLesDossiers = folders.filter((f) => f !== '/' && f.startsWith(folder === '/' ? '/' : folder + '/') && f.slice(folder === '/' ? 1 : folder.length + 1).split('/').length === 1 && f !== folder)
   // 17/10/2026 (demande d'Aymen) : à la racine, les dossiers techniques (pièces jointes du chat, gestion, traductions) passent sous « Voir plus », en bas de page
   const SECONDAIRES = ['/Chat', '/Gestion', '/Localisation']
-  const childFolders = folder === '/' ? tousLesDossiers.filter((f) => !SECONDAIRES.includes(f)) : tousLesDossiers
+  const rang = (f: string) => { const i = (ordres[folder] ?? []).indexOf(f); return i < 0 ? 1e6 : i }
+  const childFolders = (folder === '/' ? tousLesDossiers.filter((f) => !SECONDAIRES.includes(f)) : tousLesDossiers).sort((a, b) => rang(a) - rang(b) || a.localeCompare(b))
+  async function deplacerDossier(e: DragEndEvent) {
+    if (!e.over || e.active.id === e.over.id) return
+    const nouveau = arrayMove(childFolders, childFolders.indexOf(String(e.active.id)), childFolders.indexOf(String(e.over.id)))
+    const tous = { ...ordres, [folder]: nouveau }
+    setOrdres(tous)
+    try { localStorage.setItem(`flow-ordre-dossiers-${ws.id}`, JSON.stringify(tous)) } catch { /* mémoire de l'appareil indisponible */ }
+    if (isAdmin) {
+      const { data: cur } = await getDb().from('workspaces').select('settings').eq('id', ws.id).single()
+      const reglages = (cur as { settings?: Record<string, unknown> } | null)?.settings ?? {}
+      await getDb().from('workspaces').update({ settings: { ...reglages, ordreDossiers: { ...((reglages.ordreDossiers as object) ?? {}), [folder]: nouveau } } }).eq('id', ws.id)
+    }
+  }
   const dossiersPlus = folder === '/' ? tousLesDossiers.filter((f) => SECONDAIRES.includes(f)) : []
   const files = data.filter((f) => (q.trim() ? f.name.toLowerCase().includes(q.trim().toLowerCase()) : f.folder === folder))
   const total = data.reduce((a, f) => a + (f.size ?? 0), 0)
@@ -147,10 +182,18 @@ export default function FilesPage() {
             {/* changement de dossier : la grille « s'ouvre » (zoom léger), comme dans le Finder */}
             <motion.div key={folder + '|' + q} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-10">
-              {!q && childFolders.map((f, k) => (
-                <ElementFinder key={f} i={k} icone={<IconeDossier className="h-[60px] w-[74px]" />} nom={f.split('/').pop() ?? f}
-                  sous={`${data.filter((x) => x.folder === f || x.folder.startsWith(f + '/')).length} élément(s)`} onOuvrir={() => setFolder(f)} />
-              ))}
+              {!q && (
+                <DndContext sensors={capteurs} collisionDetection={closestCenter} onDragEnd={(e) => void deplacerDossier(e)}>
+                  <SortableContext items={childFolders} strategy={rectSortingStrategy}>
+                    {childFolders.map((f, k) => (
+                      <DossierDeplacable key={f} id={f}>
+                        <ElementFinder i={k} icone={<IconeDossier className="h-[60px] w-[74px]" />} nom={f.split('/').pop() ?? f}
+                          sous={`${data.filter((x) => x.folder === f || x.folder.startsWith(f + '/')).length} élément(s)`} onOuvrir={() => setFolder(f)} />
+                      </DossierDeplacable>
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              )}
               {files.map((f, k) => (
                 <ElementFinder key={f.id} i={childFolders.length + k} nom={f.name} onOuvrir={() => open(f)}
                   sous={q ? `${f.folder} · ${formatBytes(f.size)}` : `${formatBytes(f.size)} · ${format(new Date(f.created_at), 'd MMM', { locale: dfl })}`}
