@@ -56,9 +56,9 @@ export function showSystemNotification(title: string, body: string, url?: string
   if (pushPermission() !== 'granted') return
   if (typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) return
   try {
-    const n = new Notification(title, { body, icon: '/icon.svg', tag: title + body })
+    const n = new Notification(title, { body, icon: '/icons/icon-192.png', tag: title + body })
     n.onclick = () => { window.focus(); if (url) window.location.href = url; n.close() }
   } catch {
-    navigator.serviceWorker?.ready.then((r) => r.showNotification(title, { body, icon: '/icon.svg', data: { url } }))
+    navigator.serviceWorker?.ready.then((r) => r.showNotification(title, { body, icon: '/icons/icon-192.png', data: { url } }))
   }
 }

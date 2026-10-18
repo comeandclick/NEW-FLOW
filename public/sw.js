@@ -79,8 +79,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Flow', {
       body: data.body || '',
-      icon: '/icons/192',
-      badge: '/icons/192',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       tag: data.tag,
       data: { url: data.url || '/app' },
     }),

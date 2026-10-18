@@ -18,10 +18,9 @@ export default function manifest(): MetadataRoute.Manifest {
     // /app/share saves the capture in the current project. iOS ignores this entry: the iPhone uses an Apple shortcut.
     share_target: { action: '/app/share', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
     icons: [
-      { src: '/icons/192', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icons/512', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icons/512?maskable=1', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-      { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 }
