@@ -2,7 +2,7 @@ import webpush from 'web-push'
 import { getAdminDb } from '@/lib/supabase/server'
 import { safePath } from '@/lib/utils'
 import { mergePrefs, shouldAlert } from '@/lib/prefs'
-import { sendApns } from '@/lib/api/apns'
+import { appleTargets, isAppleEndpoint, sendApns } from '@/lib/api/apns'
 
 /** Inserts in-app notifications and (best effort) Web Push for the given users. */
 export async function notifyUsers(workspaceId: string, userIds: string[], n: { type: string; title: string; body?: string | null; url?: string | null }) {
@@ -14,12 +14,13 @@ export async function notifyUsers(workspaceId: string, userIds: string[], n: { t
   const { data: profs } = await admin.from('profiles').select('id,preferences,timezone').in('id', userIds)
   const allowed = new Set((profs ?? []).filter((p) => { const pr = mergePrefs((p.preferences as { ui?: unknown } | null)?.ui); return pr.notif.system && shouldAlert(pr, n.type, p.timezone ?? 'Europe/Paris') }).map((p) => p.id as string))
   if (!allowed.size) return userIds.length
-  const { data: subs } = await admin.from('push_subscriptions').select('endpoint,keys').in('user_id', [...allowed])
+  const { data: all } = await admin.from('push_subscriptions').select('endpoint,keys,user_id').in('user_id', [...allowed])
+  const subs = appleTargets(all ?? [], n.type)
   webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? 'mailto:contact@flow.app', pub, priv)
   const payload = JSON.stringify({ title: n.title.slice(0, 120), body: (n.body ?? '').slice(0, 200), url: safePath(n.url) })
   await Promise.all((subs ?? []).map(async (s) => {
     // iPhone (app Flow Workspace) : APNs ; navigateurs : Web Push
-    if (s.endpoint.startsWith('apns:')) {
+    if (isAppleEndpoint(s.endpoint)) {
       if (await sendApns(s.endpoint, s.keys as { topic?: string }, { title: n.title, body: n.body, url: safePath(n.url) }) === 'gone') await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
       return
     }

@@ -22,13 +22,15 @@ function token(): string {
   return jwt.value
 }
 
-function send(host: string, device: string, topic: string, payload: string): Promise<{ status: number; reason?: string }> {
+function send(host: string, device: string, topic: string, payload: string, voip = false): Promise<{ status: number; reason?: string }> {
   return new Promise((resolve) => {
     const client = connect(`https://${host}`)
     client.on('error', () => resolve({ status: 0 }))
     const req = client.request({
       [constants.HTTP2_HEADER_METHOD]: 'POST', [constants.HTTP2_HEADER_PATH]: `/3/device/${device}`,
-      authorization: `bearer ${token()}`, 'apns-topic': topic, 'apns-push-type': 'alert', 'apns-priority': '10',
+      authorization: `bearer ${token()}`, 'apns-topic': topic, 'apns-push-type': voip ? 'voip' : 'alert', 'apns-priority': '10',
+      // une sonnerie d'appel périmée ne doit pas arriver plus tard
+      ...(voip ? { 'apns-expiration': '0' } : {}),
     })
     let status = 0, data = ''
     req.on('response', (h) => { status = Number(h[constants.HTTP2_HEADER_STATUS]) })
@@ -40,16 +42,34 @@ function send(host: string, device: string, topic: string, payload: string): Pro
   })
 }
 
+/** Appareil iPhone de l'app : `apns:<jeton>` (notifications) ou `voip:<jeton>` (sonnerie d'appel CallKit). */
+export const isAppleEndpoint = (e: string) => e.startsWith('apns:') || e.startsWith('voip:')
+
+/**
+ * Choisit les appareils Apple à prévenir : un appel sonne par VoIP (CallKit) sur les iPhone qui l'acceptent,
+ * sans bannière en double ; une autre notification ne part jamais en VoIP (iOS fermerait l'app).
+ */
+export function appleTargets<T extends { endpoint: string; user_id?: string }>(subs: T[], type: string): T[] {
+  if (type !== 'call') return subs.filter((s) => !s.endpoint.startsWith('voip:'))
+  const voipUsers = new Set(subs.filter((s) => s.endpoint.startsWith('voip:')).map((s) => s.user_id))
+  return subs.filter((s) => s.endpoint.startsWith('voip:') || !(s.endpoint.startsWith('apns:') && voipUsers.has(s.user_id)))
+}
+
 /** Envoie une notification à un iPhone. Essaie la production puis le bac à sable (apps installées depuis Xcode). */
 export async function sendApns(endpoint: string, keys: { topic?: string } | null, n: { title: string; body?: string | null; url?: string | null }): Promise<Result> {
-  if (!apnsConfigured() || !endpoint.startsWith('apns:')) return 'error'
-  const device = endpoint.slice(5), topic = keys?.topic ?? 'flow.workspace'
-  const payload = JSON.stringify({
-    aps: { alert: { title: n.title.slice(0, 120), body: (n.body ?? '').slice(0, 200) }, sound: 'default', 'thread-id': 'flow' },
-    url: n.url ?? '/app',
-  })
-  let r = await send('api.push.apple.com', device, topic, payload)
-  if (r.status === 400 && r.reason === 'BadDeviceToken') r = await send('api.sandbox.push.apple.com', device, topic, payload)
+  if (!apnsConfigured() || !isAppleEndpoint(endpoint)) return 'error'
+  const voip = endpoint.startsWith('voip:')
+  const device = endpoint.slice(5), topic = keys?.topic ?? (voip ? 'flow.workspace.voip' : 'flow.workspace')
+  // Appel : identifiant de la réunion et type lus dans le lien /app/<espace>/meetings/<id>?audio=0|1
+  const m = (n.url ?? '').match(/\/meetings\/([0-9a-f-]{36})(?:\?audio=(\d))?/)
+  const payload = voip
+    ? JSON.stringify({ id: m?.[1] ?? crypto.randomUUID(), meetingId: m?.[1] ?? null, nameCaller: n.title.slice(0, 80), handle: 'Flow', isVideo: m?.[2] === '0', url: n.url ?? '/app' })
+    : JSON.stringify({
+      aps: { alert: { title: n.title.slice(0, 120), body: (n.body ?? '').slice(0, 200) }, sound: 'default', 'thread-id': 'flow' },
+      url: n.url ?? '/app',
+    })
+  let r = await send('api.push.apple.com', device, topic, payload, voip)
+  if (r.status === 400 && r.reason === 'BadDeviceToken') r = await send('api.sandbox.push.apple.com', device, topic, payload, voip)
   if (r.status === 200) return 'ok'
   if (r.status === 410 || r.reason === 'BadDeviceToken' || r.reason === 'Unregistered') return 'gone'
   return 'error'

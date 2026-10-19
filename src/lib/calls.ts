@@ -38,9 +38,12 @@ export async function startCall(opts: {
   }
   ring(opts.wsId, { meetingId: m.id, room: m.room, from: opts.userId, fromName: opts.userName, video: opts.video, to: opts.to, title: opts.title, slug: opts.slug })
   for (const u of opts.to) {
+    const url = `/app/${opts.slug}/meetings/${m.id}?audio=${opts.video ? 0 : 1}`
     void getDb().from('notifications').insert({
-      user_id: u, workspace_id: opts.wsId, type: 'call', title: opts.userName, body: opts.video ? '📹 …' : '📞 …', url: `/app/${opts.slug}/meetings/${m.id}?audio=${opts.video ? 0 : 1}`,
+      user_id: u, workspace_id: opts.wsId, type: 'call', title: opts.userName, body: opts.video ? '📹 …' : '📞 …', url,
     })
+    // Téléphone et navigateurs fermés : sonnerie CallKit sur iPhone (VoIP), notification ailleurs.
+    void fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId: u, workspaceId: opts.wsId, type: 'call', title: opts.userName, body: opts.video ? 'Appel vidéo' : 'Appel audio', url }) }).catch(() => {})
   }
   return m as { id: string; room: string }
 }

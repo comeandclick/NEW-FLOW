@@ -4,7 +4,7 @@ import { getAdminDb, getServerDb } from '@/lib/supabase/server'
 import { rateLimited, sameOrigin } from '@/lib/security'
 import { safePath } from '@/lib/utils'
 import { mergePrefs, shouldAlert } from '@/lib/prefs'
-import { sendApns } from '@/lib/api/apns'
+import { appleTargets, isAppleEndpoint, sendApns } from '@/lib/api/apns'
 
 export const runtime = 'nodejs'
 
@@ -34,12 +34,13 @@ export async function POST(req: Request) {
   const { data: target } = await admin.from('profiles').select('preferences,timezone').eq('id', body.userId).maybeSingle()
   const prefs = mergePrefs((target?.preferences as { ui?: unknown } | null)?.ui)
   if (!prefs.notif.system || !shouldAlert(prefs, (body as { type?: string }).type ?? 'message', target?.timezone ?? 'Europe/Paris')) return NextResponse.json({ ok: true, sent: 0, muted: true })
-  const { data: subs } = await admin.from('push_subscriptions').select('endpoint,keys').eq('user_id', body.userId)
+  const { data: all } = await admin.from('push_subscriptions').select('endpoint,keys,user_id').eq('user_id', body.userId)
+  const subs = appleTargets(all ?? [], body.type ?? 'message')
   webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? 'mailto:contact@flow.app', pub, priv)
   const payload = JSON.stringify({ title: String(body.title).slice(0, 120), body: String(body.body ?? '').slice(0, 200), url: safePath(body.url) })
   let sent = 0
   await Promise.all((subs ?? []).map(async (s) => {
-    if (s.endpoint.startsWith('apns:')) {
+    if (isAppleEndpoint(s.endpoint)) {
       const r = await sendApns(s.endpoint, s.keys as { topic?: string }, { title: String(body.title), body: body.body ?? null, url: safePath(body.url) })
       if (r === 'ok') sent++
       else if (r === 'gone') await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
