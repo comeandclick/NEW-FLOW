@@ -87,10 +87,24 @@ function RoomPage({ id }: { id: string }) {
   useEffect(() => { if (phase !== 'room') return; const iv = setInterval(() => setSecs((s) => s + 1), 1000); return () => clearInterval(iv) }, [phase])
   useEffect(() => {
     // Onglet fermé ou page quittée : départ annoncé tout de suite (sinon les autres attendent la fin de la présence, 30 s et plus).
-    const bye = () => { void room.current?.leave() }
+    // Jeton gardé d'avance : à la fermeture de l'onglet on n'a plus le temps d'attendre une promesse.
+    let token = ''
+    void getDb().auth.getSession().then(({ data }) => { token = data.session?.access_token ?? '' })
+    const bye = () => {
+      const alone = room.current != null && room.current.othersCount === 0
+      void room.current?.leave()
+      // Seul dans l'appel : la réunion est terminée tout de suite (sinon le téléphone appelé sonnerait encore 30 s).
+      if (alone && token && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        void fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/meetings?id=eq.${id}`, {
+          method: 'PATCH', keepalive: true,
+          headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', authorization: `Bearer ${token}`, 'content-type': 'application/json', prefer: 'return=minimal' },
+          body: JSON.stringify({ status: 'ended', ended_at: new Date().toISOString() }),
+        }).catch(() => {})
+      }
+    }
     window.addEventListener('pagehide', bye)
     return () => { window.removeEventListener('pagehide', bye); bye() }
-  }, [])
+  }, [id])
   useEffect(() => () => { stream?.getTracks().forEach((x) => x.stop()) }, [stream])
 
   const leave = async (endAll = false) => {
