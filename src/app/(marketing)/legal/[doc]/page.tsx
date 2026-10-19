@@ -9,6 +9,7 @@ const DOCS = {
       ['Utilisation', 'Vos données servent exclusivement à faire fonctionner Flow. Elles ne sont ni vendues ni utilisées à des fins publicitaires.'],
       ['Hébergement et sécurité', 'Les données sont stockées dans une base PostgreSQL hébergée en Europe, avec un contrôle d’accès par espace de travail (Row Level Security) et un chiffrement en transit.'],
       ['Cookies', 'Seuls des cookies essentiels sont utilisés : session d’authentification, langue et thème. Aucun traceur publicitaire.'],
+      ['Application mobile Flow Workspace', 'L’app iPhone et Android utilise, seulement quand vous le demandez : l’appareil photo et le micro (photos, vocaux, appels), vos photos (envoi), les contacts que vous choisissez (import dans le CRM), votre position au moment d’un pointage d’intervention, et un jeton de notification pour vous prévenir (messages, appels). La transcription des vocaux, la copie de l’agenda dans l’app Calendrier, Face ID et les rappels de lieu restent sur votre téléphone. Aucun outil de suivi ni de publicité. Vous pouvez supprimer votre compte depuis l’app : Réglages › Supprimer mon compte.'],
       ['Vos droits', 'Vous pouvez exporter l’intégralité de vos données depuis Paramètres › Espace, modifier votre profil ou supprimer votre espace à tout moment. Pour toute demande, contactez-nous.'],
     ] },
     en: { title: 'Privacy policy', body: [
@@ -16,6 +17,7 @@ const DOCS = {
       ['How we use it', 'Your data is used solely to run Flow. It is never sold or used for advertising.'],
       ['Hosting and security', 'Data is stored in a PostgreSQL database hosted in Europe, with per-workspace access control (Row Level Security) and encryption in transit.'],
       ['Cookies', 'Only essential cookies are used: authentication session, language and theme. No advertising trackers.'],
+      ['Flow Workspace mobile app', 'The iPhone and Android app only uses, when you ask for it: the camera and microphone (photos, voice notes, calls), your photos (sending), the contacts you pick (CRM import), your location when you clock in on a job, and a notification token to alert you (messages, calls). Voice note transcription, the calendar copy in the Calendar app, Face ID and place reminders stay on your phone. No tracking or advertising tools. You can delete your account from the app: Settings › Delete my account.'],
       ['Your rights', 'You can export all your data from Settings › Workspace, edit your profile or delete your workspace at any time. Write to us from the Contact page.'],
     ] },
   },
