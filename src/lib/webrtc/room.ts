@@ -24,6 +24,8 @@ type PeerState = { pc: RTCPeerConnection; initiator: boolean; makingOffer: boole
 export class Room {
   private channel: any
   private peers = new Map<string, PeerState>()
+  /** Nombre d'autres personnes encore connectées. */
+  get othersCount() { return this.peers.size }
   private meta = new Map<string, { name: string; audio: boolean; video: boolean; sharing: boolean; hand: boolean }>()
   private local: MediaStream
   private screen: MediaStream | null = null

@@ -54,3 +54,13 @@ revoke all on function public.flow_messages_programmes_tick() from public, anon,
 
 select cron.unschedule(jobid) from cron.job where jobname = 'flow-messages-programmes';
 select cron.schedule('flow-messages-programmes', '* * * * *', $$ select public.flow_messages_programmes_tick() $$);
+
+-- Réunions fantômes : une réunion « en direct » sans personne connectée depuis 3 h (onglet ou app fermés brutalement) passe en « terminée ».
+create or replace function public.flow_reunions_fantomes() returns void language sql security definer set search_path = public as $$
+  update meetings m set status = 'ended', ended_at = now()
+  where m.status = 'live' and coalesce(m.started_at, m.created_at) < now() - interval '3 hours'
+    and not exists (select 1 from meeting_participants p where p.meeting_id = m.id and p.left_at is null and p.joined_at > now() - interval '3 hours');
+$$;
+revoke all on function public.flow_reunions_fantomes() from public, anon, authenticated;
+select cron.unschedule(jobid) from cron.job where jobname = 'flow-reunions-fantomes';
+select cron.schedule('flow-reunions-fantomes', '*/15 * * * *', $$ select public.flow_reunions_fantomes() $$);

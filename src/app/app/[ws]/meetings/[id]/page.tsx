@@ -89,6 +89,8 @@ function RoomPage({ id }: { id: string }) {
   useEffect(() => () => { stream?.getTracks().forEach((x) => x.stop()) }, [stream])
 
   const leave = async (endAll = false) => {
+    // Dernière personne à partir : la réunion passe en « terminée » (comme l'app), sinon elle resterait « en direct ».
+    endAll = endAll || (room.current?.othersCount ?? 1) === 0
     await room.current?.leave(); room.current = null
     if (userId) await getDb().from('meeting_participants').update({ left_at: new Date().toISOString() }).eq('meeting_id', id).eq('user_id', userId)
     if (endAll) await getDb().from('meetings').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', id)
