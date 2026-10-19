@@ -81,7 +81,8 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      tag: data.tag,
+      // même étiquette que la notification locale de l'onglet (titre + texte) : un doublon remplace l'autre au lieu de s'empiler
+      tag: data.tag || (data.title || 'Flow') + (data.body || ''),
       data: { url: data.url || '/app' },
     }),
   )

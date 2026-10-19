@@ -56,9 +56,10 @@ export function showSystemNotification(title: string, body: string, url?: string
   if (pushPermission() !== 'granted') return
   if (typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) return
   try {
-    const n = new Notification(title, { body, icon: '/icons/icon-192.png', tag: title + body })
+    // même étiquette que le Web Push (sw.js, titre 120 + texte 200 caractères) : l'une remplace l'autre, jamais deux fois
+    const n = new Notification(title, { body, icon: '/icons/icon-192.png', tag: title.slice(0, 120) + body.slice(0, 200) })
     n.onclick = () => { window.focus(); if (url) window.location.href = url; n.close() }
   } catch {
-    navigator.serviceWorker?.ready.then((r) => r.showNotification(title, { body, icon: '/icons/icon-192.png', data: { url } }))
+    navigator.serviceWorker?.ready.then((r) => r.showNotification(title, { body, icon: '/icons/icon-192.png', tag: title.slice(0, 120) + body.slice(0, 200), data: { url } }))
   }
 }
