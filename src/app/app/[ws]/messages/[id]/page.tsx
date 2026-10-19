@@ -4,13 +4,13 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, isSameDay } from 'date-fns'
 import { fr, enUS } from 'date-fns/locale'
-import { ArrowLeft, Hash, Info as InfoIcon, Lock, Mic, Paperclip, Copy, Phone, Pin, Reply, Search, Send, SmilePlus, Trash2, Pencil, Video, X } from 'lucide-react'
+import { ArrowLeft, ChartColumn, Hash, Plus, Info as InfoIcon, Lock, Mic, Paperclip, Copy, Phone, Pin, Reply, Search, Send, SmilePlus, Trash2, Pencil, Video, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, Skeleton } from '@/components/ui/misc'
 import { Dialog, Menu } from '@/components/ui/overlay'
-import { AttachmentView, CallCard } from '@/components/chat/message-view'
+import { AttachmentView, CallCard, PollCard, POLL_VOTE } from '@/components/chat/message-view'
 import { VoiceRecorder } from '@/components/chat/voice'
 import { ChannelInfo } from '@/components/chat/channel-info'
 import { readers, SeenDialog, TypingLine } from '@/components/chat/receipts'
@@ -47,6 +47,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [dropping, setDropping] = useState(false)
   const [seenFor, setSeenFor] = useState<Message | null>(null)
   const [actionFor, setActionFor] = useState<Message | null>(null)
+  const [poll, setPoll] = useState<{ question: string; options: string[]; multi: boolean } | null>(null)
   const press = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bottom = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -155,6 +156,32 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     } catch { toast.error(t('msg.uploadFail')) } finally { setRecording(false) }
   }
 
+  async function sendPoll(e: React.FormEvent) {
+    e.preventDefault()
+    if (!userId || !poll) return
+    const question = poll.question.trim(), options = poll.options.map((o) => o.trim()).filter(Boolean)
+    if (!question || options.length < 2) return
+    stick.current = true
+    const { error } = await getDb().from('messages').insert({ conversation_id: id, user_id: userId, content: question, attachments: [{ type: 'poll', options, multi: poll.multi }] })
+    if (error) { toast.error(t('msg.uploadFail')); return }
+    setPoll(null)
+    void afterSend(`${t('msg.poll')} : ${question}`, [])
+  }
+
+  /** Vote : une seule option sauf sondage à choix multiples (cliquer à nouveau retire le vote). */
+  async function vote(m: Message, index: number, multi: boolean) {
+    if (!userId) return
+    const emoji = `${POLL_VOTE}${index}`
+    const mineAll = reacts.data.filter((r) => r.message_id === m.id && r.user_id === userId && r.emoji.startsWith(POLL_VOTE))
+    const same = mineAll.find((r) => r.emoji === emoji)
+    if (same) await getDb().from('reactions').delete().eq('id', same.id)
+    else {
+      if (!multi && mineAll.length) await getDb().from('reactions').delete().in('id', mineAll.map((r) => r.id))
+      await getDb().from('reactions').insert({ message_id: m.id, user_id: userId, emoji })
+    }
+    reacts.refresh()
+  }
+
   async function react(m: Message, emoji: string) {
     if (!userId) return
     const mine = reacts.data.find((r) => r.message_id === m.id && r.user_id === userId && r.emoji === emoji)
@@ -208,7 +235,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             const author = profileOf(m.user_id)
             const newDay = !prev || !isSameDay(new Date(prev.created_at), new Date(m.created_at))
             const grouped = prev && !newDay && prev.user_id === m.user_id && prev.kind !== 'call' && new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < 5 * 60_000
-            const mr = reacts.data.filter((r) => r.message_id === m.id)
+            const allReacts = reacts.data.filter((r) => r.message_id === m.id)
+            const mr = allReacts.filter((r) => !r.emoji.startsWith(POLL_VOTE))
+            const pollAtt = m.attachments.find((a) => a.type === 'poll')
             const groupedReacts = QUICK.concat(mr.map((r) => r.emoji)).filter((e, k, a) => a.indexOf(e) === k && mr.some((r) => r.emoji === e))
             const parent = m.parent_id ? byId.get(m.parent_id) : null
             return (
@@ -231,7 +260,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                         <>
                           {m.content && m.kind !== 'call' && <p className={cn('whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed', mine ? 'bg-text text-bg' : 'bg-surface-2 text-text dark:bg-surface-3')}>{m.content.split(/(@[\p{L}][\p{L} ]+?)(?=\s|$|[.,!?])/u).map((part, k) => part.startsWith('@') && members.some((x) => `@${x.profile?.full_name}` === part) ? <span key={k} className={cn('rounded px-1 font-medium', mine ? 'bg-bg/15' : 'bg-text/10')}>{part}</span> : <span key={k}>{part.split(/(https?:\/\/[^\s<>"')]+)/).map((x, j) => /^https?:\/\//.test(x) ? <a key={j} href={x.replace(/[.,;!?]+$/, '')} target="_blank" rel="noreferrer noopener" className="break-all underline underline-offset-2">{x}</a> : x)}</span>)}</p>}
                           {m.kind === 'call' && <CallCard video={m.content === 'video'} name={author?.full_name ?? ''} onJoin={() => router.push(`/app/${ws.slug}/meetings/${m.attachments[0]?.path}?audio=${m.content === 'video' ? 0 : 1}`)} />}
-                          {m.kind !== 'call' && m.attachments.length > 0 && <div className="mt-1 flex flex-col items-start gap-1.5">{m.attachments.map((a, k) => <AttachmentView key={k} att={a} mine={false} />)}</div>}
+                          {pollAtt && <div className="mt-1"><PollCard att={pollAtt} votes={allReacts.filter((r) => r.emoji.startsWith(POLL_VOTE))} userId={userId} canVote={canWrite} onVote={(i) => vote(m, i, !!pollAtt.multi)} /></div>}
+                          {m.kind !== 'call' && !pollAtt && m.attachments.length > 0 && <div className="mt-1 flex flex-col items-start gap-1.5">{m.attachments.map((a, k) => <AttachmentView key={k} att={a} mine={false} />)}</div>}
                         </>
                       )}
                     {groupedReacts.length > 0 && <div className={cn('relative z-[1] -mt-2 flex flex-wrap gap-1', mine ? 'mr-2 justify-end' : 'ml-2')}>{groupedReacts.map((e) => {
@@ -275,6 +305,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
               <form onSubmit={send} className="flex items-end gap-1.5 rounded-2xl border border-border-strong bg-surface-2/60 p-1.5 transition-shadow focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
                 <input ref={fileInput} type="file" multiple hidden onChange={(e) => e.target.files && uploadFiles(e.target.files)} />
                 <Button type="button" variant="ghost" size="icon" loading={uploading} onClick={() => fileInput.current?.click()} aria-label={t('msg.attach')}><Paperclip className="size-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={() => setPoll({ question: '', options: ['', ''], multi: false })} aria-label={t('msg.poll')}><ChartColumn className="size-4" /></Button>
                 <textarea value={text} rows={1} placeholder={conv?.type === 'channel' ? t('msg.placeholderIn', { name: `#${conv.name}` }) : t('msg.placeholder')}
                   onChange={(e) => { setText(e.target.value); emitTyping(); const m = e.target.value.match(/@([^@\s]*)$/); setMention(m ? m[1] : null); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px` }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }}
@@ -302,6 +333,24 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
               {actionFor.user_id === userId && <button onClick={() => { void removeMsg(actionFor); setActionFor(null) }} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-danger hover:bg-surface-2"><Trash2 className="size-4" />{t('common.delete')}</button>}
             </div>
           </div>
+        )}
+      </Dialog>
+      <Dialog open={!!poll} onClose={() => setPoll(null)} title={t('msg.pollNew')} size="sm">
+        {poll && (
+          <form onSubmit={sendPoll} className="space-y-3">
+            <Input autoFocus value={poll.question} onChange={(e) => setPoll({ ...poll, question: e.target.value })} placeholder={t('msg.pollQuestion')} aria-label={t('msg.pollQuestion')} />
+            <div className="space-y-1.5">
+              {poll.options.map((o, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <Input value={o} onChange={(e) => setPoll({ ...poll, options: poll.options.map((x, k) => k === i ? e.target.value : x) })} placeholder={t('msg.pollOption', { n: i + 1 })} aria-label={t('msg.pollOption', { n: i + 1 })} />
+                  {poll.options.length > 2 && <Button type="button" variant="ghost" size="icon" onClick={() => setPoll({ ...poll, options: poll.options.filter((_, k) => k !== i) })} aria-label={t('common.delete')}><X className="size-4" /></Button>}
+                </div>
+              ))}
+              {poll.options.length < 10 && <Button type="button" variant="ghost" size="sm" onClick={() => setPoll({ ...poll, options: [...poll.options, ''] })}><Plus className="size-4" />{t('msg.pollAdd')}</Button>}
+            </div>
+            <label className="flex items-center gap-2 text-sm text-text-2"><input type="checkbox" checked={poll.multi} onChange={(e) => setPoll({ ...poll, multi: e.target.checked })} />{t('msg.pollMulti')}</label>
+            <Button type="submit" variant="primary" className="w-full" disabled={!poll.question.trim() || poll.options.filter((o) => o.trim()).length < 2}>{t('msg.send')}</Button>
+          </form>
         )}
       </Dialog>
       <Dialog open={pinsOpen} onClose={() => setPinsOpen(false)} title={t('msg.pinned')}>
