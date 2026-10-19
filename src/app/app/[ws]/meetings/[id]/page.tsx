@@ -116,6 +116,21 @@ function RoomPage({ id }: { id: string }) {
     router.push(`/app/${ws.slug}/meetings`)
   }
 
+  // Tête-à-tête refusé par l'appelé (app ou site) : on l'annonce et on quitte, au lieu d'attendre seul.
+  const leaveRef = useRef(leave)
+  useEffect(() => { leaveRef.current = leave })
+  useEffect(() => {
+    if (phase !== 'room') return
+    const onDecline = (e: Event) => {
+      const d = (e as CustomEvent<{ meetingId?: string }>).detail
+      if (d?.meetingId !== id || (room.current?.othersCount ?? 1) > 0) return
+      toast(t('meet.declined'))
+      void leaveRef.current()
+    }
+    window.addEventListener('flow:call-declined', onDecline)
+    return () => window.removeEventListener('flow:call-declined', onDecline)
+  }, [phase, id, t])
+
   const toggleMic = () => { const v = !audioOn; setAudioOn(v); room.current?.setAudio(v) }
   const toggleCam = async () => { const v = !videoOn; setVideoOn(v); await room.current?.setVideo(v) }
   const toggleShare = async () => { const on = await room.current?.shareScreen(); setSharing(!!on) }

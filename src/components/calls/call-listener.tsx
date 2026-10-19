@@ -9,7 +9,7 @@ import { getDb } from '@/lib/supabase/client'
 import { useSession } from '@/lib/hooks/use-session'
 import { useWorkspace } from '@/lib/hooks/use-workspace'
 import { showSystemNotification } from '@/lib/push'
-import { registerRingChannel, type RingPayload } from '@/lib/calls'
+import { registerRingChannel, type RingPayload, ringEvent } from '@/lib/calls'
 import { useI18n } from '@/i18n/provider'
 
 /** Listens for incoming calls on the workspace channel and shows a ringing overlay. */
@@ -32,6 +32,14 @@ export function CallListener() {
         showSystemNotification(payload.fromName, payload.video ? t('msg.videoCall') : t('msg.audioCall'), `/app/${payload.slug}/meetings/${payload.meetingId}`)
         if (timer.current) clearTimeout(timer.current)
         timer.current = setTimeout(() => setIncoming(null), 30_000)
+      })
+      // L'appelant a raccroché avant la réponse : la sonnerie s'arrête.
+      .on('broadcast', { event: 'end' }, ({ payload }: { payload: { meetingId?: string } }) => {
+        setIncoming((cur) => (cur && cur.meetingId === payload.meetingId ? null : cur))
+      })
+      // L'appelé a refusé : la page de l'appel en cours (côté appelant) l'affiche.
+      .on('broadcast', { event: 'decline' }, ({ payload }: { payload: { meetingId?: string; from?: string } }) => {
+        window.dispatchEvent(new CustomEvent('flow:call-declined', { detail: payload }))
       })
       .subscribe()
     registerRingChannel(ws.id, ch)
@@ -75,7 +83,7 @@ export function CallListener() {
               <div className="truncate text-xs text-text-2">{incoming.video ? t('msg.videoCall') : t('msg.audioCall')} · {incoming.title}</div></div>
           </div>
           <div className="mt-4 flex gap-2">
-            <Button className="flex-1 bg-[#c4262f] text-white hover:bg-[#b01f27]" onClick={() => setIncoming(null)}><PhoneOff className="size-4" /></Button>
+            <Button className="flex-1 bg-[#c4262f] text-white hover:bg-[#b01f27]" onClick={() => { ringEvent(ws.id, 'decline', { meetingId: incoming.meetingId, from: userId }); setIncoming(null) }}><PhoneOff className="size-4" /></Button>
             <Button variant="primary" className="flex-[2] bg-[#15803d] hover:bg-[#126c33]" onClick={accept}>{incoming.video ? <Video className="size-4" /> : <Phone className="size-4" />}{t('msg.joinCall')}</Button>
           </div>
         </motion.div>

@@ -9,18 +9,24 @@ export type RingPayload = { meetingId: string; room: string; from: string; fromN
 let shared: { wsId: string; ch: any } | null = null
 export function registerRingChannel(wsId: string, ch: any) { shared = ch ? { wsId, ch } : null }
 
-/** Broadcast a ring to the workspace channel. Listeners filter on `to`. */
-export function ring(wsId: string, payload: RingPayload) {
-  if (shared?.wsId === wsId) { void shared.ch.send({ type: 'broadcast', event: 'ring', payload }); return }
+/**
+ * Événement sur le canal de sonnerie de l'espace (le même que l'app) :
+ * `ring` (appel, filtré sur `to`), `end` (l'appelant a raccroché avant réponse), `decline` (l'appelé refuse).
+ */
+export function ringEvent(wsId: string, event: 'ring' | 'end' | 'decline', payload: Record<string, unknown>) {
+  if (shared?.wsId === wsId) { void shared.ch.send({ type: 'broadcast', event, payload }); return }
   const db = getDb()
   const ch = db.channel(`ring:${wsId}`)
   ch.subscribe((status: string) => {
     if (status === 'SUBSCRIBED') {
-      void ch.send({ type: 'broadcast', event: 'ring', payload })
+      void ch.send({ type: 'broadcast', event, payload })
       setTimeout(() => void db.removeChannel(ch), 1500)
     }
   })
 }
+
+/** Broadcast a ring to the workspace channel. Listeners filter on `to`. */
+export function ring(wsId: string, payload: RingPayload) { ringEvent(wsId, 'ring', payload) }
 
 export async function startCall(opts: {
   wsId: string; slug: string; userId: string; userName: string; title: string; video: boolean; to: string[]; conversationId?: string
