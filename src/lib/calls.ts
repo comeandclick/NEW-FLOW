@@ -30,13 +30,14 @@ export async function startCall(opts: {
   }).select().single()
   if (error || !data) return null
   const m = data as any
+  // La sonnerie part d'abord ; le message « appel » de la conversation suit sans faire attendre.
+  ring(opts.wsId, { meetingId: m.id, room: m.room, from: opts.userId, fromName: opts.userName, video: opts.video, to: opts.to, title: opts.title, slug: opts.slug })
   if (opts.conversationId) {
-    await getDb().from('messages').insert({
+    void getDb().from('messages').insert({
       conversation_id: opts.conversationId, user_id: opts.userId, kind: 'call', content: opts.video ? 'video' : 'audio',
       attachments: [{ type: 'file', name: m.room, path: m.id }],
-    })
+    }).then(() => {}, () => {})
   }
-  ring(opts.wsId, { meetingId: m.id, room: m.room, from: opts.userId, fromName: opts.userName, video: opts.video, to: opts.to, title: opts.title, slug: opts.slug })
   for (const u of opts.to) {
     const url = `/app/${opts.slug}/meetings/${m.id}?audio=${opts.video ? 0 : 1}`
     void getDb().from('notifications').insert({

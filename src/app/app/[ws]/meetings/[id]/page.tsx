@@ -58,7 +58,7 @@ function RoomPage({ id }: { id: string }) {
     let s: MediaStream | null = null
     ;(async () => {
       if (!navigator.mediaDevices?.getUserMedia) { setNoMedia(true); return }
-      try { s = await navigator.mediaDevices.getUserMedia({ audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }) }
+      try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } } }) }
       catch { try { s = await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { setNoMedia(true) } }
       if (!alive) { s?.getTracks().forEach((x) => x.stop()); return }
       if (s) { setStream(s); if (!videoOn) s.getVideoTracks().forEach((x) => (x.enabled = false)) }
@@ -85,7 +85,12 @@ function RoomPage({ id }: { id: string }) {
   }, [meeting, userId, me, stream, audioOn, videoOn, id, t])
 
   useEffect(() => { if (phase !== 'room') return; const iv = setInterval(() => setSecs((s) => s + 1), 1000); return () => clearInterval(iv) }, [phase])
-  useEffect(() => () => { void room.current?.leave() }, [])
+  useEffect(() => {
+    // Onglet fermé ou page quittée : départ annoncé tout de suite (sinon les autres attendent la fin de la présence, 30 s et plus).
+    const bye = () => { void room.current?.leave() }
+    window.addEventListener('pagehide', bye)
+    return () => { window.removeEventListener('pagehide', bye); bye() }
+  }, [])
   useEffect(() => () => { stream?.getTracks().forEach((x) => x.stop()) }, [stream])
 
   const leave = async (endAll = false) => {

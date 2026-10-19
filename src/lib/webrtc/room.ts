@@ -88,6 +88,7 @@ export class Room {
     // Always reserve a video sender so we can later swap in camera / screen without a new m-line.
     const tr = pc.addTransceiver(vt ?? 'video', { direction: 'sendrecv', streams: [this.local] })
     st.videoSender = tr.sender
+    void this.tuneVideo()
 
     pc.ontrack = ({ track }) => {
       dbg('ontrack', track.kind, id.slice(0, 4))
@@ -116,16 +117,32 @@ export class Room {
     return st
   }
 
+  /** Débit vidéo par personne (salle maillée) : 2,5 Mb/s à deux, moins quand la salle grandit. Même règle que l'app. */
+  private async tuneVideo() {
+    const n = this.peers.size
+    const maxBitrate = n <= 1 ? 2_500_000 : n === 2 ? 1_500_000 : n === 3 ? 1_000_000 : 700_000
+    for (const st of this.peers.values()) {
+      const sender = st.videoSender
+      if (!sender) continue
+      try {
+        const p = sender.getParameters()
+        if (!p.encodings?.length) p.encodings = [{}]
+        for (const e of p.encodings) { e.maxBitrate = maxBitrate; e.maxFramerate = 30 }
+        await sender.setParameters(p)
+      } catch { /* navigateur sans réglage d'encodage : valeurs par défaut */ }
+    }
+  }
+
   /** If the answer never comes (signal sent before the other side subscribed), resend the offer a few times. */
   private watchOffer(id: string, st: PeerState, attempt = 0) {
     setTimeout(() => {
       if (this.closed || this.peers.get(id) !== st) return
-      if (st.pc.signalingState === 'have-local-offer' && st.pc.localDescription && attempt < 4) {
+      if (st.pc.signalingState === 'have-local-offer' && st.pc.localDescription && attempt < 8) {
         dbg('resend offer', id.slice(0, 4), attempt + 1)
         this.send({ from: this.me.id, to: id, kind: 'offer', data: st.pc.localDescription })
         this.watchOffer(id, st, attempt + 1)
       }
-    }, 3000)
+    }, 1500)
   }
 
   private dropPeer(id: string) {
@@ -134,6 +151,7 @@ export class Room {
     p.pc.close()
     this.peers.delete(id)
     this.meta.delete(id)
+    if (!this.closed) void this.tuneVideo()
   }
 
   private send(s: Signal) { void this.channel.send({ type: 'broadcast', event: 'signal', payload: s }) }
@@ -219,12 +237,15 @@ export class Room {
     this.hooks.onChat(msg)
   }
 
+  /** Départ : la salle est quittée d'abord (les autres le voient aussitôt), puis connexions et caméra sont libérées. */
   async leave() {
+    if (this.closed) return
     this.closed = true
+    const ch = this.channel
+    const out = (async () => { try { await ch?.untrack() } catch {} try { await getDb().removeChannel(ch) } catch {} })()
     for (const id of [...this.peers.keys()]) this.dropPeer(id)
     this.screen?.getTracks().forEach((t) => t.stop())
     this.local.getTracks().forEach((t) => t.stop())
-    try { await this.channel?.untrack() } catch {}
-    try { await getDb().removeChannel(this.channel) } catch {}
+    await out
   }
 }
