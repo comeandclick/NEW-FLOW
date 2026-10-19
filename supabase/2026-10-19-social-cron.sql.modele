@@ -1,0 +1,17 @@
+-- 19/10/2026 : publications programmées des réseaux toutes les 5 minutes, appelées par la BASE (pg_cron + pg_net),
+-- car GitHub Actions ne tourne plus (compte comeandclick bloqué pour un problème de paiement) et le cron Vercel ne passe qu'une fois par jour.
+-- N'appelle Flow que s'il y a une publication à faire dans les 6 minutes. Idempotent.
+-- Le secret (__CRON_SECRET__) est remplacé par scripts/sql-social-cron.sh, jamais commité.
+create or replace function public.flow_social_tick() returns void language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from social_posts where status = 'scheduled' and scheduled_at <= now() + interval '6 minutes') then
+    perform net.http_get(
+      url := 'https://new-flow-dashboard.vercel.app/api/social/cron',
+      headers := jsonb_build_object('authorization', 'Bearer __CRON_SECRET__'),
+      timeout_milliseconds := 60000);
+  end if;
+end $$;
+revoke all on function public.flow_social_tick() from public, anon, authenticated;
+
+select cron.unschedule(jobid) from cron.job where jobname = 'flow-social';
+select cron.schedule('flow-social', '*/5 * * * *', $$ select public.flow_social_tick() $$);
