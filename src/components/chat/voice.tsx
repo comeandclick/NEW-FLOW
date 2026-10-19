@@ -99,7 +99,8 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (blob: Blob, durat
         const analyser = ac.createAnalyser(); analyser.fftSize = 256
         ac.createMediaStreamSource(s).connect(analyser)
         const buf = new Uint8Array(analyser.fftSize)
-        const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported?.(m))
+        // AAC/MP4 d'abord : lisible partout, y compris sur l'app iPhone (iOS ne lit pas le webm). Firefox retombe sur webm.
+        const mime = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported?.(m))
         const r = new MediaRecorder(s, mime ? { mimeType: mime } : undefined)
         rec.current = r
         r.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
