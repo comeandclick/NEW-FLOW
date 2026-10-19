@@ -2,6 +2,7 @@ import webpush from 'web-push'
 import { getAdminDb } from '@/lib/supabase/server'
 import { safePath } from '@/lib/utils'
 import { mergePrefs, shouldAlert } from '@/lib/prefs'
+import { sendApns } from '@/lib/api/apns'
 
 /** Inserts in-app notifications and (best effort) Web Push for the given users. */
 export async function notifyUsers(workspaceId: string, userIds: string[], n: { type: string; title: string; body?: string | null; url?: string | null }) {
@@ -17,6 +18,11 @@ export async function notifyUsers(workspaceId: string, userIds: string[], n: { t
   webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? 'mailto:contact@flow.app', pub, priv)
   const payload = JSON.stringify({ title: n.title.slice(0, 120), body: (n.body ?? '').slice(0, 200), url: safePath(n.url) })
   await Promise.all((subs ?? []).map(async (s) => {
+    // iPhone (app Flow Workspace) : APNs ; navigateurs : Web Push
+    if (s.endpoint.startsWith('apns:')) {
+      if (await sendApns(s.endpoint, s.keys as { topic?: string }, { title: n.title, body: n.body, url: safePath(n.url) }) === 'gone') await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
+      return
+    }
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys as { p256dh: string; auth: string } }, payload) }
     catch (e) { const c = (e as { statusCode?: number }).statusCode; if (c === 404 || c === 410) await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint) }
   }))

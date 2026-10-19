@@ -4,6 +4,7 @@ import { getAdminDb, getServerDb } from '@/lib/supabase/server'
 import { rateLimited, sameOrigin } from '@/lib/security'
 import { safePath } from '@/lib/utils'
 import { mergePrefs, shouldAlert } from '@/lib/prefs'
+import { sendApns } from '@/lib/api/apns'
 
 export const runtime = 'nodejs'
 
@@ -38,6 +39,12 @@ export async function POST(req: Request) {
   const payload = JSON.stringify({ title: String(body.title).slice(0, 120), body: String(body.body ?? '').slice(0, 200), url: safePath(body.url) })
   let sent = 0
   await Promise.all((subs ?? []).map(async (s) => {
+    if (s.endpoint.startsWith('apns:')) {
+      const r = await sendApns(s.endpoint, s.keys as { topic?: string }, { title: String(body.title), body: body.body ?? null, url: safePath(body.url) })
+      if (r === 'ok') sent++
+      else if (r === 'gone') await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
+      return
+    }
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys as { p256dh: string; auth: string } }, payload); sent++ }
     catch (e) { if ((e as { statusCode?: number }).statusCode === 404 || (e as { statusCode?: number }).statusCode === 410) await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint) }
   }))
