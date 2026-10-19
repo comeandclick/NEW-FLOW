@@ -5,8 +5,10 @@ import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import { TableKit } from '@tiptap/extension-table'
 import { useEffect } from 'react'
-import { Bold, Code, Heading1, Heading2, Heading3, Italic, LinkIcon, List, ListChecks, ListOrdered, Minus, Quote, Redo2, Strikethrough, Undo2 } from 'lucide-react'
+import { Bold, Code, Heading1, Heading2, Heading3, Italic, LinkIcon, List, Table2, ListChecks, ListOrdered, Minus, Quote, Redo2, Strikethrough, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AmeliorerSelection, RedigerIA } from '@/components/notes/ia-redaction'
 import { useT } from '@/i18n/provider'
@@ -32,6 +34,9 @@ export function RichEditor({ content, editable, onChange, resetKey, noteId }: Pr
       Link.configure({ openOnClick: false, autolink: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      // Photos et tableaux : aussi créés depuis l'app mobile Flow Workspace, à conserver tels quels.
+      Image.configure({ inline: false, allowBase64: false }),
+      TableKit.configure({ table: { resizable: false } }),
       Placeholder.configure({ placeholder: t('notes.placeholder') }),
     ],
     content: Object.keys(content).length ? content : '',
@@ -77,6 +82,7 @@ export function RichEditor({ content, editable, onChange, resetKey, noteId }: Pr
           <ToolbarBtn on={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} label={t('ed.todos')} icon={ListChecks} />
           <ToolbarBtn on={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} label={t('ed.quote')} icon={Quote} />
           <ToolbarBtn on={() => editor.chain().focus().setHorizontalRule().run()} label={t('ed.divider')} icon={Minus} />
+          <ToolbarBtn on={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} active={editor.isActive('table')} label={t('ed.table')} icon={Table2} />
         </div>
       )}
       <div className="relative">

@@ -43,6 +43,7 @@ export const notes = {
     'ed.undo': 'Annuler',
     'ed.redo': 'Rétablir',
     'ed.divider': 'Séparateur',
+    'ed.table': 'Tableau',
   },
   en: {
     'notes.title': 'Notes',
@@ -88,5 +89,6 @@ export const notes = {
     'ed.undo': 'Undo',
     'ed.redo': 'Redo',
     'ed.divider': 'Divider',
+    'ed.table': 'Table',
   },
 } as const

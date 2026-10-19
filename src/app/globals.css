@@ -207,6 +207,13 @@ html, body { background: var(--bg); min-height: 100%; }
 .prose-flow h2 { font-size: 1.4em; font-weight: 620; letter-spacing: -0.015em; margin: 1em 0 0.4em; }
 .prose-flow h3 { font-size: 1.15em; font-weight: 600; margin: 0.9em 0 0.3em; }
 .prose-flow p { margin: 0.5em 0; }
+.prose-flow img { max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); margin: 0.75em 0; }
+.prose-flow img.ProseMirror-selectednode { outline: 2px solid var(--accent); }
+.prose-flow table { width: 100%; border-collapse: collapse; margin: 0.75em 0; font-size: 0.95em; table-layout: fixed; }
+.prose-flow th, .prose-flow td { border: 1px solid var(--border); padding: 6px 10px; vertical-align: top; }
+.prose-flow th { background: var(--surface-2); font-weight: 600; text-align: left; }
+.prose-flow td p, .prose-flow th p { margin: 0; }
+.prose-flow .selectedCell { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .prose-flow ul { list-style: disc; padding-left: 1.4em; }
 .prose-flow ol { list-style: decimal; padding-left: 1.4em; }
 .prose-flow ul[data-type='taskList'] { list-style: none; padding-left: 0; }
