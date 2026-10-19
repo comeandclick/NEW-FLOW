@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { getDb } from '@/lib/supabase/client'
 import { exitDemo, isDemoBrowser } from '@/lib/demo/runtime'
 import type { Profile } from '@/lib/types'
+import { oublierLiens } from '@/lib/storage'
 import { clearOfflineData, readIdentity, writeIdentity } from '@/lib/offline'
 
 type SessionCtx = {
@@ -62,6 +63,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     clearOfflineData()
+    oublierLiens()
+    try { void caches.delete('flow-miniatures-v1') } catch { /* rien */ }
     if (isDemoBrowser()) exitDemo(false)
     else await getDb().auth.signOut()
     window.location.href = '/'
