@@ -1,20 +1,36 @@
-# Vérifications à chaque envoi sur v3 et main : types, lint (erreurs seulement), tests.
+# Vérifications : types, lint (erreurs seulement), tests.
+# Économie de minutes GitHub Actions (forfait gratuit : 2 000 min/mois, budget à 0 $) :
+# - plus de lancement automatique à chaque envoi sur v3 (plusieurs sessions poussent souvent) : lancement à la main
+#   (onglet Actions > CI > Run workflow, ou `gh workflow run CI -R comeandclick/NEW-FLOW --ref v3`) ;
+# - main et demandes de fusion vers main : vérifiés à chaque fois ;
+# - un nouveau lancement annule celui en cours sur la même branche ;
+# - les changements de docs, SQL ou scripts seuls ne lancent rien.
+# Avant de pousser, vérifier en local : npx tsc --noEmit && npm test.
 name: CI
 on:
   push:
-    branches: [v3, main]
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'supabase/**', 'scripts/**']
   pull_request:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'supabase/**', 'scripts/**']
+  workflow_dispatch: {}
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verifier:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run lint -- --quiet
       - run: npm test
