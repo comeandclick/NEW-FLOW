@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { cleR2, estR2, lienR2, lireR2 } from '@/lib/r2'
 import { getAdminDb } from '@/lib/supabase/server'
 import { hashKey, sameHash } from '@/lib/api/keys'
 import { ALL_SCOPES, KEY_PREFIX, type StoredKey } from '@/lib/api/scopes'
@@ -282,11 +283,11 @@ async function files(ctx: Ctx, req: Request, method: string, id: string | undefi
   if (method === 'GET' && id && UUID.test(id)) {
     const { data: f } = await ctx.a.from('files').select('id,folder,name,size,mime_type,storage_path,created_at').eq('id', id).eq('workspace_id', ctx.ws.id).is('deleted_at', null).maybeSingle()
     if (!f) return fail(404, 'not_found', 'file not found')
-    const { data: s } = await bucket.createSignedUrl(f.storage_path, 600)
+    const lien = estR2(f.storage_path) ? lienR2(cleR2(f.storage_path), 'get', 600, f.name) : (await bucket.createSignedUrl(f.storage_path, 600)).data?.signedUrl ?? null
     const { storage_path: _p, ...meta } = f
-    const out: Row = { ...meta, download_url: s?.signedUrl ?? null, download_url_expires_in: 600 }
+    const out: Row = { ...meta, download_url: lien, download_url_expires_in: 600 }
     if (p.get('content') === '1' && (f.size ?? 0) <= 512 * 1024 && /^text\/|json|xml|markdown/.test(f.mime_type ?? '')) {
-      const { data: blob } = await bucket.download(f.storage_path)
+      const blob = estR2(f.storage_path) ? await lireR2(cleR2(f.storage_path)).catch(() => null) : (await bucket.download(f.storage_path)).data
       if (blob) out.content = await blob.text()
     }
     return json({ data: out })
@@ -397,8 +398,8 @@ async function captures(ctx: Ctx, req: Request, method: string, id: string | und
     if (data.file_id) {
       const { data: f } = await ctx.a.from('files').select('id,name,size,mime_type,storage_path').eq('id', data.file_id).eq('workspace_id', ctx.ws.id).maybeSingle()
       if (f) {
-        const { data: s } = await ctx.a.storage.from('files').createSignedUrl(f.storage_path, 600)
-        out.file = { id: f.id, name: f.name, size: f.size, mime_type: f.mime_type, download_url: s?.signedUrl ?? null, download_url_expires_in: 600 }
+        const lien = estR2(f.storage_path) ? lienR2(cleR2(f.storage_path), 'get', 600, f.name) : (await ctx.a.storage.from('files').createSignedUrl(f.storage_path, 600)).data?.signedUrl ?? null
+        out.file = { id: f.id, name: f.name, size: f.size, mime_type: f.mime_type, download_url: lien, download_url_expires_in: 600 }
       }
     }
     return json({ data: out })

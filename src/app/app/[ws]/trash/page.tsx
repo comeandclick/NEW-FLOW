@@ -60,7 +60,9 @@ export default function TrashPage() {
   async function purge(list: Item[]) {
     const db = getDb()
     for (const i of list) {
-      if (i.table === 'files' && i.path) await db.storage.from('files').remove([i.path])
+      // fichier déménagé sur Cloudflare R2 (chemin « r2:… ») : supprimé par le serveur, avant la ligne (le serveur vérifie le droit sur la ligne)
+      if (i.table === 'files' && i.path?.startsWith('r2:')) await fetch('/api/fichiers/supprimer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chemin: i.path }) }).catch(() => null)
+      else if (i.table === 'files' && i.path) await db.storage.from('files').remove([i.path])
       await db.from(i.table).delete().eq('id', i.id)
     }
     toast.success(t('common.deleted')); setConfirm(null); void load()

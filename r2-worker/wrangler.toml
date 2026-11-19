@@ -1,0 +1,8 @@
+name = "flow-fichiers"
+main = "index.js"
+compatibility_date = "2026-10-01"
+account_id = "f88d6b8e2fe311fb94fd36baee88fb0c"
+
+[[r2_buckets]]
+binding = "FICHIERS"
+bucket_name = "flow-fichiers"

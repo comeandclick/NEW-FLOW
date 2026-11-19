@@ -40,13 +40,25 @@ export async function signedUrl(bucket: 'files' | 'voice', path: string): Promis
   const key = `${bucket}/${path}`
   const hit = cache.get(key) ?? lienGarde(key)
   if (hit && hit.exp > Date.now()) { cache.set(key, hit); return hit.url }
-  const { data, error } = await getDb().storage.from(bucket).createSignedUrl(path, DUREE)
-  if (error || !data) return ''
+  // 19/11/2026 : les gros fichiers sont déménagés sur Cloudflare R2 (chemin « r2:… ») : lien signé par le serveur de Flow.
+  // Une ancienne référence (pièce jointe d'un message, vidéo d'une fiche Motion) peut encore porter le chemin d'avant le déménagement :
+  // si Supabase ne l'a plus, on essaie sa place sur R2.
+  const viaR2 = async (chemin: string) => {
+    const r = await fetch('/api/fichiers/lien', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chemin }) }).catch(() => null)
+    return r?.ok ? ((await r.json()) as { url?: string }).url ?? '' : ''
+  }
+  let url = ''
+  if (path.startsWith('r2:')) url = await viaR2(path)
+  else {
+    const { data, error } = await getDb().storage.from(bucket).createSignedUrl(path, DUREE)
+    url = !error && data ? data.signedUrl : bucket === 'files' ? await viaR2(`r2:${path}`) : ''
+  }
+  if (!url) return ''
   // Réutilisé jusqu'à un jour avant son expiration.
-  const v = { url: data.signedUrl, exp: Date.now() + (DUREE - 24 * 3600) * 1000 }
+  const v = { url, exp: Date.now() + (DUREE - 24 * 3600) * 1000 }
   cache.set(key, v)
   garderLien(key, v)
-  return data.signedUrl
+  return url
 }
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024
