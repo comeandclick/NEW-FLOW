@@ -2,6 +2,8 @@ import type { NextConfig } from 'next'
 
 const isProd = process.env.NODE_ENV === 'production'
 const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : 'https://*.supabase.co'
+// fichiers déménagés sur Cloudflare R2 (Worker flow-fichiers, 19/11/2026) : images, vidéos, téléchargements et vignettes (fetch)
+const r2 = process.env.FLOW_R2_URL ? new URL(process.env.FLOW_R2_URL).origin : 'https://flow-fichiers.kalimatapp.workers.dev'
 const supabaseWs = supabase.replace('https://', 'wss://')
 
 // Content-Security-Policy: scripts are same-origin (+ inline for Next hydration and the theme bootstrap).
@@ -9,12 +11,12 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${supabase}`,
-  `media-src 'self' data: blob: ${supabase}`,
+  `img-src 'self' data: blob: ${supabase} ${r2}`,
+  `media-src 'self' data: blob: ${supabase} ${r2}`,
   "font-src 'self' data:",
-  `connect-src 'self' ${supabase} ${supabaseWs} data: blob:`,
+  `connect-src 'self' ${supabase} ${supabaseWs} ${r2} data: blob:`,
   // lecteurs officiels des captures (TikTok, Instagram, YouTube sans cookies), lus sur place dans la page Captures
-  `frame-src 'self' blob: ${supabase} https://www.tiktok.com https://www.instagram.com https://www.youtube-nocookie.com`,
+  `frame-src 'self' blob: ${supabase} ${r2} https://www.tiktok.com https://www.instagram.com https://www.youtube-nocookie.com`,
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",
